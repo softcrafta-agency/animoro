@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Animoro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-body">
+
+  <!-- Admin Sidebar Navigation -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="admin-sidebar-header">
+      <a href="index.html" class="brand-logo">
+        <span class="brand-logo-text" style="font-size: 1.3rem;">ANIMORO</span>
+        <span class="brand-badge">ADMIN</span>
+      </a>
+    </div>
+
+    <nav class="admin-nav">
+      <div class="admin-nav-item active" data-tab="overview">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        Overview
+      </div>
+
+      <div class="admin-nav-item" data-tab="posts">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        Articles
+      </div>
+
+      <a href="admin-post-editor.html" class="admin-nav-item" style="text-decoration: none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Add New Article
+      </a>
+
+      <div class="admin-nav-item" data-tab="categories">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        Categories
+      </div>
+
+      <div class="admin-nav-item" data-tab="slider">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        Hero Slider
+      </div>
+
+      <div class="admin-nav-item" data-tab="contacts">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        Inquiries
+      </div>
+
+      <div class="admin-nav-item" data-tab="settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Firebase Settings
+      </div>
+    </nav>
+
+    <div class="admin-user-profile">
+      <div class="admin-user-info">
+        <span class="admin-user-email" id="adminUserEmail">admin</span>
+        <span class="admin-user-role">Administrator</span>
+      </div>
+      <button id="adminLogoutBtn" class="action-btn-sm" title="Sign Out">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Admin Main Wrapper -->
+  <div class="admin-main-wrapper">
+    <!-- Topbar -->
+    <header class="admin-topbar">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <button id="adminMobileToggle" class="action-btn-sm" style="display: none;" aria-label="Toggle Sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <h2 class="admin-topbar-title" id="adminViewTitle">Dashboard Overview</h2>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <a href="index.html" target="_blank" class="action-btn-sm" title="Open Public Website">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          Live Website
+        </a>
+        <a href="admin-post-editor.html" class="btn-cta" style="padding: 8px 16px; font-size: 0.85rem;">
+          + New Article
+        </a>
+      </div>
+    </header>
+
+    <div class="admin-content">
+
+      <!-- ============================================================
+           TAB 1: DASHBOARD OVERVIEW
+           ============================================================ -->
+      <section class="admin-tab-pane" id="tab-overview">
+        <!-- Real KPI Cards (Firestore counts) -->
+        <div class="kpi-grid">
+          <div class="kpi-card highlight">
+            <span class="kpi-label">Total Articles</span>
+            <div class="kpi-value" id="kpiTotalPosts">0</div>
+            <span class="kpi-hint">Created in Firestore</span>
+          </div>
+
+          <div class="kpi-card highlight">
+            <span class="kpi-label">Total Reader Views</span>
+            <div class="kpi-value" id="kpiTotalViews">0</div>
+            <span class="kpi-hint">Summed across all stories</span>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-label">Published</span>
+            <div class="kpi-value" id="kpiPublished" style="color: #34d399;">0</div>
+            <span class="kpi-hint">Live on site</span>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-label">Drafts</span>
+            <div class="kpi-value" id="kpiDrafts" style="color: #fbbf24;">0</div>
+            <span class="kpi-hint">Unpublished work</span>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-label">Hero Featured</span>
+            <div class="kpi-value" id="kpiFeatured" style="color: var(--accent-crimson);">0</div>
+            <span class="kpi-hint">Active in slider</span>
+          </div>
+
+          <div class="kpi-card">
+            <span class="kpi-label">Categories</span>
+            <div class="kpi-value" id="kpiCategories">7</div>
+            <span class="kpi-hint">Content verticals</span>
+          </div>
+        </div>
+
+        <!-- Real Analytics Performance Chart -->
+        <div class="analytics-card">
+          <div class="analytics-header">
+            <div>
+              <h3 style="font-family: var(--font-display); font-size: 1.15rem;">Article View Performance</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">Real visitor counts graphed per published article</p>
+            </div>
+            <span class="badge-category" style="margin: 0;">Cloud Firestore Real-Time</span>
+          </div>
+          <div id="analyticsChartContainer">
+            <!-- Rendered by js/analytics.js -->
+          </div>
+        </div>
+
+        <!-- Top Performing Articles Table -->
+        <div class="data-table-container">
+          <div class="table-toolbar">
+            <h3 style="font-family: var(--font-display); font-size: 1.1rem;">Top Performing Stories</h3>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Sorted by reader view count</span>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Article</th>
+                  <th>Category</th>
+                  <th>Views</th>
+                  <th>Published Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="topPerformingTableBody">
+                <!-- Loaded from Firestore -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB 2: ARTICLES MANAGEMENT
+           ============================================================ -->
+      <section class="admin-tab-pane" id="tab-posts" style="display: none;">
+        <div class="data-table-container">
+          <div class="table-toolbar">
+            <div class="table-filter-group">
+              <button class="action-btn-sm post-filter-btn active" data-filter="all">All Articles</button>
+              <button class="action-btn-sm post-filter-btn" data-filter="published">Published</button>
+              <button class="action-btn-sm post-filter-btn" data-filter="draft">Drafts</button>
+              <button class="action-btn-sm post-filter-btn" data-filter="featured">Featured</button>
+            </div>
+            <div>
+              <input type="text" id="postsSearchInput" class="table-search-input" placeholder="Search articles..." />
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Cover</th>
+                  <th>Title & Slug</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Featured Slider</th>
+                  <th>Views</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminPostsTableBody">
+                <!-- Loaded dynamically by js/admin-posts.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB 3: CATEGORIES MANAGER
+           ============================================================ -->
+      <section class="admin-tab-pane" id="tab-categories" style="display: none;">
+        <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 32px;">
+          <!-- Add Category Form -->
+          <div class="editor-card">
+            <h3 style="font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 16px;">Add New Category</h3>
+            <form id="addCategoryForm">
+              <div class="form-group">
+                <label class="form-label">Category Name</label>
+                <input type="text" id="newCategoryName" class="form-input" placeholder="e.g. Anime Movies" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="newCategoryDesc" class="form-textarea" placeholder="Editorial scope for this category..." style="min-height: 90px;"></textarea>
+              </div>
+              <button type="submit" class="btn-cta" style="width: 100%;">Create Category</button>
+            </form>
+          </div>
+
+          <!-- Existing Categories Table -->
+          <div class="data-table-container">
+            <div class="table-toolbar">
+              <h3 style="font-family: var(--font-display); font-size: 1.1rem;">Registered Categories</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Slug</th>
+                    <th>Description</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody id="categoriesTableBody">
+                  <!-- Loaded from Firestore -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB 4: FEATURED SLIDER MANAGER
+           ============================================================ -->
+      <section class="admin-tab-pane" id="tab-slider" style="display: none;">
+        <div class="editor-card">
+          <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 8px;">Homepage Hero Slider Management</h3>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 24px;">
+            Stories marked as <strong>Featured</strong> in the Articles table automatically populate the homepage dynamic slider.
+          </p>
+
+          <div id="featuredSliderManagerList">
+            <!-- Loaded by js/admin-posts.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB 5: CONTACT INQUIRIES
+           ============================================================ -->
+      <section class="admin-tab-pane" id="tab-contacts" style="display: none;">
+        <div class="data-table-container">
+          <div class="table-toolbar">
+            <h3 style="font-family: var(--font-display); font-size: 1.1rem;">Inquiries & Tips Inbox</h3>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Real messages submitted via contact.html</span>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Subject</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="contactsTableBody">
+                <!-- Loaded from Firestore contacts collection -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB 6: FIREBASE SETUP & SYSTEM SETTINGS
+           ============================================================ -->
+      <section class="admin-tab-pane" id="tab-settings" style="display: none;">
+        <div class="editor-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+              <h3 style="font-family: var(--font-display); font-size: 1.3rem;">Firebase Connection & Project Setup</h3>
+              <p style="color: var(--text-muted); font-size: 0.86rem;">Verify your Cloud Firestore, Authentication, and Storage configuration</p>
+            </div>
+            <button id="testFirebaseBtn" class="action-btn-sm" style="padding: 8px 14px;">
+              ⚡ Test Connection
+            </button>
+          </div>
+
+          <div id="testConnectionResult" style="padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 24px;">
+            Click "Test Connection" to verify real Firestore connectivity.
+          </div>
+
+          <h4 style="font-family: var(--font-display); font-size: 1rem; margin-bottom: 14px;">Firebase Credentials (Runtime Override)</h4>
+          <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 16px;">
+            You can enter your credentials below to immediately test your Firebase project without rebuilding code. They are stored securely in your local browser session.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label class="form-label">API Key (apiKey)</label>
+              <input type="text" id="cfg_apiKey" class="form-input" placeholder="AIzaSy..." />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Auth Domain (authDomain)</label>
+              <input type="text" id="cfg_authDomain" class="form-input" placeholder="your-project.firebaseapp.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Project ID (projectId)</label>
+              <input type="text" id="cfg_projectId" class="form-input" placeholder="your-project-id" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Storage Bucket (storageBucket)</label>
+              <input type="text" id="cfg_storageBucket" class="form-input" placeholder="your-project.firebasestorage.app" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Messaging Sender ID</label>
+              <input type="text" id="cfg_messagingSenderId" class="form-input" placeholder="1234567890" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">App ID (appId)</label>
+              <input type="text" id="cfg_appId" class="form-input" placeholder="1:123456789:web:abcdef" />
+            </div>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <button id="saveCustomConfigBtn" class="btn-cta">Save Credentials & Reload</button>
+          </div>
+
+          <!-- Step-by-Step Setup Instructions -->
+          <div style="margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border-subtle);">
+            <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 12px;">Step-by-Step Firebase Project Setup Guide</h4>
+            <ol style="padding-left: 20px; line-height: 1.8; color: var(--text-secondary); font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px;">
+              <li>Visit the <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent-crimson);">Firebase Console</a> and create a new project named <strong>animoro-blog</strong>.</li>
+              <li>Under <strong>Build &rarr; Authentication</strong>, enable the <strong>Email/Password</strong> provider. Under Users, add your admin user email (e.g. <code>softcrafta@gmail.com</code>).</li>
+              <li>Under <strong>Build &rarr; Firestore Database</strong>, click <strong>Create database</strong> in production mode.</li>
+              <li>Under <strong>Build &rarr; Storage</strong>, click <strong>Get started</strong> to enable Firebase Storage for article cover uploads.</li>
+              <li>Copy your Web App configuration snippet from Project Settings into the fields above or directly into <code style="color: var(--accent-crimson);">js/firebase-config.js</code>.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Delete Article Confirmation Modal -->
+  <div class="modal-backdrop" id="deletePostModal">
+    <div class="modal-card">
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 8px;">Delete Article</h3>
+      <p style="color: var(--text-secondary); font-size: 0.9rem;">
+        Are you sure you want to delete <span id="deletePostModalTitle" style="color: #fff; font-weight: 700;"></span>? This will permanently remove the article from Cloud Firestore.
+      </p>
+      <div class="modal-actions">
+        <button id="cancelDeletePostBtn" class="action-btn-sm" style="padding: 8px 16px;">Cancel</button>
+        <button id="confirmDeletePostBtn" class="btn-cta" style="background: #ef4444; border-color: #ef4444; padding: 8px 16px;">Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anime Category — Animoro</title>
+  <meta name="description" content="Explore anime articles by category on Animoro." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/responsive.css" />
+</head>
+<body>
+
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand-logo">
+        <span class="brand-logo-text">ANIMORO</span>
+        <span class="brand-badge">ANIME</span>
+      </a>
+
+      <nav class="main-nav">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="blogs.html" class="nav-link">Articles</a>
+        <a href="category.html?category=Anime%20News" class="nav-link">News</a>
+        <a href="category.html?category=Reviews" class="nav-link">Reviews</a>
+        <a href="category.html?category=Rankings" class="nav-link">Rankings</a>
+        <a href="about.html" class="nav-link">About</a>
+        <a href="contact.html" class="nav-link">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="search.html" class="search-toggle-btn" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </a>
+        <a href="admin-login.html" class="btn-admin-nav">Admin</a>
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer -->
+  <div class="mobile-drawer-backdrop" id="mobileBackdrop"></div>
+  <aside class="mobile-drawer" id="mobileNavDrawer">
+    <div class="drawer-header">
+      <span class="brand-logo-text" style="font-size: 1.4rem;">ANIMORO</span>
+      <button class="drawer-close-btn" id="drawerCloseBtn">&times;</button>
+    </div>
+    <nav class="mobile-nav-links">
+      <a href="index.html">Home</a>
+      <a href="blogs.html">All Articles</a>
+      <a href="category.html?category=Anime%20News">Anime News</a>
+      <a href="category.html?category=Reviews">Reviews</a>
+      <a href="category.html?category=Rankings">Rankings</a>
+      <a href="category.html?category=Guides">Guides</a>
+      <a href="category.html?category=Recommendations">Recommendations</a>
+      <a href="category.html?category=Manga">Manga</a>
+      <a href="category.html?category=Seasonal%20Anime">Seasonal Anime</a>
+      <a href="search.html">Search</a>
+      <a href="about.html">About Animoro</a>
+      <a href="contact.html">Contact Us</a>
+      <a href="admin-login.html" style="color: var(--accent-crimson); font-weight: 700;">Admin Portal</a>
+    </nav>
+  </aside>
+
+  <main class="section-padded">
+    <div class="container">
+      <div style="margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle);">
+        <span class="badge-category" style="margin-left: 0; margin-bottom: 12px; display: inline-block;">Category Archive</span>
+        <h1 class="section-title" id="categoryTitle" style="font-size: 2.5rem;">Anime News</h1>
+        <p class="section-subtitle" id="categoryDescription">Loading category overview...</p>
+      </div>
+
+      <!-- Articles Grid for Category -->
+      <div class="articles-grid" id="categoryArticlesContainer">
+        <!-- Loaded dynamically from Cloud Firestore -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container footer-bottom">
+      <div>&copy; 2026 Animoro. All rights reserved.</div>
+      <div><a href="blogs.html" style="color: var(--text-muted);">Explore All Categories</a></div>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/category.js"></script>
+</body>
+</html>

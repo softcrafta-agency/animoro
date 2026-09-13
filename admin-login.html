@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — Animoro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body style="background: #080a0f;">
+
+  <div class="admin-login-wrap">
+    <div class="login-card">
+      <div class="login-card-header">
+        <a href="index.html" class="brand-logo" style="justify-content: center; margin-bottom: 12px;">
+          <span class="brand-logo-text">ANIMORO</span>
+          <span class="brand-badge">ADMIN</span>
+        </a>
+        <h1 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 700;">Editorial Portal Login</h1>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+          Authenticate with your Firebase administrator credentials
+        </p>
+      </div>
+
+      <div id="loginFeedback" class="form-feedback error" style="display: none; margin-bottom: 20px;"></div>
+
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label for="adminEmail" class="form-label">Admin Email</label>
+          <input type="email" id="adminEmail" class="form-input" placeholder="admin@example.com" required autocomplete="username" />
+        </div>
+
+        <div class="form-group">
+          <label for="adminPassword" class="form-label">Password</label>
+          <input type="password" id="adminPassword" class="form-input" placeholder="••••••••••••" required autocomplete="current-password" />
+        </div>
+
+        <button type="submit" id="loginSubmitBtn" class="btn-cta" style="width: 100%; margin-top: 12px;">
+          Sign In to Dashboard
+        </button>
+      </form>
+
+      <!-- Setup Helper Box -->
+      <div style="margin-top: 32px; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+        <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span>⚙️ Initial Firebase Setup Guide</span>
+        </div>
+        <p style="margin-bottom: 8px;">
+          Animoro uses <strong>Firebase Authentication (Email/Password)</strong>. To create your first admin:
+        </p>
+        <ol style="padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+          <li>In Firebase Console, enable <strong>Email/Password</strong> under Authentication &rarr; Sign-in method.</li>
+          <li>Under Authentication &rarr; Users, click <strong>Add user</strong>.</li>
+          <li>Enter your admin email and a secure password.</li>
+          <li>Enter your project credentials in <code style="color: var(--accent-crimson);">js/firebase-config.js</code> or the Admin Setup panel.</li>
+        </ol>
+      </div>
+
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="index.html" style="font-size: 0.85rem; color: var(--text-muted);">&larr; Return to Animoro Homepage</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { loginAdmin, requireAdminAuth } from '/js/auth.js';
+    import { isConfigured } from '/js/firebase-init.js';
+
+    // If already logged in, redirect to admin.html
+    requireAdminAuth();
+
+    const form = document.getElementById('adminLoginForm');
+    const feedback = document.getElementById('loginFeedback');
+    const submitBtn = document.getElementById('loginSubmitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      feedback.style.display = 'none';
+
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+
+      if (!isConfigured) {
+        // If Firebase is not configured yet, allow demo/setup preview
+        if (confirm("Firebase project credentials are not configured in js/firebase-config.js yet. Would you like to enter the Admin Dashboard in setup mode?")) {
+          localStorage.setItem('animoro_admin_user', email || 'setup-admin');
+          window.location.href = 'admin.html#settings';
+          return;
+        }
+        feedback.textContent = "Firebase credentials must be configured to log in with real authentication.";
+        feedback.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Authenticating...';
+
+      try {
+        await loginAdmin(email, password);
+        window.location.href = 'admin.html';
+      } catch (err) {
+        console.error("Login failed:", err);
+        let msg = err.message;
+        if (msg.includes('user-not-found') || msg.includes('invalid-credential') || msg.includes('wrong-password')) {
+          msg = "Invalid email or password. Please verify your credentials.";
+        }
+        feedback.textContent = msg;
+        feedback.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In to Dashboard';
+      }
+    });
+  </script>
+</body>
+</html>

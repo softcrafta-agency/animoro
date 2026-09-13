@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animoro — Your Daily Dose of Anime</title>
+  <meta name="description" content="Animoro is a premier anime editorial blog bringing you the latest anime news, reviews, tier rankings, guides, and seasonal recommendations." />
+  <meta property="og:title" content="Animoro — Your Daily Dose of Anime" />
+  <meta property="og:description" content="Animoro is a premier anime editorial blog bringing you the latest anime news, reviews, tier rankings, guides, and seasonal recommendations." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/responsive.css" />
+</head>
+<body>
+
+  <!-- Firebase Setup Banner (visible only if credentials are unconfigured) -->
+  <aside class="config-banner hidden" id="configBanner" role="alert"></aside>
+
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand-logo" aria-label="Animoro Home">
+        <span class="brand-logo-text">ANIMORO</span>
+        <span class="brand-badge">ANIME</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="index.html" class="nav-link active">Home</a>
+        <a href="blogs.html" class="nav-link">Articles</a>
+        <a href="category.html?category=Anime%20News" class="nav-link">News</a>
+        <a href="category.html?category=Reviews" class="nav-link">Reviews</a>
+        <a href="category.html?category=Rankings" class="nav-link">Rankings</a>
+        <a href="about.html" class="nav-link">About</a>
+        <a href="contact.html" class="nav-link">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="search.html" class="search-toggle-btn" aria-label="Search articles">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </a>
+        <a href="admin-login.html" class="btn-admin-nav">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zM9 7a3 3 0 0 1 6 0v3H9V7z"></path></svg>
+          Admin
+        </a>
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle navigation menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer -->
+  <div class="mobile-drawer-backdrop" id="mobileBackdrop"></div>
+  <aside class="mobile-drawer" id="mobileNavDrawer" aria-label="Mobile Navigation">
+    <div class="drawer-header">
+      <span class="brand-logo-text" style="font-size: 1.4rem;">ANIMORO</span>
+      <button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="mobile-nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="blogs.html">All Articles</a>
+      <a href="category.html?category=Anime%20News">Anime News</a>
+      <a href="category.html?category=Reviews">Reviews</a>
+      <a href="category.html?category=Rankings">Rankings</a>
+      <a href="category.html?category=Guides">Guides</a>
+      <a href="category.html?category=Recommendations">Recommendations</a>
+      <a href="category.html?category=Manga">Manga</a>
+      <a href="category.html?category=Seasonal%20Anime">Seasonal Anime</a>
+      <a href="search.html">Search</a>
+      <a href="about.html">About Animoro</a>
+      <a href="contact.html">Contact Us</a>
+      <a href="admin-login.html" style="color: var(--accent-crimson); font-weight: 700;">Admin Portal</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Slider Section -->
+    <section class="hero-section" aria-label="Featured Stories">
+      <div class="container">
+        <div class="hero-slider-container" id="heroSliderContainer">
+          <!-- Populated by js/home.js from Firestore -->
+          <div class="slider-skeleton" style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+            <span>Loading featured anime stories...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Layout (Articles + Sidebar) -->
+    <section class="section-padded">
+      <div class="container home-layout-grid">
+        <!-- Latest Articles Column -->
+        <div class="latest-articles-column">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Latest Articles</h2>
+              <p class="section-subtitle">Freshly written anime guides, news updates, and deep dives</p>
+            </div>
+            <a href="blogs.html" class="btn-outline">Browse All &rarr;</a>
+          </div>
+
+          <div class="articles-grid" id="latestArticlesContainer">
+            <!-- Populated by js/home.js from Cloud Firestore -->
+            <div class="empty-state" style="grid-column: 1 / -1;">
+              <p class="empty-state-desc">Loading stories from Animoro database...</p>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin-top: 40px;">
+            <button class="btn-outline" id="loadMoreArticlesBtn" style="display: none;">
+              Load More Stories
+            </button>
+          </div>
+        </div>
+
+        <!-- Trending Sidebar Column -->
+        <aside class="trending-sidebar" aria-label="Trending Anime Articles">
+          <div class="trending-box">
+            <h3 class="trending-header-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              Trending Now
+            </h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">
+              Ranked live by reader view counts
+            </p>
+
+            <div class="trending-list" id="trendingList">
+              <!-- Populated by js/home.js ordered by views DESC -->
+              <div class="empty-state" style="padding: 24px 16px;">
+                <p class="empty-state-desc">Loading trending articles...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editorial Pick / Notice Card -->
+          <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px; margin-top: 24px;">
+            <span class="badge-category" style="margin-left: 0; margin-bottom: 12px; display: inline-block;">Editorial</span>
+            <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 8px;">Curated for Anime Enthusiasts</h4>
+            <p style="font-size: 0.86rem; color: var(--text-secondary); line-height: 1.6;">
+              Animoro delivers real journalism and genuine critique. No AI-generated spam, no clickbait — pure anime passion.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Categories Grid Section -->
+    <section class="section-padded" style="border-top: 1px solid var(--border-subtle); background: var(--bg-surface);">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Explore Categories</h2>
+            <p class="section-subtitle">Dive directly into your favorite anime genres and editorial verticals</p>
+          </div>
+        </div>
+
+        <div class="categories-grid">
+          <a href="category.html?category=Anime%20News" class="category-card">
+            <div class="category-icon">📰</div>
+            <h3 class="category-name">Anime News</h3>
+            <p class="category-desc">Trailers, release dates, studio announcements, and industry updates.</p>
+          </a>
+          <a href="category.html?category=Reviews" class="category-card">
+            <div class="category-icon">⭐</div>
+            <h3 class="category-name">Reviews</h3>
+            <p class="category-desc">In-depth critiques, episode analyses, and honest spoiler-free ratings.</p>
+          </a>
+          <a href="category.html?category=Rankings" class="category-card">
+            <div class="category-icon">🏆</div>
+            <h3 class="category-name">Rankings</h3>
+            <p class="category-desc">Power rankings, top anime of the season, and iconic character tier lists.</p>
+          </a>
+          <a href="category.html?category=Guides" class="category-card">
+            <div class="category-icon">🧭</div>
+            <h3 class="category-name">Guides</h3>
+            <p class="category-desc">Watch orders, lore explanations, and beginner roadmaps for sprawling sagas.</p>
+          </a>
+          <a href="category.html?category=Recommendations" class="category-card">
+            <div class="category-icon">💡</div>
+            <h3 class="category-name">Recommendations</h3>
+            <p class="category-desc">What to watch next tailored to your favorite genres, tropes, and moods.</p>
+          </a>
+          <a href="category.html?category=Seasonal%20Anime" class="category-card">
+            <div class="category-icon">🌸</div>
+            <h3 class="category-name">Seasonal Anime</h3>
+            <p class="category-desc">Complete seasonal broadcast schedules, previews, and must-watch lists.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Newsletter CTA Banner -->
+    <section class="section-padded">
+      <div class="container">
+        <div class="newsletter-card">
+          <h2 class="newsletter-title">Never Miss a Broadcast</h2>
+          <p class="newsletter-desc">Get the freshest anime news, seasonal previews, and editorial picks delivered straight to your inbox.</p>
+          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Thank you for subscribing to Animoro Dispatch!'); this.reset();">
+            <input type="email" class="newsletter-input" placeholder="Enter your email address" required aria-label="Email Address" />
+            <button type="submit" class="btn-cta">Subscribe</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <span class="brand-logo-text" style="font-size: 1.6rem;">ANIMORO</span>
+        <p class="footer-tagline">Your Daily Dose of Anime.</p>
+        <p class="footer-desc">
+          Animoro is an independent anime publication dedicated to delivering high-caliber journalism, thoughtful criticism, and passionate storytelling for fans worldwide.
+        </p>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">Editorial Sections</h4>
+        <ul class="footer-links">
+          <li><a href="category.html?category=Anime%20News">Anime News</a></li>
+          <li><a href="category.html?category=Reviews">Reviews & Deep Dives</a></li>
+          <li><a href="category.html?category=Rankings">Rankings & Tier Lists</a></li>
+          <li><a href="category.html?category=Guides">Watch Order Guides</a></li>
+          <li><a href="category.html?category=Recommendations">Recommendations</a></li>
+          <li><a href="category.html?category=Seasonal%20Anime">Seasonal Anime</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-col-title">About & Community</h4>
+        <ul class="footer-links">
+          <li><a href="about.html">About Animoro</a></li>
+          <li><a href="contact.html">Contact Editorial Team</a></li>
+          <li><a href="search.html">Search Archive</a></li>
+          <li><a href="admin-login.html">Admin Portal</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <div>&copy; 2026 Animoro. Built for anime fans worldwide. All anime imagery and titles belong to their respective creators and animation studios.</div>
+      <div style="display: flex; gap: 16px;">
+        <a href="admin-login.html" style="color: var(--text-muted); font-size: 0.8rem;">Staff Login</a>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'softcrafta@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidPost(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200 &&
+             data.excerpt is string && data.excerpt.size() <= 500 &&
+             data.content is string && data.content.size() <= 50000 &&
+             data.category is string && data.category.size() <= 100 &&
+             (data.status == 'draft' || data.status == 'published');
+    }
+
+    // Posts Collection
+    match /posts/{postId} {
+      allow get: if isValidId(postId) && (resource.data.status == 'published' || isAdmin());
+      allow list: if resource.data.status == 'published' || isAdmin();
+      allow create: if isAdmin() && isValidPost(incoming());
+      allow update: if (isAdmin() && isValidPost(incoming())) ||
+                       (incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+                        incoming().views == existing().views + 1);
+      allow delete: if isAdmin();
+    }
+
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow read: if isValidId(categoryId);
+      allow write: if isAdmin();
+    }
+
+    // Contacts Collection
+    match /contacts/{contactId} {
+      allow create: if isValidId(contactId) &&
+                       incoming().name is string && incoming().name.size() <= 100 &&
+                       incoming().email is string && incoming().email.size() <= 200 &&
+                       incoming().message is string && incoming().message.size() <= 5000;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Admins Collection
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && request.auth.uid == adminUid;
+      allow list, write: if false;
+    }
+  }
+}

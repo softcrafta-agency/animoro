@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Animoro — Editorial & Press Inquiries</title>
+  <meta name="description" content="Get in touch with Animoro editorial, review team, or business inquiries." />
+  <meta property="og:title" content="Contact Animoro — Editorial & Press Inquiries" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/responsive.css" />
+</head>
+<body>
+
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="brand-logo">
+        <span class="brand-logo-text">ANIMORO</span>
+        <span class="brand-badge">ANIME</span>
+      </a>
+
+      <nav class="main-nav">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="blogs.html" class="nav-link">Articles</a>
+        <a href="category.html?category=Anime%20News" class="nav-link">News</a>
+        <a href="category.html?category=Reviews" class="nav-link">Reviews</a>
+        <a href="category.html?category=Rankings" class="nav-link">Rankings</a>
+        <a href="about.html" class="nav-link">About</a>
+        <a href="contact.html" class="nav-link active">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="admin-login.html" class="btn-admin-nav">Admin</a>
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer -->
+  <div class="mobile-drawer-backdrop" id="mobileBackdrop"></div>
+  <aside class="mobile-drawer" id="mobileNavDrawer">
+    <div class="drawer-header">
+      <span class="brand-logo-text" style="font-size: 1.4rem;">ANIMORO</span>
+      <button class="drawer-close-btn" id="drawerCloseBtn">&times;</button>
+    </div>
+    <nav class="mobile-nav-links">
+      <a href="index.html">Home</a>
+      <a href="blogs.html">All Articles</a>
+      <a href="category.html?category=Anime%20News">Anime News</a>
+      <a href="category.html?category=Reviews">Reviews</a>
+      <a href="category.html?category=Rankings">Rankings</a>
+      <a href="about.html">About Animoro</a>
+      <a href="contact.html" class="active">Contact Us</a>
+      <a href="admin-login.html" style="color: var(--accent-crimson); font-weight: 700;">Admin Portal</a>
+    </nav>
+  </aside>
+
+  <main class="section-padded">
+    <div class="container" style="max-width: 760px;">
+      <div style="text-align: center; margin-bottom: 40px;">
+        <span class="badge-category" style="margin-left: 0; margin-bottom: 12px; display: inline-block;">Get in Touch</span>
+        <h1 class="section-title" style="font-size: 2.6rem; margin-bottom: 12px;">Contact Editorial</h1>
+        <p class="section-subtitle">Have a news tip, review request, corrections notice, or press inquiry? Send us a message directly.</p>
+      </div>
+
+      <div class="contact-container">
+        <div id="contactFormSuccess" class="form-feedback success" style="display: none; margin-bottom: 24px;">
+          <strong>Message Sent!</strong> Thank you for reaching out to Animoro. Our editors will review your inquiry shortly.
+        </div>
+
+        <div id="contactFormError" class="form-feedback error" style="display: none; margin-bottom: 24px;"></div>
+
+        <form id="contactForm">
+          <div class="form-group">
+            <label for="contactName" class="form-label">Full Name</label>
+            <input type="text" id="contactName" class="form-input" placeholder="e.g. Shinji Ikari" required />
+          </div>
+
+          <div class="form-group">
+            <label for="contactEmail" class="form-label">Email Address</label>
+            <input type="email" id="contactEmail" class="form-input" placeholder="you@example.com" required />
+          </div>
+
+          <div class="form-group">
+            <label for="contactSubject" class="form-label">Subject</label>
+            <select id="contactSubject" class="form-select">
+              <option value="Editorial Tip">News & Editorial Tip</option>
+              <option value="Review Request">Anime / Manga Review Request</option>
+              <option value="Correction">Article Correction</option>
+              <option value="Press / Business">Press or Business Partnership</option>
+              <option value="Other">General Question</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="contactMessage" class="form-label">Message</label>
+            <textarea id="contactMessage" class="form-textarea" placeholder="Write your message here..." required></textarea>
+          </div>
+
+          <div style="margin-top: 28px;">
+            <button type="submit" id="contactSubmitBtn" class="btn-cta" style="width: 100%;">
+              Send Message to Animoro
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-bottom">
+      <div>&copy; 2026 Animoro. All rights reserved.</div>
+      <div><a href="index.html" style="color: var(--text-muted);">Back to Homepage</a></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+    import { db, isConfigured, handleFirestoreError } from '/js/firebase-init.js';
+    import { setupMobileNav } from '/js/home.js';
+
+    setupMobileNav();
+
+    const form = document.getElementById('contactForm');
+    const submitBtn = document.getElementById('contactSubmitBtn');
+    const successBox = document.getElementById('contactFormSuccess');
+    const errorBox = document.getElementById('contactFormError');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      successBox.style.display = 'none';
+      errorBox.style.display = 'none';
+
+      const name = document.getElementById('contactName').value.trim();
+      const email = document.getElementById('contactEmail').value.trim();
+      const subject = document.getElementById('contactSubject').value;
+      const message = document.getElementById('contactMessage').value.trim();
+
+      if (!name || !email || !message) {
+        errorBox.textContent = "Please fill in all required fields.";
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      if (!isConfigured || !db) {
+        errorBox.textContent = "Firebase is not configured yet with project credentials. Please configure Firebase to save inquiries to Firestore.";
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending message...';
+
+      try {
+        await addDoc(collection(db, 'contacts'), {
+          name,
+          email,
+          subject,
+          message,
+          createdAt: serverTimestamp()
+        });
+
+        form.reset();
+        successBox.style.display = 'block';
+      } catch (err) {
+        handleFirestoreError(err, 'create', 'contacts');
+        errorBox.textContent = "Could not send message: " + err.message;
+        errorBox.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Message to Animoro';
+      }
+    });
+  </script>
+</body>
+</html>

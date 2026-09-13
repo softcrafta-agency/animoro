@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "Post": {
+      "title": "Post",
+      "description": "Anime blog post document",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "slug": { "type": "string", "maxLength": 200 },
+        "excerpt": { "type": "string", "maxLength": 500 },
+        "content": { "type": "string", "maxLength": 50000 },
+        "coverImage": { "type": "string", "maxLength": 2000 },
+        "category": { "type": "string", "maxLength": 100 },
+        "tags": { "type": "array" },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "featured": { "type": "boolean" },
+        "featuredOrder": { "type": "number" },
+        "views": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "publishedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "excerpt", "content", "category", "authorName", "status"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Anime blog category",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "slug": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug"]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Visitor contact inquiry message",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 200 },
+        "message": { "type": "string", "maxLength": 5000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["name", "email", "subject", "message"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator authorization record",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Anime blog articles"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Anime blog categories"
+    },
+    "/contacts/{contactId}": {
+      "schema": "ContactMessage",
+      "description": "Visitor contact form messages"
+    },
+    "/admins/{adminUid}": {
+      "schema": "Admin",
+      "description": "Authorized admins mapping"
+    }
+  }
+}
