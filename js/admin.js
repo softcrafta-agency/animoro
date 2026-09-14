@@ -1,13 +1,12 @@
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  query, 
-  orderBy, 
-  serverTimestamp 
+import {
+  collection,
+  getDocs,
+  addDoc,
+  query,
+  orderBy,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db, isConfigured, testConnection, handleFirestoreError } from './firebase-init.js';
-import { getActiveFirebaseConfig } from './firebase-config.js';
 import { requireAdminAuth, logoutAdmin } from './auth.js';
 import { loadAdminPosts, setupPostsTableControls } from './admin-posts.js';
 import { renderPerformanceChart } from './analytics.js';
@@ -62,7 +61,7 @@ function setupTabs() {
         categories: 'Categories Manager',
         slider: 'Featured Slider Manager',
         contacts: 'Contact Inquiries',
-        settings: 'Firebase & System Settings'
+        settings: 'System Settings'
       };
       pageTitle.textContent = titles[tabId] || 'Dashboard';
     }
@@ -257,19 +256,18 @@ async function loadContactMessages() {
  * Firebase Settings & Live Tester
  */
 function setupFirebaseSettings() {
-  const activeCfg = getActiveFirebaseConfig();
   const testBtn = document.getElementById('testFirebaseBtn');
   const testResult = document.getElementById('testConnectionResult');
-  const saveBtn = document.getElementById('saveCustomConfigBtn');
 
-  // Populate config fields
-  const fields = ['apiKey', 'authDomain', 'projectId', 'messagingSenderId', 'appId'];
-  fields.forEach(f => {
-    const input = document.getElementById(`cfg_${f}`);
-    if (input && activeCfg[f]) {
-      input.value = activeCfg[f];
+  if (testResult) {
+    if (isConfigured) {
+      testResult.textContent = 'Firebase is configured from VITE_FIREBASE_* environment variables.';
+      testResult.style.color = '#34d399';
+    } else {
+      testResult.textContent = 'Firebase config is not available yet. Add the VITE_FIREBASE_* values in .env or Vercel and redeploy.';
+      testResult.style.color = '#fbbf24';
     }
-  });
+  }
 
   if (testBtn) {
     testBtn.addEventListener('click', async () => {
@@ -278,25 +276,6 @@ function setupFirebaseSettings() {
       const res = await testConnection();
       testResult.textContent = res.message;
       testResult.style.color = res.success ? '#34d399' : '#f87171';
-    });
-  }
-
-  if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
-      const newConfig = {};
-      fields.forEach(f => {
-        const input = document.getElementById(`cfg_${f}`);
-        if (input) newConfig[f] = input.value.trim();
-      });
-
-      if (!newConfig.apiKey || !newConfig.projectId) {
-        alert("Please provide at least apiKey and projectId.");
-        return;
-      }
-
-      localStorage.setItem('animoro_firebase_config', JSON.stringify(newConfig));
-      alert("Firebase credentials saved! Reloading application...");
-      window.location.reload();
     });
   }
 

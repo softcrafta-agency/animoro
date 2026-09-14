@@ -56,7 +56,7 @@
 
       <div class="admin-nav-item" data-tab="settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-        Firebase Settings
+        Settings
       </div>
     </nav>
 
@@ -330,14 +330,14 @@
       </section>
 
       <!-- ============================================================
-           TAB 6: FIREBASE SETUP & SYSTEM SETTINGS
+           TAB 6: SYSTEM SETTINGS
            ============================================================ -->
       <section class="admin-tab-pane" id="tab-settings" style="display: none;">
         <div class="editor-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div>
-              <h3 style="font-family: var(--font-display); font-size: 1.3rem;">Firebase Connection & Project Setup</h3>
-              <p style="color: var(--text-muted); font-size: 0.86rem;">Verify your Cloud Firestore and Firebase Authentication configuration</p>
+              <h3 style="font-family: var(--font-display); font-size: 1.3rem;">System Settings</h3>
+              <p style="color: var(--text-muted); font-size: 0.86rem;">Firebase is configured through environment variables and Vercel deployment settings.</p>
             </div>
             <button id="testFirebaseBtn" class="action-btn-sm" style="padding: 8px 14px;">
               ⚡ Test Connection
@@ -345,55 +345,27 @@
           </div>
 
           <div id="testConnectionResult" style="padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 24px;">
-            Click "Test Connection" to verify real Firestore connectivity.
+            Checking Firebase status...
           </div>
 
-          <h4 style="font-family: var(--font-display); font-size: 1rem; margin-bottom: 14px;">Firebase Credentials (Runtime Override)</h4>
-          <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 16px;">
-            You can enter your credentials below to immediately test your Firebase project without rebuilding code. They are stored securely in your local browser session.
-          </p>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <div class="form-group">
-              <label class="form-label">API Key (apiKey)</label>
-              <input type="text" id="cfg_apiKey" class="form-input" placeholder="AIzaSy..." />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Auth Domain (authDomain)</label>
-              <input type="text" id="cfg_authDomain" class="form-input" placeholder="your-project.firebaseapp.com" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Project ID (projectId)</label>
-              <input type="text" id="cfg_projectId" class="form-input" placeholder="your-project-id" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Messaging Sender ID</label>
-              <input type="text" id="cfg_messagingSenderId" class="form-input" placeholder="1234567890" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">App ID (appId)</label>
-              <input type="text" id="cfg_appId" class="form-input" placeholder="1:123456789:web:abcdef" />
-            </div>
+          <div style="padding: 18px 20px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); line-height: 1.7; color: var(--text-secondary); font-size: 0.9rem;">
+            <p style="margin: 0 0 8px; color: var(--text-primary); font-weight: 700;">Environment-based configuration</p>
+            <p style="margin: 0;">
+              Firebase credentials are read from the Vite environment variables <strong>VITE_FIREBASE_API_KEY</strong>, <strong>VITE_FIREBASE_AUTH_DOMAIN</strong>, <strong>VITE_FIREBASE_PROJECT_ID</strong>, <strong>VITE_FIREBASE_MESSAGING_SENDER_ID</strong>, and <strong>VITE_FIREBASE_APP_ID</strong>.
+              Add them to your local <strong>.env</strong> file or to the Vercel Environment Variables panel and redeploy.
+            </p>
           </div>
 
-          <div style="margin-top: 20px;">
-            <button id="saveCustomConfigBtn" class="btn-cta">Save Credentials & Reload</button>
-          </div>
-
-          <!-- Step-by-Step Setup Instructions -->
           <div style="margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border-subtle);">
-            <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 12px;">Step-by-Step Firebase Project Setup Guide</h4>
+            <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 12px;">Firebase project checklist</h4>
             <ol style="padding-left: 20px; line-height: 1.8; color: var(--text-secondary); font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px;">
-              <li>Visit the <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent-crimson);">Firebase Console</a> and create a new project named <strong>animoro-blog</strong>.</li>
-              <li>Under <strong>Build &rarr; Authentication</strong>, enable the <strong>Email/Password</strong> provider. Under Users, add your admin user email (e.g. <code>softcrafta@gmail.com</code>).</li>
-              <li>Under <strong>Build &rarr; Firestore Database</strong>, click <strong>Create database</strong> in production mode.</li>
-              <li>Under <strong>Firestore Database &rarr; Rules</strong>, paste the security rules below and click <strong>Publish</strong>.</li>
-              <li>Under <strong>Firestore Database &rarr; Data</strong>, the <code>admins</code> collection auto-bootstraps for <code>softcrafta@gmail.com</code> upon login.</li>
-              <li>Copy your Web App configuration snippet from Project Settings into the fields above or directly into <code style="color: var(--accent-crimson);">js/firebase-config.js</code>.</li>
+              <li>Enable <strong>Email/Password</strong> authentication in the Firebase Console.</li>
+              <li>Create or confirm the <strong>admins</strong> collection and add an admin document using the Firebase Auth UID as the document ID with <strong>{ "role": "admin" }</strong>.</li>
+              <li>Create the Firestore database and publish the rules below.</li>
+              <li>Verify your public articles are read-only for visitors and that drafts remain admin-only.</li>
             </ol>
           </div>
 
-          <!-- Firestore Security Rules Display Card -->
           <div style="margin-top: 32px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
               <div>

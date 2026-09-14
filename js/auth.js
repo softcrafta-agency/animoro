@@ -7,40 +7,21 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, isConfigured } from './firebase-init.js';
 
-export const BOOTSTRAP_ADMIN_EMAIL = 'softcrafta@gmail.com';
-
 /**
  * Check if the given authenticated user is authorized as an administrator.
+ * Access is granted only when the Firestore admins/{uid} document exists
+ * and contains role: 'admin'.
  */
 export async function verifyAdminStatus(user) {
-  if (!user) return false;
+  if (!user || !db) return false;
 
-  // 1. Known admin UID check
-  if (user.uid === 'X5WFM4C88cecVqry3wr4luIIVAv1') {
-    return true;
+  try {
+    const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+    return adminDoc.exists() && adminDoc.data()?.role === 'admin';
+  } catch (e) {
+    console.warn('Error checking admin doc:', e);
+    return false;
   }
-
-  // 2. Bootstrapped admin email check
-  if (user.email && user.email.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase()) {
-    return true;
-  }
-
-  // 3. Firestore admins collection check
-  if (db) {
-    try {
-      const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-      if (adminDoc.exists()) {
-        const data = adminDoc.data();
-        if (!data.role || data.role === 'admin') {
-          return true;
-        }
-      }
-    } catch (e) {
-      console.warn("Error checking admin doc:", e);
-    }
-  }
-
-  return false;
 }
 
 /**
@@ -111,13 +92,13 @@ export function requireAdminAuth(onAuthorized = () => {}) {
  */
 export async function loginAdmin(email, password) {
   if (!isConfigured || !auth) {
-    throw new Error("Firebase is not configured yet with valid credentials. Please enter your Firebase configuration first.");
+    throw new Error('Firebase is not configured yet. Add the VITE_FIREBASE_* values in your environment and redeploy.');
   }
   const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
   const isAdmin = await verifyAdminStatus(cred.user);
   if (!isAdmin) {
     await signOut(auth);
-    throw new Error(`This account (${cred.user.email}) is not authorized as an administrator. To grant admin access, add a document in Firestore under collection 'admins' with Document ID '${cred.user.uid}' and field { role: 'admin' }, or sign in using ${BOOTSTRAP_ADMIN_EMAIL}.`);
+    throw new Error(`This account (${cred.user.email}) is not authorized as an administrator. Add an 'admins/${cred.user.uid}' document with { role: 'admin' } in Firestore.`);
   }
 
   // Ensure the admin document is synced in Firestore

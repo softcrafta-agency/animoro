@@ -48,7 +48,7 @@
       <!-- Setup Helper Box -->
       <div style="margin-top: 32px; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
         <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-          <span>⚙️ Initial Firebase Setup Guide</span>
+          <span>⚙️ Firebase Access</span>
         </div>
         <p style="margin-bottom: 8px;">
           Animoro uses <strong>Firebase Authentication (Email/Password)</strong>. To create your first admin:
@@ -57,7 +57,7 @@
           <li>In Firebase Console, enable <strong>Email/Password</strong> under Authentication &rarr; Sign-in method.</li>
           <li>Under Authentication &rarr; Users, click <strong>Add user</strong>.</li>
           <li>Enter your admin email and a secure password.</li>
-          <li>Enter your project credentials in <code style="color: var(--accent-crimson);">js/firebase-config.js</code> or the Admin Setup panel.</li>
+          <li>Set the Firebase web config values in your environment variables and redeploy.</li>
         </ol>
       </div>
 
@@ -78,6 +78,13 @@
     const feedback = document.getElementById('loginFeedback');
     const submitBtn = document.getElementById('loginSubmitBtn');
 
+    if (location.protocol === 'file:' || location.port === '5500') {
+      feedback.textContent = 'This project must be opened through the Vite dev server. Run "npm install" and then "npm run dev" and open the local Vite URL instead of opening this file directly from Live Server or a file:// URL.';
+      feedback.style.display = 'block';
+      submitBtn.disabled = true;
+      return;
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       feedback.style.display = 'none';
@@ -86,13 +93,7 @@
       const password = document.getElementById('adminPassword').value;
 
       if (!isConfigured) {
-        // If Firebase is not configured yet, allow demo/setup preview
-        if (confirm("Firebase project credentials are not configured in js/firebase-config.js yet. Would you like to enter the Admin Dashboard in setup mode?")) {
-          localStorage.setItem('animoro_admin_user', email || 'setup-admin');
-          window.location.href = 'admin.html#settings';
-          return;
-        }
-        feedback.textContent = "Firebase credentials must be configured to log in with real authentication.";
+        feedback.textContent = "Firebase has not been configured with environment variables. Add the VITE_FIREBASE_* values and redeploy.";
         feedback.style.display = 'block';
         return;
       }

@@ -22,8 +22,8 @@ export async function loadAdminPosts(onStatsLoaded = () => {}) {
   if (!isConfigured || !db) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" style="text-align: center; padding: 36px;">
-          Configure your Firebase credentials in the Firebase Setup tab to load real posts from Cloud Firestore.
+        <td colspan="8" style="text-align: center; padding: 36px; color: var(--text-secondary);">
+          Firebase has not been configured with VITE_FIREBASE_* environment variables. Add the values and redeploy.
         </td>
       </tr>
     `;
