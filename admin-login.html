@@ -82,10 +82,9 @@
       feedback.textContent = 'This project must be opened through the Vite dev server. Run "npm install" and then "npm run dev" and open the local Vite URL instead of opening this file directly from Live Server or a file:// URL.';
       feedback.style.display = 'block';
       submitBtn.disabled = true;
-      return;
-    }
-
-    form.addEventListener('submit', async (e) => {
+      submitBtn.textContent = 'Open via Vite dev server';
+    } else {
+      form.addEventListener('submit', async (e) => {
       e.preventDefault();
       feedback.style.display = 'none';
 
@@ -116,11 +115,12 @@
         }
         feedback.textContent = msg;
         feedback.style.display = 'block';
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign In to Dashboard';
-      }
-    });
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign In to Dashboard';
+        }
+      });
+    }
   </script>
 </body>
 </html>
