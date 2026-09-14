@@ -106,8 +106,12 @@
       } catch (err) {
         console.error("Login failed:", err);
         let msg = err.message;
-        if (msg.includes('user-not-found') || msg.includes('invalid-credential') || msg.includes('wrong-password')) {
-          msg = "Invalid email or password. Please verify your credentials.";
+        if (msg.includes('network-request-failed')) {
+          msg = "Network request failed. Please check your internet connection and verify that Firebase Authentication is enabled in your Firebase project console.";
+        } else if (msg.includes('user-not-found') || msg.includes('invalid-credential') || msg.includes('wrong-password')) {
+          msg = "Invalid email or password. Please verify your credentials in Firebase Authentication.";
+        } else if (msg.includes('too-many-requests')) {
+          msg = "Too many failed attempts. Access to this account has been temporarily disabled. Please try again later or reset your password.";
         }
         feedback.textContent = msg;
         feedback.style.display = 'block';

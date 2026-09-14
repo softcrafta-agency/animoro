@@ -5,9 +5,10 @@ import {
   deleteDoc, 
   updateDoc, 
   orderBy, 
-  query 
+  query,
+  where
 } from 'firebase/firestore';
-import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
+import { auth, db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { formatDate, formatViews } from './home.js';
 
 let adminPostsList = [];
@@ -39,13 +40,47 @@ export async function loadAdminPosts(onStatsLoaded = () => {}) {
   `;
 
   try {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const snap = await getDocs(q);
+    let snap;
+    try {
+      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+      snap = await getDocs(q);
+    } catch (orderErr) {
+      console.warn("Query with orderBy failed, attempting fallback collection query:", orderErr);
+      try {
+        const fallbackQ = query(collection(db, 'posts'));
+        snap = await getDocs(fallbackQ);
+      } catch (collErr) {
+        const curUser = auth?.currentUser;
+        if (curUser) {
+          console.warn("Full collection query failed, trying authorId query fallback:", collErr);
+          try {
+            const authorQ = query(collection(db, 'posts'), where('authorId', '==', curUser.uid));
+            snap = await getDocs(authorQ);
+          } catch (authorErr) {
+            console.warn("Author query failed, attempting published status query:", authorErr);
+            const pubQ = query(collection(db, 'posts'), where('status', '==', 'published'));
+            snap = await getDocs(pubQ);
+          }
+        } else {
+          throw collErr;
+        }
+      }
+    }
 
     adminPostsList = snap.docs.map(d => ({
       id: d.id,
       ...d.data()
     }));
+
+    // Client-side sort by createdAt or publishedAt descending
+    adminPostsList.sort((a, b) => {
+      const getTime = (p) => {
+        const ts = p.createdAt || p.publishedAt;
+        if (!ts) return 0;
+        return ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime();
+      };
+      return getTime(b) - getTime(a);
+    });
 
     // Calculate real stats
     const stats = {
@@ -62,10 +97,33 @@ export async function loadAdminPosts(onStatsLoaded = () => {}) {
 
   } catch (error) {
     handleFirestoreError(error, 'list', 'posts');
+    try {
+      onStatsLoaded({ total: 0, published: 0, draft: 0, featured: 0, totalViews: 0 }, []);
+    } catch (e) {
+      console.warn("Could not fire stats callback on error:", e);
+    }
+    const isPermError = error?.message?.includes('permission') || error?.code === 'permission-denied';
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" style="text-align: center; padding: 28px; color: #f87171;">
-          Unable to fetch posts. Please check Firestore Security Rules and permissions.
+        <td colspan="8" style="text-align: center; padding: 36px 20px; color: var(--text-primary);">
+          <div style="max-width: 620px; margin: 0 auto;">
+            <div style="font-size: 1.1rem; font-weight: 700; color: #f87171; margin-bottom: 8px;">
+              ${isPermError ? "Firestore Permission Denied (firestore.rules)" : "Unable to load articles"}
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px;">
+              ${isPermError 
+                ? "Your Firebase Firestore database rejected the read request for the 'posts' collection. To resolve this, ensure the project's <strong>firestore.rules</strong> are deployed in your Firebase Console (Rules tab)."
+                : (error?.message || "An error occurred while fetching posts from Cloud Firestore.")}
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+              <a href="#settings" class="btn-cta" style="padding: 8px 16px; font-size: 0.85rem;" onclick="document.querySelector('[data-tab=settings]')?.click()">
+                Copy Firestore Rules in Settings &rarr;
+              </a>
+              <button class="action-btn-sm" style="padding: 8px 16px; font-size: 0.85rem;" onclick="window.location.reload()">
+                Retry Connection
+              </button>
+            </div>
+          </div>
         </td>
       </tr>
     `;

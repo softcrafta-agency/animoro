@@ -118,8 +118,22 @@ async function loadArticles(reset = false) {
       constraints.push(startAfter(lastDoc));
     }
 
-    const q = query(collection(db, 'posts'), ...constraints);
-    const snap = await getDocs(q);
+    let snap;
+    let fallbackUsed = false;
+    try {
+      const q = query(collection(db, 'posts'), ...constraints);
+      snap = await getDocs(q);
+    } catch (orderErr) {
+      console.warn("Ordered query in blogs.js failed, attempting status fallback:", orderErr);
+      const simpleConstraints = [where('status', '==', 'published')];
+      if (selectedCategory && selectedCategory !== 'all') {
+        simpleConstraints.push(where('category', '==', selectedCategory));
+      }
+      simpleConstraints.push(limit(50));
+      const fallbackQ = query(collection(db, 'posts'), ...simpleConstraints);
+      snap = await getDocs(fallbackQ);
+      fallbackUsed = true;
+    }
 
     if (reset) {
       container.innerHTML = '';
@@ -136,16 +150,31 @@ async function loadArticles(reset = false) {
       return;
     }
 
-    if (!snap.empty) {
-      lastDoc = snap.docs[snap.docs.length - 1];
-      snap.forEach(doc => {
+    let docs = [...snap.docs];
+    if (fallbackUsed) {
+      docs.sort((a, b) => {
+        const pA = a.data();
+        const pB = b.data();
+        if (currentSort === 'popular') {
+          return (pB.views || 0) - (pA.views || 0);
+        }
+        const tA = pA.publishedAt?.toDate ? pA.publishedAt.toDate().getTime() : (pA.publishedAt ? new Date(pA.publishedAt).getTime() : 0);
+        const tB = pB.publishedAt?.toDate ? pB.publishedAt.toDate().getTime() : (pB.publishedAt ? new Date(pB.publishedAt).getTime() : 0);
+        return currentSort === 'oldest' ? tA - tB : tB - tA;
+      });
+      docs = docs.slice(0, PAGE_SIZE);
+    }
+
+    if (docs.length > 0) {
+      lastDoc = docs[docs.length - 1];
+      docs.forEach(doc => {
         container.appendChild(createArticleCard(doc.id, doc.data()));
       });
     }
 
     if (loadMoreBtn) {
       loadMoreBtn.textContent = 'Load More Articles';
-      loadMoreBtn.style.display = snap.docs.length === PAGE_SIZE ? 'inline-flex' : 'none';
+      loadMoreBtn.style.display = (!fallbackUsed && snap.docs.length === PAGE_SIZE) ? 'inline-flex' : 'none';
     }
 
   } catch (error) {

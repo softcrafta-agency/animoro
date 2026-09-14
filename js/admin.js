@@ -263,7 +263,7 @@ function setupFirebaseSettings() {
   const saveBtn = document.getElementById('saveCustomConfigBtn');
 
   // Populate config fields
-  const fields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+  const fields = ['apiKey', 'authDomain', 'projectId', 'messagingSenderId', 'appId'];
   fields.forEach(f => {
     const input = document.getElementById(`cfg_${f}`);
     if (input && activeCfg[f]) {
@@ -297,6 +297,123 @@ function setupFirebaseSettings() {
       localStorage.setItem('animoro_firebase_config', JSON.stringify(newConfig));
       alert("Firebase credentials saved! Reloading application...");
       window.location.reload();
+    });
+  }
+
+  const copyRulesBtn = document.getElementById('copyFirestoreRulesBtn');
+  const rulesPre = document.getElementById('firestoreRulesPre');
+  const firestoreRulesText = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'X5WFM4C88cecVqry3wr4luIIVAv1' ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'softcrafta@gmail.com' ||
+          request.auth.token.email == 'Softcrafta@gmail.com' ||
+          request.auth.token.email.lower() == 'softcrafta@gmail.com'
+        ))
+      );
+    }
+
+    function isSuperOrDocAdmin() {
+      return isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidPost(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
+             data.category is string && data.category.size() <= 100 &&
+             (data.status == 'draft' || data.status == 'published') &&
+             (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000)) &&
+             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 2000)) &&
+             (!('tags' in data) || data.tags is list) &&
+             (!('featured' in data) || data.featured is bool) &&
+             (!('featuredOrder' in data) || data.featuredOrder is number) &&
+             (!('views' in data) || data.views is number) &&
+             (!('authorId' in data) || (data.authorId is string && data.authorId.size() <= 128)) &&
+             (!('authorEmail' in data) || (data.authorEmail is string && data.authorEmail.size() <= 200)) &&
+             (!('authorName' in data) || (data.authorName is string && data.authorName.size() <= 100));
+    }
+
+    // Posts Collection
+    match /posts/{postId} {
+      allow get: if (resource.data.status == 'published') ||
+                    isSuperOrDocAdmin() ||
+                    (isSignedIn() && resource.data.authorId == request.auth.uid);
+      allow list: if (resource.data.status == 'published') ||
+                     isAdmin() ||
+                     (isSignedIn() && resource.data.authorId == request.auth.uid);
+      allow create: if isSuperOrDocAdmin() || (isSignedIn() && incoming().authorId == request.auth.uid);
+      allow update: if isSuperOrDocAdmin() ||
+                       (isSignedIn() && resource.data.authorId == request.auth.uid) ||
+                       (resource.data.status == 'published' &&
+                        incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+                        incoming().views == existing().views + 1);
+      allow delete: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSuperOrDocAdmin();
+    }
+
+    // Contacts Collection
+    match /contacts/{contactId} {
+      allow create: if incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100 &&
+                       incoming().email is string && incoming().email.size() > 0 && incoming().email.size() <= 200 &&
+                       incoming().message is string && incoming().message.size() > 0 && incoming().message.size() <= 5000;
+      allow get, list, update, delete: if isSuperOrDocAdmin();
+    }
+
+    // Admins Collection
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && (request.auth.uid == adminUid || isSuperOrDocAdmin());
+      allow list: if isSuperOrDocAdmin();
+      allow create, update: if isSignedIn() && (
+        request.auth.uid == 'X5WFM4C88cecVqry3wr4luIIVAv1' ||
+        request.auth.uid == adminUid ||
+        isSuperOrDocAdmin()
+      );
+      allow delete: if isSuperOrDocAdmin();
+    }
+  }
+}`;
+
+  if (rulesPre) {
+    rulesPre.textContent = firestoreRulesText;
+  }
+
+  if (copyRulesBtn) {
+    copyRulesBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(firestoreRulesText);
+        const originalText = copyRulesBtn.textContent;
+        copyRulesBtn.textContent = '✓ Rules Copied!';
+        copyRulesBtn.style.color = '#34d399';
+        setTimeout(() => {
+          copyRulesBtn.textContent = originalText;
+          copyRulesBtn.style.color = '';
+        }, 3000);
+      } catch (e) {
+        alert("Please copy the rules manually from the box.");
+      }
     });
   }
 }

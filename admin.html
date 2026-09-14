@@ -95,6 +95,29 @@
 
     <div class="admin-content">
 
+      <!-- Global Firestore Permission Alert Banner -->
+      <div id="firestorePermissionAlert" style="display: none; background: rgba(225, 29, 72, 0.12); border: 1px solid rgba(225, 29, 72, 0.4); border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;">
+        <div style="display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap;">
+          <div style="display: flex; gap: 12px; align-items: flex-start; max-width: 780px;">
+            <span style="font-size: 1.5rem; line-height: 1;">⚠️</span>
+            <div>
+              <strong style="color: #f87171; font-size: 0.95rem; display: block; margin-bottom: 4px;">Firestore Rules Activation Needed</strong>
+              <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.5; margin: 0;">
+                Your Firebase project rejected requests to the <strong>posts</strong> collection (Missing or insufficient permissions). Copy and publish the security rules in your Firebase Console to enable full access.
+              </p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="button" id="alertCopyRulesBtn" class="btn-cta" style="padding: 8px 16px; font-size: 0.85rem; background: var(--accent-crimson);">
+              📋 Copy Rules
+            </button>
+            <button type="button" id="alertGoSettingsBtn" class="action-btn-sm" style="padding: 8px 14px; font-size: 0.85rem;">
+              View Rules &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ============================================================
            TAB 1: DASHBOARD OVERVIEW
            ============================================================ -->
@@ -314,7 +337,7 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div>
               <h3 style="font-family: var(--font-display); font-size: 1.3rem;">Firebase Connection & Project Setup</h3>
-              <p style="color: var(--text-muted); font-size: 0.86rem;">Verify your Cloud Firestore, Authentication, and Storage configuration</p>
+              <p style="color: var(--text-muted); font-size: 0.86rem;">Verify your Cloud Firestore and Firebase Authentication configuration</p>
             </div>
             <button id="testFirebaseBtn" class="action-btn-sm" style="padding: 8px 14px;">
               ⚡ Test Connection
@@ -344,10 +367,6 @@
               <input type="text" id="cfg_projectId" class="form-input" placeholder="your-project-id" />
             </div>
             <div class="form-group">
-              <label class="form-label">Storage Bucket (storageBucket)</label>
-              <input type="text" id="cfg_storageBucket" class="form-input" placeholder="your-project.firebasestorage.app" />
-            </div>
-            <div class="form-group">
               <label class="form-label">Messaging Sender ID</label>
               <input type="text" id="cfg_messagingSenderId" class="form-input" placeholder="1234567890" />
             </div>
@@ -368,9 +387,24 @@
               <li>Visit the <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent-crimson);">Firebase Console</a> and create a new project named <strong>animoro-blog</strong>.</li>
               <li>Under <strong>Build &rarr; Authentication</strong>, enable the <strong>Email/Password</strong> provider. Under Users, add your admin user email (e.g. <code>softcrafta@gmail.com</code>).</li>
               <li>Under <strong>Build &rarr; Firestore Database</strong>, click <strong>Create database</strong> in production mode.</li>
-              <li>Under <strong>Build &rarr; Storage</strong>, click <strong>Get started</strong> to enable Firebase Storage for article cover uploads.</li>
+              <li>Under <strong>Firestore Database &rarr; Rules</strong>, paste the security rules below and click <strong>Publish</strong>.</li>
+              <li>Under <strong>Firestore Database &rarr; Data</strong>, the <code>admins</code> collection auto-bootstraps for <code>softcrafta@gmail.com</code> upon login.</li>
               <li>Copy your Web App configuration snippet from Project Settings into the fields above or directly into <code style="color: var(--accent-crimson);">js/firebase-config.js</code>.</li>
             </ol>
+          </div>
+
+          <!-- Firestore Security Rules Display Card -->
+          <div style="margin-top: 32px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <h4 style="font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 4px;">Required Cloud Firestore Rules (firestore.rules)</h4>
+                <p style="color: var(--text-muted); font-size: 0.82rem;">Paste these rules into Firebase Console &rarr; Firestore Database &rarr; Rules tab to allow publishing and public reads.</p>
+              </div>
+              <button id="copyFirestoreRulesBtn" class="action-btn-sm" style="padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px;">
+                📋 Copy Rules to Clipboard
+              </button>
+            </div>
+            <pre id="firestoreRulesPre" style="background: #09090b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 16px; font-family: monospace; font-size: 0.78rem; line-height: 1.5; color: #a1a1aa; max-height: 320px; overflow-y: auto; white-space: pre;"></pre>
           </div>
         </div>
       </section>

@@ -1,6 +1,6 @@
 {
   "name": "Animoro",
-  "description": "A modern, premium anime blog website with Firebase Authentication, Cloud Firestore, and Firebase Storage.",
+  "description": "A modern, premium anime blog website with Firebase Authentication and Cloud Firestore.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -55,7 +55,19 @@ async function initHeroSlider() {
       limit(5)
     );
 
-    const snapshot = await getDocs(q);
+    let snapshot = await getDocs(q);
+    let isFallbackToLatest = false;
+    if (snapshot.empty) {
+      // Fallback: If no posts are explicitly marked featured, display the latest published posts
+      const fallbackQ = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        limit(3)
+      );
+      snapshot = await getDocs(fallbackQ);
+      isFallbackToLatest = true;
+    }
+
     if (snapshot.empty) {
       renderSliderEmptyState(container, "No featured anime stories yet. Mark published articles as featured in the Admin panel.");
       return;
@@ -66,8 +78,16 @@ async function initHeroSlider() {
       ...doc.data()
     }));
 
-    // Sort by featuredOrder if present
-    featuredSlides.sort((a, b) => (a.featuredOrder || 99) - (b.featuredOrder || 99));
+    // Sort by featuredOrder if present, or by publishedAt/createdAt if fallback
+    if (!isFallbackToLatest) {
+      featuredSlides.sort((a, b) => (a.featuredOrder || 99) - (b.featuredOrder || 99));
+    } else {
+      featuredSlides.sort((a, b) => {
+        const tA = a.publishedAt?.toDate?.() || new Date(a.publishedAt || a.createdAt || 0);
+        const tB = b.publishedAt?.toDate?.() || new Date(b.publishedAt || b.createdAt || 0);
+        return tB - tA;
+      });
+    }
 
     renderSlides(container, featuredSlides);
     setupSliderControls(container);
@@ -254,14 +274,26 @@ async function initLatestArticles() {
   }
 
   try {
-    const q = query(
-      collection(db, 'posts'),
-      where('status', '==', 'published'),
-      orderBy('publishedAt', 'desc'),
-      limit(ARTICLES_PER_PAGE)
-    );
+    let snapshot;
+    let usedFallback = false;
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        orderBy('publishedAt', 'desc'),
+        limit(ARTICLES_PER_PAGE)
+      );
+      snapshot = await getDocs(q);
+    } catch (orderErr) {
+      console.warn("Ordered query for latest articles failed, trying status filter:", orderErr);
+      const fallbackQ = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published')
+      );
+      snapshot = await getDocs(fallbackQ);
+      usedFallback = true;
+    }
 
-    const snapshot = await getDocs(q);
     if (snapshot.empty) {
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
@@ -276,14 +308,24 @@ async function initLatestArticles() {
       return;
     }
 
-    lastArticleDoc = snapshot.docs[snapshot.docs.length - 1];
+    let docs = [...snapshot.docs];
+    if (usedFallback) {
+      docs.sort((a, b) => {
+        const tA = a.data().publishedAt?.toDate ? a.data().publishedAt.toDate().getTime() : (a.data().publishedAt ? new Date(a.data().publishedAt).getTime() : 0);
+        const tB = b.data().publishedAt?.toDate ? b.data().publishedAt.toDate().getTime() : (b.data().publishedAt ? new Date(b.data().publishedAt).getTime() : 0);
+        return tB - tA;
+      });
+      docs = docs.slice(0, ARTICLES_PER_PAGE);
+    }
+
+    lastArticleDoc = docs[docs.length - 1];
     container.innerHTML = '';
-    snapshot.forEach(doc => {
+    docs.forEach(doc => {
       container.appendChild(createArticleCard(doc.id, doc.data()));
     });
 
     if (loadMoreBtn) {
-      loadMoreBtn.style.display = snapshot.docs.length === ARTICLES_PER_PAGE ? 'inline-flex' : 'none';
+      loadMoreBtn.style.display = (!usedFallback && snapshot.docs.length === ARTICLES_PER_PAGE) ? 'inline-flex' : 'none';
       loadMoreBtn.addEventListener('click', loadMoreArticles);
     }
   } catch (error) {
@@ -387,14 +429,26 @@ async function initTrendingArticles() {
   }
 
   try {
-    const q = query(
-      collection(db, 'posts'),
-      where('status', '==', 'published'),
-      orderBy('views', 'desc'),
-      limit(5)
-    );
+    let snapshot;
+    let usedFallback = false;
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        orderBy('views', 'desc'),
+        limit(5)
+      );
+      snapshot = await getDocs(q);
+    } catch (orderErr) {
+      console.warn("Trending posts query with orderBy failed, using status filter:", orderErr);
+      const fallbackQ = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published')
+      );
+      snapshot = await getDocs(fallbackQ);
+      usedFallback = true;
+    }
 
-    const snapshot = await getDocs(q);
     if (snapshot.empty) {
       container.innerHTML = `
         <div class="empty-state" style="padding: 32px 16px;">
@@ -404,7 +458,13 @@ async function initTrendingArticles() {
       return;
     }
 
-    container.innerHTML = snapshot.docs.map((doc, idx) => {
+    let docs = [...snapshot.docs];
+    if (usedFallback) {
+      docs.sort((a, b) => (b.data().views || 0) - (a.data().views || 0));
+      docs = docs.slice(0, 5);
+    }
+
+    container.innerHTML = docs.map((doc, idx) => {
       const post = doc.data();
       return `
         <div class="trending-item">

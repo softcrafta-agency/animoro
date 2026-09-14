@@ -46,14 +46,26 @@ async function initCategoryPage() {
   }
 
   try {
-    const q = query(
-      collection(db, 'posts'),
-      where('status', '==', 'published'),
-      where('category', '==', categoryName),
-      orderBy('publishedAt', 'desc')
-    );
-
-    const snap = await getDocs(q);
+    let snap;
+    let usedFallback = false;
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('category', '==', categoryName),
+        orderBy('publishedAt', 'desc')
+      );
+      snap = await getDocs(q);
+    } catch (idxErr) {
+      console.warn("Compound index query failed for category, using fallback query:", idxErr);
+      const fallbackQ = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('category', '==', categoryName)
+      );
+      snap = await getDocs(fallbackQ);
+      usedFallback = true;
+    }
 
     if (snap.empty) {
       container.innerHTML = `
@@ -68,9 +80,18 @@ async function initCategoryPage() {
       return;
     }
 
+    let posts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (usedFallback) {
+      posts.sort((a, b) => {
+        const tA = a.publishedAt?.toDate?.() || new Date(a.publishedAt || a.createdAt || 0);
+        const tB = b.publishedAt?.toDate?.() || new Date(b.publishedAt || b.createdAt || 0);
+        return tB - tA;
+      });
+    }
+
     container.innerHTML = '';
-    snap.forEach(doc => {
-      container.appendChild(createArticleCard(doc.id, doc.data()));
+    posts.forEach(post => {
+      container.appendChild(createArticleCard(post.id, post));
     });
   } catch (error) {
     handleFirestoreError(error, 'list', 'posts');

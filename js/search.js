@@ -39,16 +39,38 @@ async function loadAllPublishedPosts() {
   if (!isConfigured || !db) return;
 
   try {
-    const q = query(
-      collection(db, 'posts'),
-      where('status', '==', 'published'),
-      orderBy('publishedAt', 'desc')
-    );
-    const snap = await getDocs(q);
+    let snap;
+    let usedFallback = false;
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        orderBy('publishedAt', 'desc')
+      );
+      snap = await getDocs(q);
+    } catch (orderErr) {
+      console.warn("Ordered query failed in search, falling back to simple status query:", orderErr);
+      const fallbackQ = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published')
+      );
+      snap = await getDocs(fallbackQ);
+      usedFallback = true;
+    }
+
     allPublishedPosts = snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+
+    if (usedFallback) {
+      allPublishedPosts.sort((a, b) => {
+        const tA = a.publishedAt?.toDate?.() || new Date(a.publishedAt || a.createdAt || 0);
+        const tB = b.publishedAt?.toDate?.() || new Date(b.publishedAt || b.createdAt || 0);
+        return tB - tA;
+      });
+    }
+
     isLoaded = true;
   } catch (err) {
     handleFirestoreError(err, 'list', 'posts');
