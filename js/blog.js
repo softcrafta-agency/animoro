@@ -152,7 +152,7 @@ function renderArticle(container, id, post) {
 
     ${post.coverImage ? `
       <div class="article-cover-wrap">
-        <img class="article-cover-img" src="${post.coverImage}" alt="${post.title}" />
+        <img class="article-cover-img" src="${post.coverImage}" alt="${post.title}" referrerpolicy="no-referrer" onerror="this.closest('.article-cover-wrap').innerHTML = '<p style=\"padding: 24px; color: var(--text-muted); text-align: center;\">Cover image could not be loaded. The saved URL may not be a direct image link or may block external websites.</p>'" />
       </div>
     ` : ''}
 

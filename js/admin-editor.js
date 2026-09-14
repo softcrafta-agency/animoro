@@ -160,6 +160,29 @@ function setupCoverImageUrl() {
     uploadedCoverUrl = trimmed;
 
     if (trimmed) {
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(trimmed);
+      } catch {
+        if (placeholder) {
+          placeholder.style.display = 'block';
+          placeholder.innerHTML = '<span style="color: #f59e0b;">Enter a complete image URL starting with https://.</span>';
+        }
+        if (previewImg) previewImg.style.display = 'none';
+        if (actions) actions.style.display = 'flex';
+        return;
+      }
+
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        if (placeholder) {
+          placeholder.style.display = 'block';
+          placeholder.innerHTML = '<span style="color: #f59e0b;">The image URL must start with http:// or https://.</span>';
+        }
+        if (previewImg) previewImg.style.display = 'none';
+        if (actions) actions.style.display = 'flex';
+        return;
+      }
+
       if (previewImg) {
         previewImg.src = trimmed;
         previewImg.style.display = 'block';
@@ -172,7 +195,7 @@ function setupCoverImageUrl() {
           console.warn("Could not preview image from:", trimmed);
           if (placeholder) {
             placeholder.style.display = 'block';
-            placeholder.innerHTML = `<span style="color: #f59e0b;">Warning: Could not preview image at this URL. Please verify the link.</span>`;
+            placeholder.innerHTML = `<span style="color: #f59e0b;">This URL did not return an image. Use the direct image address, not a page or search-result URL.</span>`;
           }
           if (actions) actions.style.display = 'flex';
         };
@@ -309,6 +332,15 @@ async function handlePostSubmit(e) {
   if (!content || content === '<br>') {
     showFeedback(feedbackEl, "Please enter article body content.", "error");
     return;
+  }
+  if (coverImage) {
+    try {
+      const coverUrl = new URL(coverImage);
+      if (!['http:', 'https:'].includes(coverUrl.protocol)) throw new Error();
+    } catch {
+      showFeedback(feedbackEl, "Please enter a direct image URL starting with http:// or https://.", "error");
+      return;
+    }
   }
 
   // Auto-generate excerpt if not provided (clean text from HTML, max 200 chars)
