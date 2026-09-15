@@ -112,23 +112,51 @@ function updateSeoTags(post) {
   if (ogImage && post.coverImage) ogImage.setAttribute('content', post.coverImage);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getCoverImageSource(value) {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('data:image/')) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return '';
+}
+
+function renderCoverImageFallback(wrap) {
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <p style="padding: 24px; color: var(--text-muted); text-align: center; margin: 0;">
+      Cover image could not be loaded. The saved URL may not be a direct image link or may block external websites.
+    </p>
+  `;
+}
+
 function renderArticle(container, id, post) {
-  const tagsHtml = (post.tags || []).map(t => `<span class="tag-chip">#${t}</span>`).join('');
+  const tagsHtml = (post.tags || []).map(t => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join('');
   const currentUrl = window.location.href;
+  const coverSource = getCoverImageSource(post.coverImage);
 
   container.innerHTML = `
     <header class="article-header">
       <div class="article-header-meta">
         <a href="category.html?category=${encodeURIComponent(post.category || 'Anime')}" class="badge-category" style="margin-left: 0;">
-          ${post.category || 'General'}
+          ${escapeHtml(post.category || 'General')}
         </a>
         <span style="color: var(--text-muted); font-size: 0.85rem;">•</span>
         <span style="color: var(--text-secondary); font-size: 0.85rem;">${formatDate(post.publishedAt || post.createdAt)}</span>
       </div>
 
-      <h1 class="article-page-title">${post.title}</h1>
+      <h1 class="article-page-title">${escapeHtml(post.title || 'Untitled Article')}</h1>
       
-      ${post.excerpt ? `<p class="article-excerpt-lead">${post.excerpt}</p>` : ''}
+      ${post.excerpt ? `<p class="article-excerpt-lead">${escapeHtml(post.excerpt)}</p>` : ''}
 
       <div class="article-author-bar">
         <div class="article-author-details">
@@ -136,8 +164,8 @@ function renderArticle(container, id, post) {
             ${(post.authorName || 'A')[0].toUpperCase()}
           </div>
           <div>
-            <div style="font-weight: 700; color: var(--text-primary);">${post.authorName || 'Animoro Editor'}</div>
-            <div style="font-size: 0.78rem; color: var(--text-muted);">Published in ${post.category || 'Anime'}</div>
+            <div style="font-weight: 700; color: var(--text-primary);">${escapeHtml(post.authorName || 'Animoro Editor')}</div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Published in ${escapeHtml(post.category || 'Anime')}</div>
           </div>
         </div>
 
@@ -150,9 +178,9 @@ function renderArticle(container, id, post) {
       </div>
     </header>
 
-    ${post.coverImage ? `
+    ${coverSource ? `
       <div class="article-cover-wrap">
-        <img class="article-cover-img" src="${post.coverImage}" alt="${post.title}" referrerpolicy="no-referrer" onerror="this.closest('.article-cover-wrap').innerHTML = '<p style=\"padding: 24px; color: var(--text-muted); text-align: center;\">Cover image could not be loaded. The saved URL may not be a direct image link or may block external websites.</p>'" />
+        <img class="article-cover-img" alt="${escapeHtml(post.title || 'Article cover')}" referrerpolicy="no-referrer" />
       </div>
     ` : ''}
 
@@ -176,6 +204,15 @@ function renderArticle(container, id, post) {
       </div>
     </main>
   `;
+
+  const coverImg = container.querySelector('.article-cover-img');
+  if (coverImg) {
+    coverImg.src = coverSource;
+    coverImg.onerror = () => {
+      const wrap = coverImg.closest('.article-cover-wrap');
+      renderCoverImageFallback(wrap);
+    };
+  }
 
   // Attach share link copy handler
   const copyBtn = document.getElementById('copyShareBtn');

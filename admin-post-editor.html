@@ -113,14 +113,27 @@
 
           <!-- Metadata & Publishing Sidebar (Right) -->
           <div>
-            <!-- Cover Image Box (Direct Image URL) -->
+            <!-- Cover Image Box -->
             <div class="editor-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="font-family: var(--font-display); font-size: 1.05rem;">Cover Image</h3>
-                <span style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-surface); padding: 2px 8px; border-radius: var(--radius-full); border: 1px solid var(--border-subtle);">Direct URL</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+                <h3 style="font-family: var(--font-display); font-size: 1.05rem; margin: 0;">Cover Image</h3>
+                <div class="cover-image-mode-toggle" aria-label="Choose cover image source">
+                  <button type="button" class="cover-mode-toggle active" data-cover-mode="upload">Upload Image</button>
+                  <button type="button" class="cover-mode-toggle" data-cover-mode="url">Direct URL</button>
+                </div>
               </div>
-              
-              <div class="form-group" style="margin-bottom: 12px;">
+
+              <div id="coverUploadPanel" class="form-group" style="margin-bottom: 12px;">
+                <input type="file" id="coverFileInput" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" hidden />
+                <div id="coverUploadBox" class="cover-upload-box" tabindex="0" role="button" aria-label="Upload cover image">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin: 0 auto 10px auto; opacity: 0.7; display: block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <div class="cover-upload-title">Drag &amp; drop your cover image here</div>
+                  <div class="cover-upload-subtitle">or click to browse</div>
+                  <div class="cover-upload-format">PNG, JPG, JPEG, WEBP</div>
+                </div>
+              </div>
+
+              <div id="coverUrlPanel" class="form-group" style="margin-bottom: 12px; display: none;">
                 <label for="coverUrlInput" class="form-label" style="font-size: 0.8rem;">Image URL (Optional)</label>
                 <input type="url" id="coverUrlInput" class="form-input" placeholder="https://images.unsplash.com/..." style="font-size: 0.85rem;" />
                 <span style="font-size: 0.73rem; color: var(--text-muted); margin-top: 5px; display: block; line-height: 1.4;">
@@ -128,19 +141,29 @@
                 </span>
               </div>
 
-              <!-- Cover Image Preview Area -->
               <div id="coverPreviewContainer" style="position: relative; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-card); border: 1px dashed var(--border-subtle); min-height: 120px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px;">
                 <div id="coverPlaceholder" style="color: var(--text-muted); font-size: 0.78rem; padding: 12px;">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 6px auto; opacity: 0.6; display: block;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                  <span>No cover image selected. Image preview appears here when URL is entered.</span>
+                  <span>No cover image selected. Choose an upload or enter a direct URL.</span>
                 </div>
                 <img id="coverPreview" class="cover-preview" alt="Cover Preview" style="display: none; width: 100%; height: 160px; object-fit: cover; border-radius: var(--radius-sm);" />
               </div>
 
-              <div id="coverActions" style="display: none; justify-content: flex-end; margin-top: 8px;">
-                <button type="button" id="clearCoverBtn" class="action-btn-sm" style="font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); padding: 4px 10px;">
-                  Remove Image
-                </button>
+              <div id="coverSelectedMeta" style="display: none; margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+                <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;">
+                  <div style="min-width: 0; overflow: hidden;">
+                    <div id="coverFileName" style="font-weight: 600; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">cover-image.webp</div>
+                    <div id="coverFileMeta" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5;">0 KB • 0 × 0</div>
+                  </div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                    <button type="button" id="replaceCoverBtn" class="action-btn-sm" style="font-size: 0.75rem; padding: 5px 10px;">
+                      Replace Image
+                    </button>
+                    <button type="button" id="clearCoverBtn" class="action-btn-sm" style="font-size: 0.75rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); padding: 5px 10px;">
+                      Remove Image
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
