@@ -81,8 +81,7 @@ function setupFormControls() {
         const url = prompt('Enter link URL:');
         if (url) document.execCommand(cmd, false, url);
       } else if (cmd === 'insertImage') {
-        const url = prompt('Enter image URL:');
-        if (url) document.execCommand(cmd, false, url);
+        openArticleImageUploader();
       } else if (cmd === 'formatBlock') {
         document.execCommand(cmd, false, val);
       } else {
@@ -90,6 +89,8 @@ function setupFormControls() {
       }
     });
   });
+
+  listenForImageInsertEvents();
 
   // Direct Cover Image URL Handler (No Firebase Storage)
   setupCoverImageUrl();
@@ -146,6 +147,173 @@ function renderTagChips() {
     badge.innerHTML = `#${tag} <button type="button" data-tag="${tag}">&times;</button>`;
     badge.querySelector('button').addEventListener('click', () => removeTag(tag));
     container.insertBefore(badge, tagInput);
+  });
+}
+
+function getCurrentArticleIdForImageUpload() {
+  if (editingPostId) return editingPostId;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('id') || '';
+}
+
+function getNodePath(node, root) {
+  const path = [];
+  let current = node;
+  while (current && current !== root) {
+    let index = 0;
+    let sibling = current.previousSibling;
+    while (sibling) {
+      index += 1;
+      sibling = sibling.previousSibling;
+    }
+    path.unshift(index);
+    current = current.parentNode;
+  }
+  return path;
+}
+
+function resolveNodeFromPath(root, path) {
+  if (!root || !Array.isArray(path) || path.length === 0) return root;
+  let current = root;
+  for (const segment of path) {
+    if (!current || !current.childNodes || !current.childNodes[segment]) {
+      return null;
+    }
+    current = current.childNodes[segment];
+  }
+  return current;
+}
+
+function captureEditorSelectionState() {
+  const editor = document.getElementById('richEditorArea');
+  if (!editor) return null;
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) return null;
+
+  const startContainer = range.startContainer === editor ? editor : range.startContainer;
+  const endContainer = range.endContainer === editor ? editor : range.endContainer;
+
+  return {
+    articleId: getCurrentArticleIdForImageUpload(),
+    startPath: getNodePath(startContainer, editor),
+    startOffset: range.startOffset,
+    endPath: getNodePath(endContainer, editor),
+    endOffset: range.endOffset,
+  };
+}
+
+function restoreEditorSelectionState(snapshot) {
+  const editor = document.getElementById('richEditorArea');
+  if (!editor || !snapshot) return false;
+
+  const selection = window.getSelection();
+  if (!selection) return false;
+
+  const startNode = resolveNodeFromPath(editor, snapshot.startPath) || editor;
+  const endNode = resolveNodeFromPath(editor, snapshot.endPath) || editor;
+  const restoredRange = document.createRange();
+  restoredRange.setStart(startNode, snapshot.startOffset || 0);
+  restoredRange.setEnd(endNode, snapshot.endOffset || 0);
+
+  selection.removeAllRanges();
+  selection.addRange(restoredRange);
+  editor.focus();
+  return true;
+}
+
+function openArticleImageUploader() {
+  const editor = document.getElementById('richEditorArea');
+  const articleId = getCurrentArticleIdForImageUpload();
+  const selectionState = captureEditorSelectionState();
+  if (selectionState) {
+    window.__animoroImageEditorSelection = selectionState;
+    sessionStorage.setItem('animoro-image-editor-selection', JSON.stringify(selectionState));
+  }
+
+  if (!articleId) {
+    showFeedback(document.getElementById('editorFeedback'), 'Please save this article first so it has a Firestore ID before inserting images.', 'error');
+    return;
+  }
+
+  if (editor) editor.focus();
+  const uploaderUrl = `/admin-image-uploader.html?articleId=${encodeURIComponent(articleId)}`;
+  window.open(uploaderUrl, '_blank', 'noopener');
+}
+
+function insertImageHtmlAtCursor(images) {
+  const editor = document.getElementById('richEditorArea');
+  if (!editor || !Array.isArray(images) || images.length === 0) return;
+
+  const selection = window.getSelection();
+  let range = null;
+  if (selection && selection.rangeCount > 0) {
+    range = selection.getRangeAt(0);
+  }
+
+  if (!range) {
+    const fallback = document.createRange();
+    fallback.selectNodeContents(editor);
+    fallback.collapse(false);
+    range = fallback;
+  }
+
+  const html = images.map((image) => {
+    const alt = (image.alt || 'Article image').replace(/"/g, '&quot;');
+    const safeSrc = (image.src || '').replace(/"/g, '&quot;');
+    return `<img src="${safeSrc}" alt="${alt}" loading="lazy" class="article-content-image" />`;
+  }).join('<br>');
+
+  const fragment = range.createContextualFragment(html);
+  range.insertNode(fragment);
+
+  const insertedImages = editor.querySelectorAll('.article-content-image');
+  const lastInserted = insertedImages[insertedImages.length - 1];
+  if (lastInserted) {
+    const cursorRange = document.createRange();
+    cursorRange.setStartAfter(lastInserted);
+    cursorRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(cursorRange);
+  }
+
+  editor.focus();
+}
+
+function listenForImageInsertEvents() {
+  const onImageInsert = (payload) => {
+    const articleId = getCurrentArticleIdForImageUpload();
+    if (!payload || payload.type !== 'INSERT_IMAGES') return;
+    if (payload.articleId && articleId && payload.articleId !== articleId) return;
+    const selectionSnapshot = window.__animoroImageEditorSelection || JSON.parse(sessionStorage.getItem('animoro-image-editor-selection') || 'null');
+    if (selectionSnapshot) {
+      restoreEditorSelectionState(selectionSnapshot);
+    }
+    insertImageHtmlAtCursor(payload.images || []);
+    sessionStorage.removeItem('animoro-image-editor-selection');
+  };
+
+  if ('BroadcastChannel' in window) {
+    try {
+      const channel = new BroadcastChannel('animoro-image-insert');
+      channel.addEventListener('message', (event) => onImageInsert(event.data));
+      window.__animoroImageInsertChannel = channel;
+    } catch (error) {
+      console.warn('BroadcastChannel image insertion listener failed:', error);
+    }
+  }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== 'animoro-image-insert-data') return;
+    try {
+      const payload = JSON.parse(event.newValue || 'null');
+      onImageInsert(payload);
+    } catch (error) {
+      console.warn('Storage event payload parse failed:', error);
+    }
   });
 }
 
