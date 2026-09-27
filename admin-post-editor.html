@@ -227,6 +227,47 @@
     </div>
   </div>
 
+  <div id="articleImageModalOverlay" class="article-image-modal-overlay hidden" aria-hidden="true">
+    <div class="article-image-modal" role="dialog" aria-modal="true" aria-labelledby="articleImageModalTitle">
+      <div class="article-image-modal-header">
+        <h3 id="articleImageModalTitle">Insert Images</h3>
+        <button type="button" id="closeArticleImageModalBtn" class="image-modal-close" aria-label="Close image modal">×</button>
+      </div>
+
+      <div class="article-image-modal-body">
+        <div id="articleImageDropzone" class="article-image-dropzone" tabindex="0" role="button" aria-label="Drop image files">
+          <div class="dropzone-inner">
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="opacity:0.8; margin-bottom: 12px;">
+              <path d="M12 16V4"></path>
+              <path d="M7 9l5-5 5 5"></path>
+              <path d="M20 16.5A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9z"></path>
+            </svg>
+            <div id="dropzoneText" class="dropzone-text">Drag &amp; Drop Images Here</div>
+            <div class="dropzone-action">or Choose Images</div>
+          </div>
+        </div>
+
+        <input id="articleImageFileInput" type="file" accept="image/*" multiple hidden />
+        <div class="article-image-upload-trigger-wrap">
+          <button type="button" id="articleImageChooseBtn" class="btn-cta">Choose Images</button>
+        </div>
+
+        <div id="articleImageSelectedSection" class="article-image-selected-section" style="display: none;">
+          <div class="article-image-selected-header">
+            <span>Selected Images</span>
+            <span id="articleImageCountBadge" class="image-count-badge">0</span>
+          </div>
+          <div id="articleImageSelectedList" class="article-image-selected-list"></div>
+        </div>
+      </div>
+
+      <div class="article-image-modal-footer">
+        <button type="button" id="cancelArticleImageModalBtn" class="action-btn-sm">Cancel</button>
+        <button type="button" id="insertArticleImagesBtn" class="btn-cta" disabled>Insert Images</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/js/admin-editor.js"></script>
 </body>
 </html>

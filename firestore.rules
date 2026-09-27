@@ -93,6 +93,7 @@ service cloud.firestore {
         request.auth.uid == 'X5WFM4C88cecVqry3wr4luIIVAv1' ||
         request.auth.uid == adminUid ||
         isSuperOrDocAdmin()
+
       );
       allow delete: if isSuperOrDocAdmin();
     }

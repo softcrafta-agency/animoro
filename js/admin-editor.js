@@ -81,7 +81,7 @@ function setupFormControls() {
         const url = prompt('Enter link URL:');
         if (url) document.execCommand(cmd, false, url);
       } else if (cmd === 'insertImage') {
-        openArticleImageUploader();
+        openImageModalForEditor();
       } else if (cmd === 'formatBlock') {
         document.execCommand(cmd, false, val);
       } else {
@@ -90,7 +90,7 @@ function setupFormControls() {
     });
   });
 
-  listenForImageInsertEvents();
+  setupArticleImageModal();
 
   // Direct Cover Image URL Handler (No Firebase Storage)
   setupCoverImageUrl();
@@ -150,129 +150,118 @@ function renderTagChips() {
   });
 }
 
-function getCurrentArticleIdForImageUpload() {
-  if (editingPostId) return editingPostId;
+let savedImageInsertRange = null;
+let articleImageModalState = [];
+
+function getCurrentArticleIdFromEditor() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('id') || '';
+  return params.get('id') || editingPostId || '';
 }
 
-function getNodePath(node, root) {
-  const path = [];
-  let current = node;
-  while (current && current !== root) {
-    let index = 0;
-    let sibling = current.previousSibling;
-    while (sibling) {
-      index += 1;
-      sibling = sibling.previousSibling;
-    }
-    path.unshift(index);
-    current = current.parentNode;
-  }
-  return path;
-}
-
-function resolveNodeFromPath(root, path) {
-  if (!root || !Array.isArray(path) || path.length === 0) return root;
-  let current = root;
-  for (const segment of path) {
-    if (!current || !current.childNodes || !current.childNodes[segment]) {
-      return null;
-    }
-    current = current.childNodes[segment];
-  }
-  return current;
-}
-
-function captureEditorSelectionState() {
+function saveCurrentArticleEditorSelection() {
   const editor = document.getElementById('richEditorArea');
-  if (!editor) return null;
-
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return null;
+
+  if (!selection || selection.rangeCount === 0 || !editor) {
+    savedImageInsertRange = null;
+    return false;
+  }
 
   const range = selection.getRangeAt(0);
-  if (!editor.contains(range.commonAncestorContainer)) return null;
+  if (!editor.contains(range.commonAncestorContainer)) {
+    savedImageInsertRange = null;
+    return false;
+  }
 
-  const startContainer = range.startContainer === editor ? editor : range.startContainer;
-  const endContainer = range.endContainer === editor ? editor : range.endContainer;
-
-  return {
-    articleId: getCurrentArticleIdForImageUpload(),
-    startPath: getNodePath(startContainer, editor),
-    startOffset: range.startOffset,
-    endPath: getNodePath(endContainer, editor),
-    endOffset: range.endOffset,
-  };
-}
-
-function restoreEditorSelectionState(snapshot) {
-  const editor = document.getElementById('richEditorArea');
-  if (!editor || !snapshot) return false;
-
-  const selection = window.getSelection();
-  if (!selection) return false;
-
-  const startNode = resolveNodeFromPath(editor, snapshot.startPath) || editor;
-  const endNode = resolveNodeFromPath(editor, snapshot.endPath) || editor;
-  const restoredRange = document.createRange();
-  restoredRange.setStart(startNode, snapshot.startOffset || 0);
-  restoredRange.setEnd(endNode, snapshot.endOffset || 0);
-
-  selection.removeAllRanges();
-  selection.addRange(restoredRange);
-  editor.focus();
+  savedImageInsertRange = range.cloneRange();
   return true;
 }
 
-function openArticleImageUploader() {
+function openImageModalForEditor() {
   const editor = document.getElementById('richEditorArea');
-  const articleId = getCurrentArticleIdForImageUpload();
-  const selectionState = captureEditorSelectionState();
-  if (selectionState) {
-    window.__animoroImageEditorSelection = selectionState;
-    sessionStorage.setItem('animoro-image-editor-selection', JSON.stringify(selectionState));
-  }
+  const articleId = getCurrentArticleIdFromEditor();
+
+  if (!editor) return;
 
   if (!articleId) {
-    showFeedback(document.getElementById('editorFeedback'), 'Please save this article first so it has a Firestore ID before inserting images.', 'error');
+    const feedbackEl = document.getElementById('editorFeedback');
+    showFeedback(feedbackEl, 'Please save this article before adding body images so it has an article ID.', 'error');
     return;
   }
 
-  if (editor) editor.focus();
-  const uploaderUrl = `/admin-image-uploader.html?articleId=${encodeURIComponent(articleId)}`;
-  window.open(uploaderUrl, '_blank', 'noopener');
+  saveCurrentArticleEditorSelection();
+  editor.focus();
+  const modal = document.getElementById('articleImageModalOverlay');
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  const fileInput = document.getElementById('articleImageFileInput');
+  if (fileInput) fileInput.focus();
 }
 
-function insertImageHtmlAtCursor(images) {
-  const editor = document.getElementById('richEditorArea');
-  if (!editor || !Array.isArray(images) || images.length === 0) return;
-
-  const selection = window.getSelection();
-  let range = null;
-  if (selection && selection.rangeCount > 0) {
-    range = selection.getRangeAt(0);
+function closeImageModalForEditor(resetSelection = false) {
+  const modal = document.getElementById('articleImageModalOverlay');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
   }
 
-  if (!range) {
-    const fallback = document.createRange();
-    fallback.selectNodeContents(editor);
-    fallback.collapse(false);
-    range = fallback;
+  const dropzone = document.getElementById('articleImageDropzone');
+  if (dropzone) {
+    dropzone.classList.remove('dragover');
+    const text = document.getElementById('dropzoneText');
+    if (text) text.textContent = 'Drag & Drop Images Here';
   }
 
-  const html = images.map((image) => {
+  const input = document.getElementById('articleImageFileInput');
+  if (input) input.value = '';
+
+  articleImageModalState = [];
+  renderArticleImageModalItems();
+
+  if (resetSelection && savedImageInsertRange) {
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(savedImageInsertRange.cloneRange());
+    }
+  }
+}
+
+function getArticleImageModalInsertHtml(images) {
+  const batchId = `article-image-batch-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return images.map((image) => {
     const alt = (image.alt || 'Article image').replace(/"/g, '&quot;');
-    const safeSrc = (image.src || '').replace(/"/g, '&quot;');
-    return `<img src="${safeSrc}" alt="${alt}" loading="lazy" class="article-content-image" />`;
-  }).join('<br>');
+    const src = (image.src || '').replace(/"/g, '&quot;');
+    return `<img src="${src}" alt="${alt}" loading="lazy" class="article-content-image" data-image-batch="${batchId}" />`;
+  }).join('');
+}
 
-  const fragment = range.createContextualFragment(html);
-  range.insertNode(fragment);
+function restoreSavedSelectionAndInsert(images) {
+  const editor = document.getElementById('richEditorArea');
+  const selection = window.getSelection();
 
-  const insertedImages = editor.querySelectorAll('.article-content-image');
+  if (!editor) return;
+
+  let rangeToUse = savedImageInsertRange ? savedImageInsertRange.cloneRange() : null;
+
+  if (!rangeToUse) {
+    const fallbackRange = document.createRange();
+    fallbackRange.selectNodeContents(editor);
+    fallbackRange.collapse(false);
+    rangeToUse = fallbackRange;
+  }
+
+  const html = getArticleImageModalInsertHtml(images);
+  const fragment = rangeToUse.createContextualFragment(html);
+  rangeToUse.insertNode(fragment);
+
+  const batchId = editor.querySelector('img[data-image-batch]')?.getAttribute('data-image-batch');
+  const insertedImages = batchId ? editor.querySelectorAll(`img[data-image-batch="${batchId}"]`) : editor.querySelectorAll('.article-content-image');
   const lastInserted = insertedImages[insertedImages.length - 1];
-  if (lastInserted) {
+
+  if (selection && lastInserted) {
     const cursorRange = document.createRange();
     cursorRange.setStartAfter(lastInserted);
     cursorRange.collapse(true);
@@ -281,40 +270,343 @@ function insertImageHtmlAtCursor(images) {
   }
 
   editor.focus();
+  savedImageInsertRange = null;
 }
 
-function listenForImageInsertEvents() {
-  const onImageInsert = (payload) => {
-    const articleId = getCurrentArticleIdForImageUpload();
-    if (!payload || payload.type !== 'INSERT_IMAGES') return;
-    if (payload.articleId && articleId && payload.articleId !== articleId) return;
-    const selectionSnapshot = window.__animoroImageEditorSelection || JSON.parse(sessionStorage.getItem('animoro-image-editor-selection') || 'null');
-    if (selectionSnapshot) {
-      restoreEditorSelectionState(selectionSnapshot);
-    }
-    insertImageHtmlAtCursor(payload.images || []);
-    sessionStorage.removeItem('animoro-image-editor-selection');
-  };
+function createImageModalStatus(message, type = 'info') {
+  const status = document.getElementById('articleImageModalStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.className = `article-image-modal-status ${type}`;
+}
 
-  if ('BroadcastChannel' in window) {
+function renderArticleImageModalItems() {
+  const section = document.getElementById('articleImageSelectedSection');
+  const list = document.getElementById('articleImageSelectedList');
+  const countBadge = document.getElementById('articleImageCountBadge');
+  const insertBtn = document.getElementById('insertArticleImagesBtn');
+
+  if (!section || !list || !countBadge || !insertBtn) return;
+
+  list.innerHTML = '';
+  countBadge.textContent = String(articleImageModalState.length);
+
+  if (!articleImageModalState.length) {
+    section.style.display = 'none';
+    insertBtn.disabled = true;
+    return;
+  }
+
+  section.style.display = 'block';
+  insertBtn.disabled = false;
+
+  articleImageModalState.forEach((item, index) => {
+    const card = document.createElement('div');
+    card.className = 'article-image-item';
+
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 'article-image-thumb-wrap';
+
+    const thumb = document.createElement('img');
+    thumb.src = item.preview;
+    thumb.alt = item.alt || item.fileName;
+    thumb.className = 'article-image-thumb';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'article-image-remove';
+    removeBtn.textContent = '×';
+    removeBtn.title = 'Remove image';
+    removeBtn.addEventListener('click', () => {
+      articleImageModalState.splice(index, 1);
+      renderArticleImageModalItems();
+    });
+
+    previewWrap.appendChild(thumb);
+    previewWrap.appendChild(removeBtn);
+
+    const meta = document.createElement('div');
+    meta.className = 'article-image-meta';
+
+    const label = document.createElement('label');
+    label.className = 'article-image-field-label';
+    label.textContent = 'Alt Text';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'article-image-alt-input';
+    input.value = item.alt || '';
+    input.placeholder = 'Itachi Uchiha';
+    input.addEventListener('input', (event) => {
+      item.alt = event.target.value.trim() || item.defaultAlt || 'Article image';
+    });
+
+    const fileName = document.createElement('div');
+    fileName.className = 'article-image-filename';
+    fileName.textContent = item.fileName;
+
+    meta.appendChild(fileName);
+    meta.appendChild(label);
+    meta.appendChild(input);
+
+    card.appendChild(previewWrap);
+    card.appendChild(meta);
+    list.appendChild(card);
+  });
+}
+
+function handleArticleImageFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
+
+  const files = Array.from(fileList);
+  const queued = [];
+
+  files.forEach((file) => {
+    if (!file.type.startsWith('image/')) {
+      const feedbackEl = document.getElementById('editorFeedback');
+      showFeedback(feedbackEl, 'Unsupported file type. Please use JPG, JPEG, PNG, WEBP, or GIF.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      queued.push({
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        file,
+        preview: reader.result,
+        fileName: file.name,
+        alt: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Article image',
+        defaultAlt: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Article image',
+      });
+
+      if (queued.length === files.filter(Boolean).length) {
+        articleImageModalState = [...articleImageModalState, ...queued];
+        renderArticleImageModalItems();
+      }
+    };
+    reader.onerror = () => {
+      const feedbackEl = document.getElementById('editorFeedback');
+      showFeedback(feedbackEl, 'Could not read a selected image. Please try a different file.', 'error');
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function getArticleImageModalDropzoneText() {
+  return document.getElementById('dropzoneText');
+}
+
+function setupArticleImageModal() {
+  const modal = document.getElementById('articleImageModalOverlay');
+  if (!modal) return;
+
+  const fileInput = document.getElementById('articleImageFileInput');
+  const dropzone = document.getElementById('articleImageDropzone');
+  const chooseBtn = document.getElementById('articleImageChooseBtn');
+  const closeBtn = document.getElementById('closeArticleImageModalBtn');
+  const cancelBtn = document.getElementById('cancelArticleImageModalBtn');
+  const insertBtn = document.getElementById('insertArticleImagesBtn');
+
+  chooseBtn?.addEventListener('click', () => fileInput?.click());
+  closeBtn?.addEventListener('click', () => closeImageModalForEditor());
+  cancelBtn?.addEventListener('click', () => closeImageModalForEditor());
+
+  fileInput?.addEventListener('change', (event) => {
+    handleArticleImageFiles(event.target.files || []);
+    event.target.value = '';
+  });
+
+  dropzone?.addEventListener('click', () => fileInput?.click());
+  dropzone?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      fileInput?.click();
+    }
+  });
+
+  ['dragenter', 'dragover'].forEach((eventName) => {
+    dropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.add('dragover');
+      const label = getArticleImageModalDropzoneText();
+      if (label) label.textContent = 'Drop Images Here';
+    });
+  });
+
+  ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
+    dropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('dragover');
+      const label = getArticleImageModalDropzoneText();
+      if (label) label.textContent = 'Drag & Drop Images Here';
+    });
+  });
+
+  dropzone?.addEventListener('drop', (event) => {
+    event.preventDefault();
+    handleArticleImageFiles(event.dataTransfer?.files || []);
+  });
+
+  insertBtn?.addEventListener('click', async () => {
+    if (!articleImageModalState.length) return;
+
+    const articleId = getCurrentArticleIdFromEditor();
+    if (!articleId) {
+      const feedbackEl = document.getElementById('editorFeedback');
+      showFeedback(feedbackEl, 'Article ID is missing. Please open this editor from a valid article page.', 'error');
+      return;
+    }
+
+    insertBtn.disabled = true;
+    insertBtn.textContent = 'Uploading...';
+
     try {
-      const channel = new BroadcastChannel('animoro-image-insert');
-      channel.addEventListener('message', (event) => onImageInsert(event.data));
-      window.__animoroImageInsertChannel = channel;
+      const savedImages = [];
+
+      for (const item of articleImageModalState) {
+        const compressed = await compressArticleImageToFirestore(item.file, item.alt || item.defaultAlt || 'Article image');
+        const docRef = await addDoc(collection(db, 'imageAssets'), {
+          articleId,
+          fileName: compressed.fileName,
+          mimeType: compressed.mimeType,
+          alt: compressed.alt,
+          data: compressed.data,
+          width: compressed.width,
+          height: compressed.height,
+          createdAt: serverTimestamp()
+        });
+
+        savedImages.push({
+          id: docRef.id,
+          src: compressed.data,
+          alt: compressed.alt,
+        });
+      }
+
+      if (savedImages.length) {
+        restoreSavedSelectionAndInsert(savedImages);
+      }
+
+      closeImageModalForEditor();
+      const feedbackEl = document.getElementById('editorFeedback');
+      showFeedback(feedbackEl, 'Images inserted successfully.', 'success');
     } catch (error) {
-      console.warn('BroadcastChannel image insertion listener failed:', error);
+      const feedbackEl = document.getElementById('editorFeedback');
+      showFeedback(feedbackEl, error?.message || 'Image upload failed. Please try again.', 'error');
+    } finally {
+      insertBtn.disabled = false;
+      insertBtn.textContent = 'Insert Images';
+    }
+  });
+
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) {
+      closeImageModalForEditor();
+    }
+  });
+
+  renderArticleImageModalItems();
+}
+
+function loadArticleImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('This image could not be read.'));
+    };
+    img.src = url;
+  });
+}
+
+function articleImageCanvasToBlob(canvas, type, quality) {
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), type, quality);
+  });
+}
+
+function articleImageBlobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not prepare the processed image.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function articleImageEstimatePayloadSize(payload) {
+  return new Blob([JSON.stringify(payload)]).size;
+}
+
+async function compressArticleImageToFirestore(file, altText) {
+  if (!file || !file.type || !file.type.startsWith('image/')) {
+    throw new Error('Unsupported file type. Please choose JPG, JPEG, PNG, WEBP, or GIF.');
+  }
+
+  const sourceImage = await loadArticleImageElement(file);
+  const imageWidth = sourceImage.naturalWidth || sourceImage.width;
+  const imageHeight = sourceImage.naturalHeight || sourceImage.height;
+  const scale = Math.min(1, 1600 / Math.max(imageWidth, 1), 1200 / Math.max(imageHeight, 1));
+  const targetWidth = Math.max(1, Math.round(imageWidth * scale));
+  const targetHeight = Math.max(1, Math.round(imageHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Your browser could not process this image.');
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(sourceImage, 0, 0, targetWidth, targetHeight);
+
+  const mimeType = 'image/webp';
+  let bestCandidate = null;
+
+  for (let quality = 0.85; quality >= 0.45; quality -= 0.05) {
+    const blob = await articleImageCanvasToBlob(canvas, mimeType, quality);
+    if (!blob) continue;
+
+    const data = await articleImageBlobToDataUrl(blob);
+    const payload = {
+      articleId: getCurrentArticleIdFromEditor(),
+      fileName: `${(file.name || 'article-image').replace(/\.[^.]+$/, '')}.webp`,
+      mimeType,
+      alt: altText || 'Article image',
+      data,
+      width: targetWidth,
+      height: targetHeight,
+      createdAt: 'timestamp'
+    };
+
+    const size = articleImageEstimatePayloadSize(payload);
+    if (size <= 1024 * 1024) {
+      return {
+        fileName: payload.fileName,
+        mimeType: payload.mimeType,
+        alt: payload.alt,
+        data: payload.data,
+        width: targetWidth,
+        height: targetHeight,
+      };
+    }
+
+    if (!bestCandidate || blob.size < bestCandidate.size) {
+      bestCandidate = { ...payload, size: blob.size };
     }
   }
 
-  window.addEventListener('storage', (event) => {
-    if (event.key !== 'animoro-image-insert-data') return;
-    try {
-      const payload = JSON.parse(event.newValue || 'null');
-      onImageInsert(payload);
-    } catch (error) {
-      console.warn('Storage event payload parse failed:', error);
-    }
-  });
+  if (bestCandidate) {
+    throw new Error('Image is too large. Please choose a smaller image.');
+  }
+
+  throw new Error('Compression failed. Please try a different image.');
 }
 
 /**
