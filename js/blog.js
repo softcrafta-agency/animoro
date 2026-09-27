@@ -130,6 +130,28 @@ function getCoverImageSource(value) {
   return '';
 }
 
+function createInlineArticleImage(source, altText) {
+  if (!source) return '';
+  return `<figure class="article-inline-image-wrap"><img src="${escapeHtml(source)}" alt="${escapeHtml(altText)}" loading="lazy" /></figure>`;
+}
+
+function insertArticleImageAtMiddle(content, source, altText) {
+  if (!source) return content;
+  const body = document.createElement('div');
+  body.innerHTML = content || '';
+  const blocks = Array.from(body.children);
+  const image = document.createElement('div');
+  image.innerHTML = createInlineArticleImage(source, altText);
+  const imageFigure = image.firstElementChild;
+  const midpoint = Math.ceil(blocks.length / 2);
+  if (blocks[midpoint]) {
+    body.insertBefore(imageFigure, blocks[midpoint]);
+  } else {
+    body.append(imageFigure);
+  }
+  return body.innerHTML;
+}
+
 function renderCoverImageFallback(wrap) {
   if (!wrap) return;
   wrap.innerHTML = `
@@ -143,6 +165,10 @@ function renderArticle(container, id, post) {
   const tagsHtml = (post.tags || []).map(t => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join('');
   const currentUrl = window.location.href;
   const coverSource = getCoverImageSource(post.coverImage);
+  const middleSource = getCoverImageSource(post.middleImage);
+  const endingSource = getCoverImageSource(post.endingImage);
+  const bodyContent = insertArticleImageAtMiddle(post.content || '', middleSource, post.title || 'Article image');
+  const endingImageMarkup = createInlineArticleImage(endingSource, post.title || 'Article image');
 
   container.innerHTML = `
     <header class="article-header">
@@ -185,7 +211,8 @@ function renderArticle(container, id, post) {
     ` : ''}
 
     <main class="article-content-container" id="articleBody">
-      ${post.content || ''}
+      ${bodyContent}
+      ${endingImageMarkup}
 
       ${tagsHtml ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tagsHtml}</div>` : ''}
 

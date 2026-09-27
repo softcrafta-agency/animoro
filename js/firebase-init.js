@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { getActiveFirebaseConfig, isConfigPlaceholder } from './firebase-config.js';
 
 const config = getActiveFirebaseConfig();
@@ -9,12 +10,16 @@ export const isConfigured = !isConfigPlaceholder(config);
 let appInstance = null;
 let authInstance = null;
 let dbInstance = null;
+let storageInstance = null;
 
 if (isConfigured) {
   try {
     appInstance = getApps().length === 0 ? initializeApp(config) : getApp();
     authInstance = getAuth(appInstance);
     dbInstance = getFirestore(appInstance);
+    if (config.storageBucket) {
+      storageInstance = getStorage(appInstance);
+    }
   } catch (err) {
     console.error('Firebase initialization failed:', err);
   }
@@ -25,6 +30,7 @@ if (isConfigured) {
 export const app = appInstance;
 export const auth = authInstance;
 export const db = dbInstance;
+export const storage = storageInstance;
 
 export function handleFirestoreError(error, operationType, path) {
   const errInfo = {

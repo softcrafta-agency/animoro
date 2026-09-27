@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — Animoro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/admin-login-CAZK6wWS.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/firebase-init-Gac7rvr-.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-DUH04vjC.js">
+  <link rel="stylesheet" crossorigin href="/assets/firebase-init-BhqOXLWK.css">
+  <link rel="stylesheet" crossorigin href="/assets/auth-CJQsml1r.css">
+</head>
+<body style="background: #080a0f;">
+
+  <div class="admin-login-wrap">
+    <div class="login-card">
+      <div class="login-card-header">
+        <a href="index.html" class="brand-logo" style="justify-content: center; margin-bottom: 12px;">
+          <span class="brand-logo-text">ANIMORO</span>
+          <span class="brand-badge">ADMIN</span>
+        </a>
+        <h1 style="font-family: var(--font-display); font-size: 1.5rem; font-weight: 700;">Editorial Portal Login</h1>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+          Authenticate with your Firebase administrator credentials
+        </p>
+      </div>
+
+      <div id="loginFeedback" class="form-feedback error" style="display: none; margin-bottom: 20px;"></div>
+
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label for="adminEmail" class="form-label">Admin Email</label>
+          <input type="email" id="adminEmail" class="form-input" placeholder="admin@example.com" required autocomplete="username" />
+        </div>
+
+        <div class="form-group">
+          <label for="adminPassword" class="form-label">Password</label>
+          <input type="password" id="adminPassword" class="form-input" placeholder="••••••••••••" required autocomplete="current-password" />
+        </div>
+
+        <button type="submit" id="loginSubmitBtn" class="btn-cta" style="width: 100%; margin-top: 12px;">
+          Sign In to Dashboard
+        </button>
+      </form>
+
+      <!-- Setup Helper Box -->
+      <div style="margin-top: 32px; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+        <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          <span>⚙️ Firebase Access</span>
+        </div>
+        <p style="margin-bottom: 8px;">
+          Animoro uses <strong>Firebase Authentication (Email/Password)</strong>. To create your first admin:
+        </p>
+        <ol style="padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+          <li>In Firebase Console, enable <strong>Email/Password</strong> under Authentication &rarr; Sign-in method.</li>
+          <li>Under Authentication &rarr; Users, click <strong>Add user</strong>.</li>
+          <li>Enter your admin email and a secure password.</li>
+          <li>Set the Firebase web config values in your environment variables and redeploy.</li>
+        </ol>
+      </div>
+
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="index.html" style="font-size: 0.85rem; color: var(--text-muted);">&larr; Return to Animoro Homepage</a>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

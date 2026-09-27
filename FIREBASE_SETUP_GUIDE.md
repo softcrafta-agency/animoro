@@ -2,7 +2,7 @@
 
 Welcome to **Animoro**, your real production-ready anime editorial blog platform.
 
-Animoro is built on **HTML5, CSS3, Vanilla JavaScript, Firebase Authentication, and Cloud Firestore**.
+Animoro is built on **HTML5, CSS3, Vanilla JavaScript, Firebase Authentication, Cloud Firestore, and Cloud Storage for Firebase**.
 
 ---
 
@@ -26,12 +26,15 @@ Animoro is built on **HTML5, CSS3, Vanilla JavaScript, Firebase Authentication, 
      apiKey: "AIzaSy...",
      authDomain: "your-project.firebaseapp.com",
      projectId: "your-project",
+   storageBucket: "your-project.firebasestorage.app",
      messagingSenderId: "1234567890",
      appId: "1:123456789:web:abcdef"
    };
    ```
 5. Open `/js/firebase-config.js` in this project and replace the placeholder values with your copied configuration.
    *(Tip: You can also enter them directly in the **Admin Portal &rarr; Firebase Settings** tab!)*
+
+   For Vite deployments, set `VITE_FIREBASE_STORAGE_BUCKET` to the exact `storageBucket` value from your Firebase web configuration.
 
 ---
 
@@ -72,11 +75,19 @@ Animoro enforces strict role-based Firestore security rules:
 - **Private Drafts:** Draft articles are never visible to the public — only authenticated admins can see or edit them.
 - **Admin protection:** Only authenticated administrators can create, edit, publish, or delete posts.
 - **View counter:** Public visitors can atomically increment `views` on published articles (+1).
-- **Direct Image URLs:** Article cover images use direct URLs (PNG, JPG, WebP). No Firebase Storage required.
+- **Article image uploads:** Uploaded article images are stored in Cloud Storage; Firestore stores only their download URLs. Direct URL images remain external URLs.
+
+## 5. Enable Cloud Storage for Firebase
+
+1. In the same Firebase project, open **Build &rarr; Storage** and create/enable the Storage bucket.
+2. Set `VITE_FIREBASE_STORAGE_BUCKET` to the exact bucket value shown in the web app configuration.
+3. Deploy the repository's `storage.rules`. They allow public reads for article images and restrict uploads/deletes to users with `role: admin` in `admins/{uid}`.
+4. From the project directory, deploy both rule sets with `firebase deploy --only firestore:rules,storage`.
+   The first Storage Rules deployment may ask to enable permission for Storage Rules to read the Firestore `admins` collection; approve it for role-based admin checks.
 
 ---
 
-## 5. Publish Your First Anime Story
+## 6. Publish Your First Anime Story
 
 1. Open your Animoro site and click **Admin** in the navigation header (or go to `admin-login.html`).
 2. Sign in with your admin email and password.
@@ -84,7 +95,7 @@ Animoro enforces strict role-based Firestore security rules:
    - Enter an engaging title (e.g., *"Attack on Titan: The Narrative Anatomy of Freedom"*).
    - The URL slug will generate automatically.
    - Write or format your article content using the Rich Text toolbar.
-   - Enter an image URL in the **Cover Image URL** field (optional; articles can also be published without an image). A live preview will show immediately.
+   - Drop or select up to three images for cover, middle, and ending positions, or use **Direct URL** for an external cover image. Selected files upload to Storage when the article is saved.
    - Select a Category (*Anime News, Reviews, Rankings, Guides, Recommendations, Manga, Seasonal Anime*).
    - Add tags (e.g., `#shonen`, `#mappa`, `#analysis`).
    - Choose Status: **Published** to publish immediately or **Draft** to save privately.
