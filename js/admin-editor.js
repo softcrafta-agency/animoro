@@ -2,12 +2,12 @@ import {
   collection, 
   doc, 
   getDoc, 
-  setDoc,
+  addDoc, 
   updateDoc, 
   serverTimestamp,
+  deleteField 
 } from 'firebase/firestore';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage, isConfigured, handleFirestoreError } from './firebase-init.js';
+import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { requireAdminAuth, verifyAdminStatus } from './auth.js';
 import { auth } from './firebase-init.js';
 
@@ -15,16 +15,13 @@ let currentAdminUser = null;
 let editingPostId = null;
 let postTags = [];
 let uploadedCoverUrl = '';
-let uploadedArticleImages = [];
+let currentUploadedCoverData = null;
 let currentCoverMode = 'upload';
-let pendingArticleId = null;
-let isImageUploadInProgress = false;
-let pendingImageProcessing = Promise.resolve();
+let existingCoverData = null;
+let userRequestedCoverRemoval = false;
 const FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES = 900 * 1024;
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const COVER_MAX_DIMENSION = 1600;
-const MAX_ARTICLE_IMAGES = 3;
-const MAX_COMPRESSED_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function initAdminEditor() {
   requireAdminAuth(async (user) => {
@@ -162,8 +159,6 @@ function setupCoverImageUrl() {
   const placeholder = document.getElementById('coverPlaceholder');
   const fileInput = document.getElementById('coverFileInput');
   const uploadBox = document.getElementById('coverUploadBox');
-  const uploadPanel = document.getElementById('coverUploadPanel');
-  const previewContainer = document.getElementById('coverPreviewContainer');
   const clearBtn = document.getElementById('clearCoverBtn');
   const replaceBtn = document.getElementById('replaceCoverBtn');
   const coverSelectedMeta = document.getElementById('coverSelectedMeta');
@@ -171,7 +166,7 @@ function setupCoverImageUrl() {
   const coverFileMeta = document.getElementById('coverFileMeta');
   const modeButtons = document.querySelectorAll('.cover-mode-toggle');
   const urlPanel = document.getElementById('coverUrlPanel');
-  let dragSourceIndex = null;
+  const uploadPanel = document.getElementById('coverUploadPanel');
 
   function setPreviewMeta({ name, size, width, height, imageSource }) {
     if (coverSelectedMeta) {
@@ -191,6 +186,7 @@ function setupCoverImageUrl() {
   }
 
   function resetPreviewState(messageText = 'No cover image selected. Choose an upload or enter a direct URL.') {
+    currentUploadedCoverData = null;
     uploadedCoverUrl = '';
     if (previewImg) {
       previewImg.src = '';
@@ -211,14 +207,11 @@ function setupCoverImageUrl() {
   function updateUrlPreview(url) {
     const trimmed = (url || '').trim();
     uploadedCoverUrl = trimmed;
+    userRequestedCoverRemoval = false;
 
     if (!trimmed) {
       resetPreviewState();
       return;
-    }
-
-    if (uploadedArticleImages.length >= MAX_ARTICLE_IMAGES) {
-      setUploadMessage('You can upload a maximum of 3 images.');
     }
 
     let parsedUrl;
@@ -234,6 +227,7 @@ function setupCoverImageUrl() {
       return;
     }
 
+    currentUploadedCoverData = null;
     if (previewImg) {
       previewImg.src = trimmed;
       previewImg.style.display = 'block';
@@ -258,101 +252,66 @@ function setupCoverImageUrl() {
     const isUploadMode = mode === 'upload';
     if (urlPanel) urlPanel.style.display = isUploadMode ? 'none' : 'block';
     if (uploadPanel) uploadPanel.style.display = isUploadMode ? 'block' : 'none';
-    if (previewContainer) previewContainer.style.display = isUploadMode ? 'none' : 'flex';
-    if (coverSelectedMeta) coverSelectedMeta.style.display = isUploadMode ? 'none' : coverSelectedMeta.style.display;
     modeButtons.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.coverMode === mode);
     });
-    renderArticleImagePreviews();
   }
 
-  function setUploadMessage(message, isError = true) {
-    const messageEl = document.getElementById('coverUploadMessage');
-    if (!messageEl) return;
-    messageEl.textContent = message || '';
-    messageEl.style.display = message ? 'block' : 'none';
-    messageEl.style.color = isError ? '#fca5a5' : 'var(--text-muted)';
-  }
+  async function processSelectedFile(file) {
+    if (!file) return;
 
-  async function processFiles(files) {
-    if (isImageUploadInProgress) return;
-    const fileList = Array.from(files || []);
-    if (!fileList.length) return;
-
-    pendingImageProcessing = pendingImageProcessing.then(async () => {
-      for (const file of fileList) {
-        const fingerprint = `${file.name}:${file.size}:${file.lastModified}`;
-        if (uploadedArticleImages.some((image) => image.fingerprint === fingerprint)) {
-          setUploadMessage(`${file.name} is already selected.`);
-          continue;
-        }
-
-        const validation = validateCoverFile(file);
-        if (!validation.valid) {
-          setUploadMessage(`${file.name}: ${validation.message}`);
-          continue;
-        }
-
-        const urlImageCount = currentCoverMode === 'url' && (urlInput?.value.trim() || uploadedCoverUrl) ? 1 : 0;
-        if (uploadedArticleImages.length + urlImageCount >= MAX_ARTICLE_IMAGES) {
-          setUploadMessage('You can upload a maximum of 3 images.');
-          continue;
-        }
-
-        try {
-          const compressed = await compressCoverImage(file);
-          uploadedArticleImages.push({
-            ...compressed,
-            previewUrl: URL.createObjectURL(compressed.blob),
-            originalName: file.name,
-            fingerprint,
-            uploadState: 'ready',
-            progress: 0,
-            storageUrl: false
-          });
-          setUploadMessage('Image added.', false);
-          renderArticleImagePreviews();
-        } catch (error) {
-          console.error('Cover image process failed:', error);
-          setUploadMessage(`${file.name}: ${error?.message || 'This image could not be processed.'}`);
-        }
+    try {
+      const validation = validateCoverFile(file);
+      if (!validation.valid) {
+        throw new Error(validation.message);
       }
-    });
-    await pendingImageProcessing;
-  }
 
-  function handleFileSelection(files) {
-    if (!isImageUploadInProgress && files?.length) {
+      currentUploadedCoverData = await compressCoverImage(file);
+      uploadedCoverUrl = currentUploadedCoverData.dataUrl;
+      userRequestedCoverRemoval = false;
       currentCoverMode = 'upload';
       syncMode('upload');
-      processFiles(files);
+
+      if (previewImg) {
+        previewImg.src = currentUploadedCoverData.dataUrl;
+        previewImg.style.display = 'block';
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      setPreviewMeta({
+        name: currentUploadedCoverData.name,
+        size: currentUploadedCoverData.size,
+        width: currentUploadedCoverData.width,
+        height: currentUploadedCoverData.height,
+        imageSource: 'upload'
+      });
+      if (coverSelectedMeta) coverSelectedMeta.style.display = 'block';
+    } catch (error) {
+      console.error('Cover image process failed:', error);
+      resetPreviewState(error?.message || 'This file could not be processed. Please choose a PNG, JPG, JPEG, or WEBP image under a reasonable size.');
+      if (fileInput) fileInput.value = '';
     }
   }
 
   if (urlInput) {
     urlInput.addEventListener('input', (e) => {
       updateUrlPreview(e.target.value);
-      renderArticleImagePreviews();
     });
     urlInput.addEventListener('change', (e) => {
       updateUrlPreview(e.target.value);
-      renderArticleImagePreviews();
     });
   }
 
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
-      handleFileSelection(e.target.files);
-      fileInput.value = '';
+      const file = e.target.files?.[0];
+      if (file) processSelectedFile(file);
     });
   }
 
   if (uploadBox) {
-    uploadBox.addEventListener('click', () => {
-      if (!isImageUploadInProgress) fileInput?.click();
-    });
+    uploadBox.addEventListener('click', () => fileInput?.click());
     uploadBox.addEventListener('keydown', (e) => {
-      if (!isImageUploadInProgress && (e.key === 'Enter' || e.key === ' ')) {
+      if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         fileInput?.click();
       }
@@ -373,59 +332,8 @@ function setupCoverImageUrl() {
     });
 
     uploadBox.addEventListener('drop', (e) => {
-      if (!isImageUploadInProgress) handleFileSelection(e.dataTransfer?.files);
-    });
-  }
-
-  const imageList = document.getElementById('articleImageList');
-  if (imageList) {
-    imageList.addEventListener('click', (e) => {
-      if (isImageUploadInProgress) return;
-      const moveButton = e.target.closest('[data-move-image]');
-      if (moveButton) {
-        const index = Number(moveButton.dataset.moveImage);
-        const nextIndex = index + Number(moveButton.dataset.direction);
-        if (nextIndex >= 0 && nextIndex < uploadedArticleImages.length) {
-          [uploadedArticleImages[index], uploadedArticleImages[nextIndex]] = [uploadedArticleImages[nextIndex], uploadedArticleImages[index]];
-          renderArticleImagePreviews();
-        }
-        return;
-      }
-      const removeButton = e.target.closest('[data-remove-image]');
-      if (!removeButton) return;
-      const [removedImage] = uploadedArticleImages.splice(Number(removeButton.dataset.removeImage), 1);
-      if (removedImage?.previewUrl) URL.revokeObjectURL(removedImage.previewUrl);
-      setUploadMessage('Image removed.', false);
-      renderArticleImagePreviews();
-    });
-    imageList.addEventListener('dragstart', (e) => {
-      if (isImageUploadInProgress) {
-        e.preventDefault();
-        return;
-      }
-      const item = e.target.closest('.article-image-item');
-      if (!item) return;
-      dragSourceIndex = Number(item.dataset.imageIndex);
-      item.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', String(dragSourceIndex));
-    });
-    imageList.addEventListener('dragend', () => {
-      imageList.querySelectorAll('.dragging').forEach((item) => item.classList.remove('dragging'));
-      dragSourceIndex = null;
-    });
-    imageList.addEventListener('dragover', (e) => e.preventDefault());
-    imageList.addEventListener('drop', (e) => {
-      e.preventDefault();
-      if (isImageUploadInProgress) return;
-      const target = e.target.closest('.article-image-item');
-      if (!target || dragSourceIndex === null) return;
-      const targetIndex = Number(target.dataset.imageIndex);
-      let insertIndex = targetIndex + (e.clientY > target.getBoundingClientRect().top + target.offsetHeight / 2 ? 1 : 0);
-      const [movedImage] = uploadedArticleImages.splice(dragSourceIndex, 1);
-      if (dragSourceIndex < insertIndex) insertIndex -= 1;
-      uploadedArticleImages.splice(insertIndex, 0, movedImage);
-      renderArticleImagePreviews();
+      const file = e.dataTransfer?.files?.[0];
+      if (file) processSelectedFile(file);
     });
   }
 
@@ -434,26 +342,25 @@ function setupCoverImageUrl() {
       const mode = button.dataset.coverMode || 'upload';
       syncMode(mode);
       if (mode === 'url') {
+        if (fileInput) fileInput.value = '';
+        currentUploadedCoverData = null;
         uploadedCoverUrl = (urlInput && urlInput.value.trim()) || '';
-        updateUrlPreview(uploadedCoverUrl);
+      } else {
+        currentUploadedCoverData = null;
+        uploadedCoverUrl = '';
       }
+      userRequestedCoverRemoval = false;
     });
   });
 
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
-      if (currentCoverMode === 'url') {
-        uploadedCoverUrl = '';
-        if (urlInput) urlInput.value = '';
-        resetPreviewState();
-      } else {
-        uploadedArticleImages.forEach((image) => {
-          if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
-        });
-        uploadedArticleImages = [];
-        setUploadMessage('Images removed.', false);
-        renderArticleImagePreviews();
-      }
+      currentUploadedCoverData = null;
+      uploadedCoverUrl = '';
+      userRequestedCoverRemoval = true;
+      if (urlInput) urlInput.value = '';
+      if (fileInput) fileInput.value = '';
+      resetPreviewState();
     });
   }
 
@@ -467,94 +374,6 @@ function setupCoverImageUrl() {
 
   syncMode(currentCoverMode);
   resetPreviewState();
-}
-
-function renderArticleImagePreviews() {
-  const list = document.getElementById('articleImageList');
-  if (!list) return;
-  list.replaceChildren();
-  const urlInput = document.getElementById('coverUrlInput');
-  const hasUrlCover = currentCoverMode === 'url' && !!(urlInput?.value.trim() || uploadedCoverUrl);
-  const positionLabels = ['Cover Image', 'Middle Image', 'Ending Image'];
-
-  uploadedArticleImages.forEach((image, index) => {
-    const position = index + (hasUrlCover ? 1 : 0);
-    const item = document.createElement('div');
-    item.className = 'article-image-item';
-    item.draggable = !isImageUploadInProgress;
-    item.dataset.imageIndex = String(index);
-
-    const thumbnail = document.createElement('img');
-    thumbnail.src = image.previewUrl || image.src || '';
-    thumbnail.alt = positionLabels[position] || 'Article image';
-    const details = document.createElement('div');
-    details.className = 'article-image-details';
-    const label = document.createElement('span');
-    label.className = 'article-image-position';
-    label.textContent = positionLabels[position] || 'Article image';
-    const name = document.createElement('span');
-    name.className = 'article-image-name';
-    name.textContent = image.originalName || image.name || 'Article image';
-    const uploadStatus = document.createElement('span');
-    uploadStatus.className = 'article-image-upload-status';
-    uploadStatus.dataset.imageStatus = String(index);
-    uploadStatus.textContent = image.uploadState === 'uploading'
-      ? `Uploading... ${Math.floor(image.progress || 0)}%`
-      : image.uploadState === 'uploaded' || image.storageUrl
-        ? 'Uploaded'
-        : image.uploadState === 'error'
-          ? 'Upload failed'
-          : image.src && !image.blob
-            ? 'Direct image URL'
-            : 'Ready to upload';
-    const progress = document.createElement('progress');
-    progress.className = 'article-image-progress';
-    progress.dataset.imageProgress = String(index);
-    progress.max = 100;
-    progress.value = image.uploadState === 'uploaded' || image.storageUrl ? 100 : image.progress || 0;
-    details.append(label, name, uploadStatus, progress);
-
-    const actions = document.createElement('div');
-    actions.className = 'article-image-actions';
-    const moveUp = document.createElement('button');
-    moveUp.type = 'button';
-    moveUp.className = 'article-image-move';
-    moveUp.dataset.moveImage = String(index);
-    moveUp.dataset.direction = '-1';
-    moveUp.textContent = 'Move up';
-    moveUp.disabled = index === 0 || isImageUploadInProgress;
-    moveUp.setAttribute('aria-label', `Move ${positionLabels[position] || 'article image'} earlier`);
-    const moveDown = document.createElement('button');
-    moveDown.type = 'button';
-    moveDown.className = 'article-image-move';
-    moveDown.dataset.moveImage = String(index);
-    moveDown.dataset.direction = '1';
-    moveDown.textContent = 'Move down';
-    moveDown.disabled = index === uploadedArticleImages.length - 1 || isImageUploadInProgress;
-    moveDown.setAttribute('aria-label', `Move ${positionLabels[position] || 'article image'} later`);
-
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'article-image-remove';
-    remove.dataset.removeImage = String(index);
-    remove.textContent = 'Remove';
-    remove.disabled = isImageUploadInProgress;
-    remove.setAttribute('aria-label', `Remove ${positionLabels[position] || 'article image'}`);
-    actions.append(moveUp, moveDown, remove);
-    item.append(thumbnail, details, actions);
-    list.append(item);
-  });
-}
-
-function setImageUploaderBusy(isBusy) {
-  isImageUploadInProgress = isBusy;
-  document.querySelectorAll('#coverFileInput, #coverUrlInput, #clearCoverBtn, #replaceCoverBtn, #saveDraftBtn, .cover-mode-toggle')
-    .forEach((control) => {
-      control.disabled = isBusy;
-    });
-  const uploadBox = document.getElementById('coverUploadBox');
-  if (uploadBox) uploadBox.setAttribute('aria-disabled', String(isBusy));
-  renderArticleImagePreviews();
 }
 
 function formatBytes(bytes) {
@@ -642,8 +461,9 @@ async function compressCoverImage(file) {
       throw new Error('Compression failed. Please try a different image.');
     }
 
+    const dataUrl = await blobToDataURL(blob);
     const candidate = {
-      blob,
+      dataUrl,
       type: 'image/webp',
       name: getWebpFilename(file.name),
       size: blob.size,
@@ -651,7 +471,23 @@ async function compressCoverImage(file) {
       height: targetHeight,
     };
 
-    if (blob.size <= MAX_COMPRESSED_IMAGE_BYTES) {
+    const estimatedDocBytes = estimatePayloadSize({
+      coverImage: dataUrl,
+      coverImageType: 'image/webp',
+      coverImageName: candidate.name,
+      coverImageSize: blob.size,
+      coverImageWidth: targetWidth,
+      coverImageHeight: targetHeight,
+      coverImageSource: 'upload',
+      title: 'temp',
+      slug: 'temp',
+      excerpt: 'temp',
+      content: 'temp',
+      authorName: 'temp',
+      status: 'draft',
+    });
+
+    if (blob.size <= 260 * 1024 && estimatedDocBytes <= FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES) {
       return candidate;
     }
 
@@ -663,8 +499,24 @@ async function compressCoverImage(file) {
     throw new Error('Compression failed. Please try a smaller image.');
   }
 
-  if (bestCandidate.size > MAX_COMPRESSED_IMAGE_BYTES) {
-    throw new Error('Image is too large to upload. Please choose an image under 5 MB.');
+  const estimatedDocBytes = estimatePayloadSize({
+    coverImage: bestCandidate.dataUrl,
+    coverImageType: 'image/webp',
+    coverImageName: bestCandidate.name,
+    coverImageSize: bestCandidate.size,
+    coverImageWidth: bestCandidate.width,
+    coverImageHeight: bestCandidate.height,
+    coverImageSource: 'upload',
+    title: 'temp',
+    slug: 'temp',
+    excerpt: 'temp',
+    content: 'temp',
+    authorName: 'temp',
+    status: 'draft',
+  });
+
+  if (estimatedDocBytes > FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES) {
+    throw new Error('Image is too large to store with this article. Please choose a smaller image.');
   }
 
   return bestCandidate;
@@ -673,6 +525,15 @@ async function compressCoverImage(file) {
 function canvasToBlob(canvas, type, quality) {
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), type, quality);
+  });
+}
+
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not prepare the image for saving.'));
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -686,6 +547,7 @@ function isFirestoreDocumentSafe(payload) {
 
 function isValidCoverValue(value) {
   if (!value) return false;
+  if (value.startsWith('data:image/')) return true;
   try {
     const parsed = new URL(value);
     return ['http:', 'https:'].includes(parsed.protocol);
@@ -695,129 +557,48 @@ function isValidCoverValue(value) {
 }
 
 function buildCoverSelectionFromState() {
-  const urlValue = currentCoverMode === 'url'
-    ? (document.getElementById('coverUrlInput')?.value.trim() || '')
-    : '';
-  const images = uploadedArticleImages.slice(0, MAX_ARTICLE_IMAGES);
-  const cover = urlValue ? null : images[0] || null;
-  const middle = urlValue ? images[0] || null : images[1] || null;
-  const ending = urlValue ? images[1] || null : images[2] || null;
-
-  return {
-    mode: urlValue ? 'url' : 'upload',
-    coverImage: urlValue || cover,
-    middleImage: middle,
-    endingImage: ending,
-    coverImageType: urlValue ? 'image/url' : cover?.type || null,
-    coverImageName: cover?.originalName || cover?.name || null,
-    coverImageSize: cover?.size || null,
-    coverImageWidth: cover?.width || null,
-    coverImageHeight: cover?.height || null,
-    middleImageName: middle?.originalName || middle?.name || null,
-    endingImageName: ending?.originalName || ending?.name || null,
-  };
-}
-
-function isFirebaseStorageUrl(value) {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'https:' && parsed.hostname === 'firebasestorage.googleapis.com';
-  } catch {
-    return false;
+  if (userRequestedCoverRemoval) {
+    return { mode: 'remove', coverImage: '', coverImageType: null, coverImageName: null, coverImageSize: null, coverImageWidth: null, coverImageHeight: null };
   }
-}
 
-async function createSavedImageState(image, index) {
-  const isLegacyDataUrl = image.value.startsWith('data:image/');
-  if (isLegacyDataUrl) {
-    const sourceBlob = await fetch(image.value).then((response) => response.blob());
-    const migratedImage = await compressCoverImage(new File(
-      [sourceBlob],
-      image.name || `article-image-${index + 1}.webp`,
-      { type: sourceBlob.type || 'image/webp' }
-    ));
+  if (currentUploadedCoverData) {
     return {
-      ...migratedImage,
-      previewUrl: URL.createObjectURL(migratedImage.blob),
-      originalName: image.name || `Article image ${index + 1}`,
-      name: image.name || null,
-      size: migratedImage.size,
-      width: image.width || null,
-      height: image.height || null,
-      uploadState: 'ready',
-      progress: 0,
-      storageUrl: false,
-      fingerprint: null
+      mode: 'upload',
+      coverImage: currentUploadedCoverData.dataUrl,
+      coverImageType: 'image/webp',
+      coverImageName: currentUploadedCoverData.name,
+      coverImageSize: currentUploadedCoverData.size,
+      coverImageWidth: currentUploadedCoverData.width,
+      coverImageHeight: currentUploadedCoverData.height,
     };
   }
 
-  return {
-    src: image.value,
-    downloadUrl: image.value,
-    originalName: image.name || `Article image ${index + 1}`,
-    name: image.name || null,
-    size: image.size || null,
-    width: image.width || null,
-    height: image.height || null,
-    type: image.type || 'image/url',
-    uploadState: 'uploaded',
-    progress: 100,
-    storageUrl: isFirebaseStorageUrl(image.value),
-    fingerprint: null
-  };
-}
+  const urlValue = document.getElementById('coverUrlInput')?.value.trim() || uploadedCoverUrl || '';
+  if (urlValue) {
+    return {
+      mode: 'url',
+      coverImage: urlValue,
+      coverImageType: 'image/url',
+      coverImageName: null,
+      coverImageSize: null,
+      coverImageWidth: null,
+      coverImageHeight: null,
+    };
+  }
 
-function uploadArticleImage(image, articleId, position) {
-  if (!image) return Promise.resolve(null);
-  if (typeof image === 'string') return Promise.resolve(image);
-  if (image.storageUrl && image.downloadUrl) return Promise.resolve(image.downloadUrl);
-  if (!image.blob) return Promise.resolve(image.downloadUrl || image.src || null);
-  if (!storage) return Promise.reject(new Error('Firebase Storage is not configured. Set VITE_FIREBASE_STORAGE_BUCKET.'));
+  if (existingCoverData && existingCoverData.coverImage) {
+    return {
+      mode: 'existing',
+      coverImage: existingCoverData.coverImage,
+      coverImageType: existingCoverData.coverImageType || 'image/url',
+      coverImageName: existingCoverData.coverImageName || null,
+      coverImageSize: existingCoverData.coverImageSize || null,
+      coverImageWidth: existingCoverData.coverImageWidth || null,
+      coverImageHeight: existingCoverData.coverImageHeight || null,
+    };
+  }
 
-  const imageRef = storageRef(storage, `articles/${articleId}/images/${position}.webp`);
-  const uploadTask = uploadBytesResumable(imageRef, image.blob, {
-    contentType: 'image/webp',
-    cacheControl: 'public,max-age=31536000'
-  });
-  const imageIndex = uploadedArticleImages.indexOf(image);
-  image.uploadState = 'uploading';
-  image.progress = 0;
-  renderArticleImagePreviews();
-
-  return new Promise((resolve, reject) => {
-    uploadTask.on('state_changed', (snapshot) => {
-      image.progress = snapshot.totalBytes ? (snapshot.bytesTransferred / snapshot.totalBytes) * 100 : 0;
-      const status = document.querySelector(`[data-image-status="${imageIndex}"]`);
-      const progress = document.querySelector(`[data-image-progress="${imageIndex}"]`);
-      if (status) status.textContent = `Uploading... ${Math.floor(image.progress)}%`;
-      if (progress) progress.value = image.progress;
-    }, (error) => {
-      image.uploadState = 'error';
-      renderArticleImagePreviews();
-      reject(error);
-    }, async () => {
-      try {
-        image.downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-        image.storageUrl = true;
-        image.uploadState = 'uploaded';
-        image.progress = 100;
-        renderArticleImagePreviews();
-        resolve(image.downloadUrl);
-      } catch (error) {
-        image.uploadState = 'error';
-        renderArticleImagePreviews();
-        reject(error);
-      }
-    });
-  });
-}
-
-async function persistArticleImages(articleId, selection) {
-  return {
-    coverImage: await uploadArticleImage(selection.coverImage, articleId, 'cover'),
-    middleImage: await uploadArticleImage(selection.middleImage, articleId, 'middle'),
-    endingImage: await uploadArticleImage(selection.endingImage, articleId, 'ending')
-  };
+  return { mode: 'none', coverImage: '', coverImageType: null, coverImageName: null, coverImageSize: null, coverImageWidth: null, coverImageHeight: null };
 }
 
 async function loadPostForEditing(postId) {
@@ -831,17 +612,14 @@ async function loadPostForEditing(postId) {
     }
 
     const post = snap.data();
-    uploadedArticleImages = [];
-    const savedImages = [
-      { value: post.coverImage, name: post.coverImageName, size: post.coverImageSize, width: post.coverImageWidth, height: post.coverImageHeight, type: post.coverImageType },
-      { value: post.middleImage, name: post.middleImageName },
-      { value: post.endingImage, name: post.endingImageName },
-    ];
-    for (const [index, image] of savedImages.entries()) {
-      if (typeof image.value !== 'string' || !image.value.trim()) continue;
-      if (index === 0 && !image.value.startsWith('data:image/')) continue;
-      uploadedArticleImages.push(await createSavedImageState(image, index));
-    }
+    existingCoverData = {
+      coverImage: post.coverImage || '',
+      coverImageType: post.coverImageType || null,
+      coverImageName: post.coverImageName || null,
+      coverImageSize: post.coverImageSize || null,
+      coverImageWidth: post.coverImageWidth || null,
+      coverImageHeight: post.coverImageHeight || null,
+    };
 
     document.getElementById('postTitle').value = post.title || '';
     document.getElementById('postSlug').value = post.slug || '';
@@ -865,9 +643,17 @@ async function loadPostForEditing(postId) {
       const coverFileMeta = document.getElementById('coverFileMeta');
 
       if (post.coverImage.startsWith('data:image/')) {
-        currentCoverMode = 'upload';
+        if (previewImg) {
+          previewImg.src = post.coverImage;
+          previewImg.style.display = 'block';
+        }
+        if (coverSelectedMeta) coverSelectedMeta.style.display = 'block';
+        if (coverFileName) coverFileName.textContent = post.coverImageName || 'Uploaded Cover Image';
+        if (coverFileMeta) {
+          const dims = post.coverImageWidth && post.coverImageHeight ? ` • ${post.coverImageWidth} × ${post.coverImageHeight}` : '';
+          coverFileMeta.textContent = `${post.coverImageSize ? formatBytes(post.coverImageSize) : 'Compressed WebP'}${dims}`;
+        }
       } else {
-        currentCoverMode = 'url';
         if (urlInput) urlInput.value = post.coverImage;
         if (previewImg) {
           previewImg.src = post.coverImage;
@@ -879,9 +665,6 @@ async function loadPostForEditing(postId) {
       }
       if (placeholder) placeholder.style.display = 'none';
     }
-
-    document.querySelector(`[data-cover-mode="${currentCoverMode}"]`)?.click();
-    renderArticleImagePreviews();
 
     if (post.tags && Array.isArray(post.tags)) {
       postTags = [...post.tags];
@@ -919,8 +702,6 @@ async function handlePostSubmit(e) {
     return;
   }
 
-  await pendingImageProcessing;
-
   const title = document.getElementById('postTitle').value.trim();
   const slug = document.getElementById('postSlug').value.trim() || generateSlug(title);
   let excerpt = document.getElementById('postExcerpt').value.trim();
@@ -931,8 +712,7 @@ async function handlePostSubmit(e) {
   const featuredOrder = parseInt(document.getElementById('postFeaturedOrder').value, 10) || 1;
   const content = document.getElementById('richEditorArea').innerHTML.trim();
   const selectedCover = buildCoverSelectionFromState();
-  const coverImage = typeof selectedCover.coverImage === 'string' ? selectedCover.coverImage : '';
-  const selectedImages = [selectedCover.coverImage, selectedCover.middleImage, selectedCover.endingImage];
+  const coverImage = selectedCover.coverImage || '';
 
   if (!title) {
     showFeedback(feedbackEl, "Please enter an article title.", "error");
@@ -951,24 +731,8 @@ async function handlePostSubmit(e) {
     return;
   }
 
-  if (selectedCover.mode === 'url' && uploadedArticleImages.length > MAX_ARTICLE_IMAGES - 1) {
-    showFeedback(feedbackEl, "You can upload a maximum of 3 images.", "error");
-    return;
-  }
-
-  const hasInvalidImage = selectedImages.some((image) => {
-    if (!image) return false;
-    if (typeof image === 'string') return !isValidCoverValue(image);
-    if (image.blob instanceof Blob) return !(image.blob.type === 'image/webp' && image.blob.size <= MAX_COMPRESSED_IMAGE_BYTES);
-    return !isValidCoverValue(image.downloadUrl || image.src);
-  });
-  if (hasInvalidImage) {
-    showFeedback(feedbackEl, "One or more article images are invalid. Choose a supported image or a direct image URL.", "error");
-    return;
-  }
-
-  if (selectedImages.some((image) => image && typeof image !== 'string' && image.blob) && !storage) {
-    showFeedback(feedbackEl, "Firebase Storage is not configured. Set VITE_FIREBASE_STORAGE_BUCKET before uploading images.", "error");
+  if (selectedCover.mode === 'upload' && !coverImage.startsWith('data:image/')) {
+    showFeedback(feedbackEl, "Please choose a valid PNG, JPG, JPEG, or WEBP image to upload.", "error");
     return;
   }
 
@@ -990,60 +754,75 @@ async function handlePostSubmit(e) {
 
   submitBtn.disabled = true;
   submitBtn.textContent = editingPostId ? "Saving changes..." : "Publishing article...";
-  const articleId = editingPostId || pendingArticleId || doc(collection(db, 'posts')).id;
-  const postRef = doc(db, 'posts', articleId);
-  if (!editingPostId) pendingArticleId = articleId;
+
+  const articlePayload = {
+    title,
+    slug,
+    excerpt,
+    content,
+    category,
+    tags: postTags,
+    authorName,
+    authorId: currentUser.uid,
+    authorEmail: currentUser.email || '',
+    status,
+    featured,
+    featuredOrder,
+    updatedAt: serverTimestamp()
+  };
+
+  if (selectedCover.mode === 'upload') {
+    articlePayload.coverImage = selectedCover.coverImage;
+    articlePayload.coverImageType = selectedCover.coverImageType;
+    articlePayload.coverImageName = selectedCover.coverImageName;
+    articlePayload.coverImageSize = selectedCover.coverImageSize;
+    articlePayload.coverImageWidth = selectedCover.coverImageWidth;
+    articlePayload.coverImageHeight = selectedCover.coverImageHeight;
+  } else if (selectedCover.mode === 'url') {
+    articlePayload.coverImage = selectedCover.coverImage;
+    articlePayload.coverImageType = 'image/url';
+    articlePayload.coverImageName = null;
+    articlePayload.coverImageSize = null;
+    articlePayload.coverImageWidth = null;
+    articlePayload.coverImageHeight = null;
+  } else if (selectedCover.mode === 'remove') {
+    articlePayload.coverImage = null;
+    articlePayload.coverImageType = deleteField();
+    articlePayload.coverImageName = deleteField();
+    articlePayload.coverImageSize = deleteField();
+    articlePayload.coverImageWidth = deleteField();
+    articlePayload.coverImageHeight = deleteField();
+  } else if (selectedCover.mode === 'existing') {
+    articlePayload.coverImage = selectedCover.coverImage;
+    articlePayload.coverImageType = selectedCover.coverImageType;
+    articlePayload.coverImageName = selectedCover.coverImageName;
+    articlePayload.coverImageSize = selectedCover.coverImageSize;
+    articlePayload.coverImageWidth = selectedCover.coverImageWidth;
+    articlePayload.coverImageHeight = selectedCover.coverImageHeight;
+  }
+
+  const finalDocumentPayload = {
+    ...articlePayload,
+    ...(editingPostId ? {} : { createdAt: serverTimestamp(), views: 0 }),
+    ...(status === 'published' ? { publishedAt: serverTimestamp() } : { publishedAt: null })
+  };
+
+  const estimatedSize = estimatePayloadSize(finalDocumentPayload);
+  if (estimatedSize > FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES) {
+    showFeedback(feedbackEl, "Image is too large to store with this article. Please choose a smaller image.", "error");
+    return;
+  }
 
   try {
-    setImageUploaderBusy(true);
-    const imageUrls = await persistArticleImages(articleId, selectedCover);
-
-    const articlePayload = {
-      title,
-      slug,
-      excerpt,
-      content,
-      category,
-      tags: postTags,
-      authorName,
-      authorId: currentUser.uid,
-      authorEmail: currentUser.email || '',
-      status,
-      featured,
-      featuredOrder,
-      coverImage: imageUrls.coverImage,
-      middleImage: imageUrls.middleImage,
-      endingImage: imageUrls.endingImage,
-      coverImageType: selectedCover.mode === 'url' ? 'image/url' : selectedCover.coverImage?.type || null,
-      coverImageName: selectedCover.coverImage?.originalName || selectedCover.coverImage?.name || null,
-      coverImageSize: selectedCover.coverImage?.size || null,
-      coverImageWidth: selectedCover.coverImage?.width || null,
-      coverImageHeight: selectedCover.coverImage?.height || null,
-      middleImageName: selectedCover.middleImage?.originalName || selectedCover.middleImage?.name || null,
-      endingImageName: selectedCover.endingImage?.originalName || selectedCover.endingImage?.name || null,
-      updatedAt: serverTimestamp()
-    };
-
-    const finalDocumentPayload = {
-      ...articlePayload,
-      ...(editingPostId ? {} : { createdAt: serverTimestamp(), views: 0 }),
-      ...(status === 'published' ? { publishedAt: serverTimestamp() } : { publishedAt: null })
-    };
-
-    if (estimatePayloadSize(finalDocumentPayload) > FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES) {
-      throw new Error('Article content is too large to save. Reduce the article text and try again.');
-    }
-
     if (editingPostId) {
       if (status === 'published') {
         finalDocumentPayload.publishedAt = serverTimestamp();
       }
-      await updateDoc(postRef, finalDocumentPayload);
+      await updateDoc(doc(db, 'posts', editingPostId), finalDocumentPayload);
       showFeedback(feedbackEl, "Changes saved successfully.", "success");
     } else {
-      await setDoc(postRef, finalDocumentPayload);
-      editingPostId = articleId;
-      pendingArticleId = null;
+      const newDoc = await addDoc(collection(db, 'posts'), finalDocumentPayload);
+      editingPostId = newDoc.id;
       showFeedback(feedbackEl, status === 'published' ? "Article published successfully!" : "Draft saved successfully!", "success");
     }
 
@@ -1053,14 +832,9 @@ async function handlePostSubmit(e) {
 
   } catch (error) {
     console.error("Publishing error details:", error);
+    handleFirestoreError(error, editingPostId ? 'update' : 'create', 'posts');
     const isPerm = error?.message?.includes('permission') || error?.code === 'permission-denied';
-    const isStorageError = error?.code?.startsWith('storage/') || error?.message?.includes('Firebase Storage');
-    if (!isStorageError) {
-      handleFirestoreError(error, editingPostId ? 'update' : 'create', 'posts');
-    }
-    if (isStorageError) {
-      showFeedback(feedbackEl, `Image upload failed${error?.code ? ` [${error.code}]` : ''}: ${error.message}. Check that Storage is enabled and storage.rules are deployed.`, "error");
-    } else if (isPerm) {
+    if (isPerm) {
       feedbackEl.className = 'form-feedback error';
       feedbackEl.style.display = 'block';
       feedbackEl.innerHTML = `
@@ -1131,7 +905,6 @@ service cloud.firestore {
       showFeedback(feedbackEl, `Publishing failed${errorCode}: ${error.message}`, "error");
     }
   } finally {
-    setImageUploaderBusy(false);
     submitBtn.disabled = false;
     submitBtn.textContent = editingPostId ? "Save Changes" : "Publish Article";
   }

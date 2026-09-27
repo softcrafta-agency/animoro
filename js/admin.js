@@ -320,9 +320,7 @@ service cloud.firestore {
              data.category is string && data.category.size() <= 100 &&
              (data.status == 'draft' || data.status == 'published') &&
              (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000)) &&
-             (!('coverImage' in data) || data.coverImage == null || (data.coverImage is string && data.coverImage.size() <= 250000)) &&
-             (!('middleImage' in data) || data.middleImage == null || (data.middleImage is string && data.middleImage.size() <= 250000)) &&
-             (!('endingImage' in data) || data.endingImage == null || (data.endingImage is string && data.endingImage.size() <= 250000)) &&
+             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 2000)) &&
              (!('tags' in data) || data.tags is list) &&
              (!('featured' in data) || data.featured is bool) &&
              (!('featuredOrder' in data) || data.featuredOrder is number) &&
