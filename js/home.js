@@ -377,17 +377,19 @@ async function loadMoreArticles() {
   }
 }
 
-export function createArticleCard(id, post) {
+export function createArticleCard(id, post, showViews = true) {
   const card = document.createElement('article');
   card.className = 'article-card';
   card.innerHTML = `
     <a href="blog.html?id=${id}" class="card-img-wrap">
       <img class="card-img" src="${post.coverImage || 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80'}" alt="${post.title}" loading="lazy" />
       <span class="card-category-badge">${post.category || 'General'}</span>
-      <span class="card-views-badge">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-        ${formatViews(post.views)}
-      </span>
+      ${showViews ? `
+        <span class="card-views-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          ${formatViews(post.views)}
+        </span>
+      ` : ''}
     </a>
     <div class="card-body">
       <div class="card-meta">

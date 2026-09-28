@@ -10,7 +10,7 @@ import {
   getDocs 
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { formatDate, formatViews, createArticleCard, setupMobileNav } from './home.js';
+import { formatDate, createArticleCard, setupMobileNav } from './home.js';
 
 async function initBlogPage() {
   setupMobileNav();
@@ -52,7 +52,7 @@ async function initBlogPage() {
     }
 
     // Atomic View Counter increment with sessionStorage throttle
-    recordArticleView(postRef, articleId, post.views || 0);
+    recordArticleView(postRef, articleId);
 
     // Update dynamic SEO tags
     updateSeoTags(post);
@@ -72,7 +72,7 @@ async function initBlogPage() {
 /**
  * Safely increment view count once per user session using atomic increment(1)
  */
-async function recordArticleView(postRef, articleId, currentViews) {
+async function recordArticleView(postRef, articleId) {
   const sessionKey = `animoro_viewed_${articleId}`;
   if (sessionStorage.getItem(sessionKey)) {
     return; // Already counted this visitor in the current session
@@ -83,11 +83,6 @@ async function recordArticleView(postRef, articleId, currentViews) {
       views: increment(1)
     });
     sessionStorage.setItem(sessionKey, 'true');
-    // Update view count in DOM if rendered
-    const viewCountEl = document.getElementById('articleViewCount');
-    if (viewCountEl) {
-      viewCountEl.textContent = formatViews(currentViews + 1) + ' views';
-    }
   } catch (err) {
     console.warn("Could not increment view count:", err);
   }
@@ -169,12 +164,6 @@ function renderArticle(container, id, post) {
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div id="articleViewCount" style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-weight: 500;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            <span>${formatViews(post.views)} views</span>
-          </div>
-        </div>
       </div>
     </header>
 
@@ -253,7 +242,7 @@ async function loadRelatedArticles(category, currentId) {
 
     container.innerHTML = '';
     related.forEach(d => {
-      container.appendChild(createArticleCard(d.id, d.data()));
+      container.appendChild(createArticleCard(d.id, d.data(), false));
     });
   } catch (err) {
     console.warn("Could not load related articles:", err);
