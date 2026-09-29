@@ -12,7 +12,8 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/responsive.css" />
 </head>
@@ -79,8 +80,10 @@
       <div class="container">
         <div class="hero-slider-container" id="heroSliderContainer">
           <!-- Populated by js/home.js from Firestore -->
-          <div class="slider-skeleton" style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
-            <span>Loading featured anime stories...</span>
+          <div class="slider-skeleton home-loading-state" role="status" aria-label="Loading featured stories">
+            <span class="home-loading-line"></span>
+            <span class="home-loading-line"></span>
+            <span class="home-loading-line"></span>
           </div>
         </div>
       </div>
@@ -101,8 +104,10 @@
 
           <div class="articles-grid" id="latestArticlesContainer">
             <!-- Populated by js/home.js from Cloud Firestore -->
-            <div class="empty-state" style="grid-column: 1 / -1;">
-              <p class="empty-state-desc">Loading stories from Animoro database...</p>
+            <div class="home-loading-state" role="status" aria-label="Loading latest articles">
+              <span class="home-loading-line"></span>
+              <span class="home-loading-line"></span>
+              <span class="home-loading-line"></span>
             </div>
           </div>
 
@@ -121,13 +126,15 @@
               Trending Now
             </h3>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">
-              Ranked live by reader view counts
+              Popular with Animoro readers
             </p>
 
             <div class="trending-list" id="trendingList">
               <!-- Populated by js/home.js ordered by views DESC -->
-              <div class="empty-state" style="padding: 24px 16px;">
-                <p class="empty-state-desc">Loading trending articles...</p>
+              <div class="home-loading-state" role="status" aria-label="Loading trending articles">
+                <span class="home-loading-line"></span>
+                <span class="home-loading-line"></span>
+                <span class="home-loading-line"></span>
               </div>
             </div>
           </div>

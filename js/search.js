@@ -3,15 +3,22 @@ import {
   query, 
   where, 
   getDocs, 
-  orderBy 
+  orderBy,
+  limit,
+  startAfter
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { createArticleCard, setupMobileNav } from './home.js';
+import { createArticleCard, setupMobileNav } from './ui.js';
 
 let allPublishedPosts = [];
+let lastPostDoc = null;
+let hasMorePosts = true;
+let pendingPageRequest = null;
+let usingFallback = false;
 let isLoaded = false;
+const PAGE_SIZE = 50;
 
-async function initSearchPage() {
+function initSearchPage() {
   setupMobileNav();
 
   const searchInput = document.getElementById('searchInput');
@@ -23,63 +30,32 @@ async function initSearchPage() {
 
   if (searchInput) {
     searchInput.value = initialQuery;
+    let debounceTimer;
     searchInput.addEventListener('input', (e) => {
-      performSearch(e.target.value.trim());
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => searchArticles(e.target.value.trim()), 180);
     });
   }
 
-  await loadAllPublishedPosts();
+  const loadMoreBtn = document.getElementById('loadMoreSearchResultsBtn');
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', async () => {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.textContent = 'Searching older articles...';
+      await loadNextPublishedPage();
+      renderSearchResults();
+      loadMoreBtn.disabled = false;
+      loadMoreBtn.textContent = 'Search Older Articles';
+    });
+  }
 
   if (initialQuery) {
-    performSearch(initialQuery);
+    searchArticles(initialQuery);
   }
 }
 
-async function loadAllPublishedPosts() {
-  if (!isConfigured || !db) return;
-
-  try {
-    let snap;
-    let usedFallback = false;
-    try {
-      const q = query(
-        collection(db, 'posts'),
-        where('status', '==', 'published'),
-        orderBy('publishedAt', 'desc')
-      );
-      snap = await getDocs(q);
-    } catch (orderErr) {
-      console.warn("Ordered query failed in search, falling back to simple status query:", orderErr);
-      const fallbackQ = query(
-        collection(db, 'posts'),
-        where('status', '==', 'published')
-      );
-      snap = await getDocs(fallbackQ);
-      usedFallback = true;
-    }
-
-    allPublishedPosts = snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    if (usedFallback) {
-      allPublishedPosts.sort((a, b) => {
-        const tA = a.publishedAt?.toDate?.() || new Date(a.publishedAt || a.createdAt || 0);
-        const tB = b.publishedAt?.toDate?.() || new Date(b.publishedAt || b.createdAt || 0);
-        return tB - tA;
-      });
-    }
-
-    isLoaded = true;
-  } catch (err) {
-    handleFirestoreError(err, 'list', 'posts');
-  }
-}
-
-function performSearch(term) {
+async function searchArticles(term) {
   const resultsContainer = document.getElementById('searchResultsContainer');
-  const resultsCount = document.getElementById('searchResultsCount');
   if (!resultsContainer) return;
 
   if (!term) {
@@ -88,9 +64,74 @@ function performSearch(term) {
         <p class="empty-state-desc">Type keywords above to search across titles, categories, authors, and tags.</p>
       </div>
     `;
+    const resultsCount = document.getElementById('searchResultsCount');
     if (resultsCount) resultsCount.textContent = '';
+    updateLoadMoreButton();
     return;
   }
+
+  if (!isConfigured || !db) {
+    renderSearchMessage('Search is unavailable until Firebase is configured.');
+    return;
+  }
+
+  if (!isLoaded) await loadNextPublishedPage();
+  renderSearchResults(term);
+}
+
+function loadNextPublishedPage() {
+  if (pendingPageRequest) return pendingPageRequest;
+  if (!hasMorePosts || !db) return Promise.resolve();
+
+  pendingPageRequest = (async () => {
+    try {
+      let snap;
+      if (!usingFallback) {
+        const constraints = [
+          where('status', '==', 'published'),
+          orderBy('publishedAt', 'desc')
+        ];
+        if (lastPostDoc) constraints.push(startAfter(lastPostDoc));
+        constraints.push(limit(PAGE_SIZE));
+
+        try {
+          snap = await getDocs(query(collection(db, 'posts'), ...constraints));
+        } catch (orderErr) {
+          console.warn('Ordered search query failed; using a limited fallback:', orderErr);
+          usingFallback = true;
+        }
+      }
+
+      if (usingFallback) {
+        const constraints = [where('status', '==', 'published')];
+        if (lastPostDoc) constraints.push(startAfter(lastPostDoc));
+        constraints.push(limit(PAGE_SIZE));
+        snap = await getDocs(query(collection(db, 'posts'), ...constraints));
+      }
+
+      allPublishedPosts.push(...snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })));
+      lastPostDoc = snap.docs.at(-1) || lastPostDoc;
+      hasMorePosts = snap.docs.length === PAGE_SIZE;
+      isLoaded = true;
+    } catch (error) {
+      handleFirestoreError(error, 'list', 'posts');
+      if (!isLoaded) renderSearchMessage('Unable to search articles. Please check your connection.');
+      hasMorePosts = false;
+    } finally {
+      pendingPageRequest = null;
+      updateLoadMoreButton();
+    }
+  })();
+  return pendingPageRequest;
+}
+
+function renderSearchResults(term = document.getElementById('searchInput')?.value.trim() || '') {
+  const resultsContainer = document.getElementById('searchResultsContainer');
+  const resultsCount = document.getElementById('searchResultsCount');
+  if (!resultsContainer) return;
 
   const lower = term.toLowerCase();
   const matched = allPublishedPosts.filter(post => {
@@ -98,25 +139,20 @@ function performSearch(term) {
     const excerptMatch = (post.excerpt || '').toLowerCase().includes(lower);
     const catMatch = (post.category || '').toLowerCase().includes(lower);
     const authorMatch = (post.authorName || '').toLowerCase().includes(lower);
-    const tagMatch = (post.tags || []).some(t => t.toLowerCase().includes(lower));
+    const tagMatch = (post.tags || []).some(tag => String(tag).toLowerCase().includes(lower));
 
     return titleMatch || excerptMatch || catMatch || authorMatch || tagMatch;
   });
 
   if (resultsCount) {
-    resultsCount.textContent = `Found ${matched.length} article${matched.length === 1 ? '' : 's'} for "${term}"`;
+    resultsCount.textContent = `Found ${matched.length} matching article${matched.length === 1 ? '' : 's'} in ${allPublishedPosts.length} loaded.`;
   }
 
   if (matched.length === 0) {
-    resultsContainer.innerHTML = `
-      <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        </div>
-        <h3 class="empty-state-title">No articles found.</h3>
-        <p class="empty-state-desc">Try another search.</p>
-      </div>
-    `;
+    renderSearchMessage(hasMorePosts
+      ? 'No matches in the articles loaded so far. Search older articles to continue.'
+      : 'No articles found. Try another search.');
+    updateLoadMoreButton();
     return;
   }
 
@@ -124,6 +160,22 @@ function performSearch(term) {
   matched.forEach(post => {
     resultsContainer.appendChild(createArticleCard(post.id, post));
   });
+  updateLoadMoreButton();
 }
 
-document.addEventListener('DOMContentLoaded', initSearchPage);
+function renderSearchMessage(message) {
+  const resultsContainer = document.getElementById('searchResultsContainer');
+  if (!resultsContainer) return;
+  resultsContainer.innerHTML = `
+    <div class="empty-state" style="grid-column: 1 / -1;">
+      <p class="empty-state-desc">${message}</p>
+    </div>
+  `;
+}
+
+function updateLoadMoreButton() {
+  const loadMoreBtn = document.getElementById('loadMoreSearchResultsBtn');
+  if (loadMoreBtn) loadMoreBtn.style.display = hasMorePosts && isLoaded ? 'inline-flex' : 'none';
+}
+
+initSearchPage();

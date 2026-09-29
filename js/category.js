@@ -3,10 +3,12 @@ import {
   query, 
   where, 
   orderBy, 
-  getDocs 
+  getDocs,
+  limit,
+  startAfter
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { createArticleCard, setupMobileNav } from './home.js';
+import { createArticleCard, setupMobileNav } from './ui.js';
 
 const CATEGORY_DESCRIPTIONS = {
   'Anime News': 'Breaking news, seasonal announcements, studio updates, and production insights.',
@@ -17,6 +19,9 @@ const CATEGORY_DESCRIPTIONS = {
   'Manga': 'Manga chapter discussions, adaptations comparison, and light novel spotlights.',
   'Seasonal Anime': 'Previews, schedules, and essential guides for current and upcoming anime seasons.'
 };
+const PAGE_SIZE = 9;
+let lastCategoryDoc = null;
+let isLoadingCategory = false;
 
 async function initCategoryPage() {
   setupMobileNav();
@@ -35,6 +40,11 @@ async function initCategoryPage() {
 
   if (!container) return;
 
+  const loadMoreBtn = document.getElementById('loadMoreCategoryArticlesBtn');
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', () => loadCategoryArticles(lastCategoryDoc));
+  }
+
   if (!isConfigured || !db) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -45,29 +55,58 @@ async function initCategoryPage() {
     return;
   }
 
+  await loadCategoryArticles();
+}
+
+async function loadCategoryArticles(cursor = null) {
+  const categoryName = new URLSearchParams(window.location.search).get('category') || 'Anime News';
+  const container = document.getElementById('categoryArticlesContainer');
+  const loadMoreBtn = document.getElementById('loadMoreCategoryArticlesBtn');
+  if (!container || !db || isLoadingCategory) return;
+
+  isLoadingCategory = true;
+  if (!cursor) {
+    lastCategoryDoc = null;
+    container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading category articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
+  }
+  if (loadMoreBtn) {
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.textContent = 'Loading articles...';
+  }
+
   try {
     let snap;
     let usedFallback = false;
     try {
-      const q = query(
-        collection(db, 'posts'),
+      const constraints = [
         where('status', '==', 'published'),
         where('category', '==', categoryName),
         orderBy('publishedAt', 'desc')
+      ];
+      if (cursor) constraints.push(startAfter(cursor));
+      constraints.push(limit(PAGE_SIZE));
+      const q = query(
+        collection(db, 'posts'),
+        ...constraints
       );
       snap = await getDocs(q);
     } catch (idxErr) {
       console.warn("Compound index query failed for category, using fallback query:", idxErr);
-      const fallbackQ = query(
-        collection(db, 'posts'),
+      const fallbackConstraints = [
         where('status', '==', 'published'),
         where('category', '==', categoryName)
+      ];
+      if (cursor) fallbackConstraints.push(startAfter(cursor));
+      fallbackConstraints.push(limit(PAGE_SIZE));
+      const fallbackQ = query(
+        collection(db, 'posts'),
+        ...fallbackConstraints
       );
       snap = await getDocs(fallbackQ);
       usedFallback = true;
     }
 
-    if (snap.empty) {
+    if (snap.empty && !cursor) {
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
           <div class="empty-state-icon">
@@ -77,6 +116,8 @@ async function initCategoryPage() {
           <p class="empty-state-desc">No articles published in ${categoryName} yet. Fresh content is coming soon.</p>
         </div>
       `;
+    } else if (snap.empty) {
+      if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       return;
     }
 
@@ -89,10 +130,15 @@ async function initCategoryPage() {
       });
     }
 
-    container.innerHTML = '';
-    posts.forEach(post => {
-      container.appendChild(createArticleCard(post.id, post));
-    });
+    if (!cursor) container.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    posts.forEach(post => fragment.appendChild(createArticleCard(post.id, post)));
+    container.appendChild(fragment);
+    lastCategoryDoc = snap.docs.at(-1) || cursor;
+    if (loadMoreBtn) {
+      loadMoreBtn.textContent = 'Load More Articles';
+      loadMoreBtn.style.display = snap.docs.length === PAGE_SIZE ? 'inline-flex' : 'none';
+    }
   } catch (error) {
     handleFirestoreError(error, 'list', 'posts');
     container.innerHTML = `
@@ -101,7 +147,13 @@ async function initCategoryPage() {
         <p class="empty-state-desc">Please verify your Firestore index configuration.</p>
       </div>
     `;
+  } finally {
+    isLoadingCategory = false;
+    if (loadMoreBtn) {
+      loadMoreBtn.disabled = false;
+      if (loadMoreBtn.style.display !== 'none') loadMoreBtn.textContent = 'Load More Articles';
+    }
   }
 }
 
-document.addEventListener('DOMContentLoaded', initCategoryPage);
+initCategoryPage();

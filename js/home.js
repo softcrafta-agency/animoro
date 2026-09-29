@@ -8,32 +8,17 @@ import {
   startAfter 
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
+import { createArticleCard, formatDate, setupMobileNav } from './ui.js';
+
+export { createArticleCard, formatDate, formatViews, setupMobileNav } from './ui.js';
 
 let featuredSlides = [];
 let currentSlideIndex = 0;
 let slideInterval = null;
 let lastArticleDoc = null;
 let isLoadingMore = false;
+let latestArticlesPromise = null;
 const ARTICLES_PER_PAGE = 6;
-
-// Format timestamp helper
-export function formatDate(timestamp) {
-  if (!timestamp) return 'Recent';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-}
-
-// Format view count
-export function formatViews(views) {
-  const num = views || 0;
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
-}
 
 /**
  * Load and render Hero Slider from Firestore
@@ -58,13 +43,8 @@ async function initHeroSlider() {
     let snapshot = await getDocs(q);
     let isFallbackToLatest = false;
     if (snapshot.empty) {
-      // Fallback: If no posts are explicitly marked featured, display the latest published posts
-      const fallbackQ = query(
-        collection(db, 'posts'),
-        where('status', '==', 'published'),
-        limit(3)
-      );
-      snapshot = await getDocs(fallbackQ);
+      const latestResult = await getLatestArticlesSnapshot();
+      snapshot = latestResult.snapshot;
       isFallbackToLatest = true;
     }
 
@@ -115,7 +95,7 @@ function renderSliderEmptyState(container, message) {
 function renderSlides(container, slides) {
   const trackHtml = slides.map((post, idx) => `
     <div class="slider-slide ${idx === 0 ? 'active' : ''}" data-index="${idx}">
-      <img class="slide-bg" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1600&q=80'}" alt="${post.title}" loading="lazy" />
+      <img class="slide-bg" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1600&q=80'}" alt="${post.title}" width="1600" height="900" loading="${idx === 0 ? 'eager' : 'lazy'}" fetchpriority="${idx === 0 ? 'high' : 'auto'}" decoding="async" />
       <div class="slide-overlay"></div>
       <div class="slide-content">
         <span class="badge-featured">Featured Story</span>
@@ -132,10 +112,6 @@ function renderSlides(container, slides) {
           <div class="slide-meta-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             <span>${formatDate(post.publishedAt || post.createdAt)}</span>
-          </div>
-          <div class="slide-meta-item">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            <span>${formatViews(post.views)} views</span>
           </div>
         </div>
         <a href="blog.html?id=${post.id}" class="btn-cta">
@@ -274,25 +250,7 @@ async function initLatestArticles() {
   }
 
   try {
-    let snapshot;
-    let usedFallback = false;
-    try {
-      const q = query(
-        collection(db, 'posts'),
-        where('status', '==', 'published'),
-        orderBy('publishedAt', 'desc'),
-        limit(ARTICLES_PER_PAGE)
-      );
-      snapshot = await getDocs(q);
-    } catch (orderErr) {
-      console.warn("Ordered query for latest articles failed, trying status filter:", orderErr);
-      const fallbackQ = query(
-        collection(db, 'posts'),
-        where('status', '==', 'published')
-      );
-      snapshot = await getDocs(fallbackQ);
-      usedFallback = true;
-    }
+    const { snapshot, usedFallback } = await getLatestArticlesSnapshot();
 
     if (snapshot.empty) {
       container.innerHTML = `
@@ -339,6 +297,31 @@ async function initLatestArticles() {
   }
 }
 
+function getLatestArticlesSnapshot() {
+  if (!latestArticlesPromise) {
+    latestArticlesPromise = (async () => {
+      try {
+        const q = query(
+          collection(db, 'posts'),
+          where('status', '==', 'published'),
+          orderBy('publishedAt', 'desc'),
+          limit(ARTICLES_PER_PAGE)
+        );
+        return { snapshot: await getDocs(q), usedFallback: false };
+      } catch (orderErr) {
+        console.warn('Ordered query for latest articles failed; using a limited fallback:', orderErr);
+        const fallbackQ = query(
+          collection(db, 'posts'),
+          where('status', '==', 'published'),
+          limit(ARTICLES_PER_PAGE)
+        );
+        return { snapshot: await getDocs(fallbackQ), usedFallback: true };
+      }
+    })();
+  }
+  return latestArticlesPromise;
+}
+
 async function loadMoreArticles() {
   if (!lastArticleDoc || isLoadingMore || !db) return;
   isLoadingMore = true;
@@ -377,43 +360,6 @@ async function loadMoreArticles() {
   }
 }
 
-export function createArticleCard(id, post, showViews = true) {
-  const card = document.createElement('article');
-  card.className = 'article-card';
-  card.innerHTML = `
-    <a href="blog.html?id=${id}" class="card-img-wrap">
-      <img class="card-img" src="${post.coverImage || 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80'}" alt="${post.title}" loading="lazy" />
-      <span class="card-category-badge">${post.category || 'General'}</span>
-      ${showViews ? `
-        <span class="card-views-badge">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-          ${formatViews(post.views)}
-        </span>
-      ` : ''}
-    </a>
-    <div class="card-body">
-      <div class="card-meta">
-        <span>${formatDate(post.publishedAt || post.createdAt)}</span>
-      </div>
-      <h3 class="card-title">
-        <a href="blog.html?id=${id}">${post.title}</a>
-      </h3>
-      <p class="card-excerpt">${post.excerpt || ''}</p>
-      <div class="card-footer">
-        <div class="author-info">
-          <div class="author-avatar">${(post.authorName || 'A')[0].toUpperCase()}</div>
-          <span>${post.authorName || 'Animoro Editor'}</span>
-        </div>
-        <a href="blog.html?id=${id}" style="color: var(--accent-crimson); font-weight: 600; display: flex; align-items: center; gap: 4px;">
-          Read
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </a>
-      </div>
-    </div>
-  `;
-  return card;
-}
-
 /**
  * Load and render Trending Articles ordered by views DESC
  */
@@ -445,7 +391,8 @@ async function initTrendingArticles() {
       console.warn("Trending posts query with orderBy failed, using status filter:", orderErr);
       const fallbackQ = query(
         collection(db, 'posts'),
-        where('status', '==', 'published')
+        where('status', '==', 'published'),
+        limit(5)
       );
       snapshot = await getDocs(fallbackQ);
       usedFallback = true;
@@ -471,16 +418,12 @@ async function initTrendingArticles() {
       return `
         <div class="trending-item">
           <span class="trending-rank">0${idx + 1}</span>
-          <img class="trending-thumb" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=200&q=80'}" alt="${post.title}" loading="lazy" />
+          <img class="trending-thumb" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=200&q=80'}" alt="${post.title}" width="200" height="150" loading="lazy" decoding="async" />
           <div class="trending-info">
             <span class="trending-category">${post.category || 'Anime'}</span>
             <h4 class="trending-title">
               <a href="blog.html?id=${doc.id}">${post.title}</a>
             </h4>
-            <div class="trending-views">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              <span>${formatViews(post.views)} views</span>
-            </div>
           </div>
         </div>
       `;
@@ -498,35 +441,14 @@ async function initTrendingArticles() {
 /**
  * Mobile Navigation Menu Handler
  */
-export function setupMobileNav() {
-  const hamburgerBtn = document.getElementById('hamburgerBtn');
-  const drawer = document.getElementById('mobileNavDrawer');
-  const backdrop = document.getElementById('mobileBackdrop');
-  const closeBtn = document.getElementById('drawerCloseBtn');
-
-  if (!hamburgerBtn || !drawer || !backdrop) return;
-
-  function openMenu() {
-    drawer.classList.add('open');
-    backdrop.classList.add('show');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeMenu() {
-    drawer.classList.remove('open');
-    backdrop.classList.remove('show');
-    document.body.style.overflow = '';
-  }
-
-  hamburgerBtn.addEventListener('click', openMenu);
-  backdrop.addEventListener('click', closeMenu);
-  if (closeBtn) closeBtn.addEventListener('click', closeMenu);
+// Initialize on page load
+function initHomepage() {
+  setupMobileNav();
+  initLatestArticles();
+  initHeroSlider();
+  initTrendingArticles();
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-  setupMobileNav();
-  initHeroSlider();
-  initLatestArticles();
-  initTrendingArticles();
-});
+if (document.getElementById('heroSliderContainer')) {
+  initHomepage();
+}

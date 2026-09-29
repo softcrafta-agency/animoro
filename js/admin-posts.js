@@ -8,8 +8,8 @@ import {
   query,
   where
 } from 'firebase/firestore';
-import { auth, db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { formatDate, formatViews } from './home.js';
+import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
+import { formatDate, formatViews } from './ui.js';
 
 let adminPostsList = [];
 let currentFilter = 'all';
@@ -40,32 +40,8 @@ export async function loadAdminPosts(onStatsLoaded = () => {}) {
   `;
 
   try {
-    let snap;
-    try {
-      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-      snap = await getDocs(q);
-    } catch (orderErr) {
-      console.warn("Query with orderBy failed, attempting fallback collection query:", orderErr);
-      try {
-        const fallbackQ = query(collection(db, 'posts'));
-        snap = await getDocs(fallbackQ);
-      } catch (collErr) {
-        const curUser = auth?.currentUser;
-        if (curUser) {
-          console.warn("Full collection query failed, trying authorId query fallback:", collErr);
-          try {
-            const authorQ = query(collection(db, 'posts'), where('authorId', '==', curUser.uid));
-            snap = await getDocs(authorQ);
-          } catch (authorErr) {
-            console.warn("Author query failed, attempting published status query:", authorErr);
-            const pubQ = query(collection(db, 'posts'), where('status', '==', 'published'));
-            snap = await getDocs(pubQ);
-          }
-        } else {
-          throw collErr;
-        }
-      }
-    }
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
 
     adminPostsList = snap.docs.map(d => ({
       id: d.id,
@@ -187,7 +163,7 @@ export function renderPostsTable() {
     return `
       <tr data-id="${post.id}">
         <td>
-          <img class="table-thumb" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=120&q=80'}" alt="${post.title}" />
+          <img class="table-thumb" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=120&q=80'}" alt="${post.title}" width="120" height="90" loading="lazy" decoding="async" />
         </td>
         <td>
           <div style="font-weight: 600; color: var(--text-primary); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -302,7 +278,7 @@ export function renderFeaturedSliderManager() {
     <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 10px;">
       <div style="display: flex; align-items: center; gap: 14px;">
         <span style="font-weight: 800; color: var(--accent-crimson); font-family: var(--font-display);">Slide ${idx + 1}</span>
-        <img src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=100&q=80'}" style="width: 50px; height: 36px; object-fit: cover; border-radius: var(--radius-sm);" />
+        <img src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=100&q=80'}" alt="${post.title}" width="50" height="36" loading="lazy" decoding="async" style="width: 50px; height: 36px; object-fit: cover; border-radius: var(--radius-sm);" />
         <div>
           <div style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${post.title}</div>
           <div style="font-size: 0.78rem; color: var(--text-muted);">${post.category || 'Anime'}</div>

@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { requireAdminAuth, verifyAdminStatus } from './auth.js';
-import { auth } from './firebase-init.js';
+import { auth } from './auth-init.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -234,7 +234,7 @@ function getArticleImageModalInsertHtml(images) {
   return images.map((image) => {
     const alt = (image.alt || 'Article image').replace(/"/g, '&quot;');
     const src = (image.src || '').replace(/"/g, '&quot;');
-    return `<img src="${src}" alt="${alt}" loading="lazy" class="article-content-image" data-image-batch="${batchId}" />`;
+    return `<img src="${src}" alt="${alt}" loading="lazy" decoding="async" class="article-content-image" data-image-batch="${batchId}" />`;
   }).join('');
 }
 
@@ -1378,4 +1378,4 @@ function showFeedback(el, msg, type) {
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-document.addEventListener('DOMContentLoaded', initAdminEditor);
+initAdminEditor();

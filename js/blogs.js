@@ -8,7 +8,7 @@ import {
   startAfter 
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { createArticleCard, setupMobileNav } from './home.js';
+import { createArticleCard, setupMobileNav } from './ui.js';
 
 let selectedCategory = 'all';
 let currentSort = 'latest'; // latest, popular, oldest
@@ -68,11 +68,7 @@ async function loadArticles(reset = false) {
 
   if (reset) {
     lastDoc = null;
-    container.innerHTML = `
-      <div class="empty-state" style="grid-column: 1 / -1;">
-        <p class="empty-state-desc">Loading anime stories from Animoro...</p>
-      </div>
-    `;
+    container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
   }
 
   if (!isConfigured || !db) {
@@ -129,7 +125,10 @@ async function loadArticles(reset = false) {
       if (selectedCategory && selectedCategory !== 'all') {
         simpleConstraints.push(where('category', '==', selectedCategory));
       }
-      simpleConstraints.push(limit(50));
+      if (lastDoc && !reset) {
+        simpleConstraints.push(startAfter(lastDoc));
+      }
+      simpleConstraints.push(limit(PAGE_SIZE));
       const fallbackQ = query(collection(db, 'posts'), ...simpleConstraints);
       snap = await getDocs(fallbackQ);
       fallbackUsed = true;
@@ -162,11 +161,10 @@ async function loadArticles(reset = false) {
         const tB = pB.publishedAt?.toDate ? pB.publishedAt.toDate().getTime() : (pB.publishedAt ? new Date(pB.publishedAt).getTime() : 0);
         return currentSort === 'oldest' ? tA - tB : tB - tA;
       });
-      docs = docs.slice(0, PAGE_SIZE);
     }
 
     if (docs.length > 0) {
-      lastDoc = docs[docs.length - 1];
+      lastDoc = snap.docs.at(-1) || lastDoc;
       docs.forEach(doc => {
         container.appendChild(createArticleCard(doc.id, doc.data()));
       });
@@ -174,7 +172,7 @@ async function loadArticles(reset = false) {
 
     if (loadMoreBtn) {
       loadMoreBtn.textContent = 'Load More Articles';
-      loadMoreBtn.style.display = (!fallbackUsed && snap.docs.length === PAGE_SIZE) ? 'inline-flex' : 'none';
+      loadMoreBtn.style.display = snap.docs.length === PAGE_SIZE ? 'inline-flex' : 'none';
     }
 
   } catch (error) {
@@ -192,4 +190,4 @@ async function loadArticles(reset = false) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initBlogsPage);
+initBlogsPage();

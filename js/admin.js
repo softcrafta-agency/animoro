@@ -10,7 +10,7 @@ import { db, isConfigured, testConnection, handleFirestoreError } from './fireba
 import { requireAdminAuth, logoutAdmin } from './auth.js';
 import { loadAdminPosts, setupPostsTableControls } from './admin-posts.js';
 import { renderPerformanceChart } from './analytics.js';
-import { formatDate, formatViews } from './home.js';
+import { formatDate, formatViews } from './ui.js';
 
 let currentAdmin = null;
 
@@ -82,7 +82,7 @@ function setupTabs() {
 }
 
 async function refreshDashboardData() {
-  await loadAdminPosts((stats, posts) => {
+  const postsRequest = loadAdminPosts((stats, posts) => {
     // Update KPI Cards with real Firestore data
     setKpiValue('kpiTotalPosts', stats.total);
     setKpiValue('kpiTotalViews', formatViews(stats.totalViews));
@@ -97,8 +97,9 @@ async function refreshDashboardData() {
     renderTopPerformingTable(posts);
   });
 
-  loadCategories();
-  loadContactMessages();
+  void loadCategories();
+  void loadContactMessages();
+  await postsRequest;
 }
 
 function setKpiValue(id, val) {
@@ -397,4 +398,4 @@ service cloud.firestore {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initAdminDashboard);
+initAdminDashboard();

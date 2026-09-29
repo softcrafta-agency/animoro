@@ -5,7 +5,8 @@ import {
   createUserWithEmailAndPassword
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, isConfigured } from './firebase-init.js';
+import { db, isConfigured } from './firebase-init.js';
+import { auth } from './auth-init.js';
 
 /**
  * Check if the given authenticated user is authorized as an administrator.

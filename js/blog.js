@@ -10,7 +10,7 @@ import {
   getDocs 
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { formatDate, createArticleCard, setupMobileNav } from './home.js';
+import { formatDate, createArticleCard, setupMobileNav } from './ui.js';
 
 async function initBlogPage() {
   setupMobileNav();
@@ -169,7 +169,7 @@ function renderArticle(container, id, post) {
 
     ${coverSource ? `
       <div class="article-cover-wrap">
-        <img class="article-cover-img" alt="${escapeHtml(post.title || 'Article cover')}" referrerpolicy="no-referrer" />
+        <img class="article-cover-img" alt="${escapeHtml(post.title || 'Article cover')}" width="1600" height="900" loading="eager" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" />
       </div>
     ` : ''}
 
@@ -202,6 +202,11 @@ function renderArticle(container, id, post) {
       renderCoverImageFallback(wrap);
     };
   }
+
+  container.querySelectorAll('.article-content-container img').forEach(image => {
+    image.loading = 'lazy';
+    image.decoding = 'async';
+  });
 
   // Attach share link copy handler
   const copyBtn = document.getElementById('copyShareBtn');
@@ -242,10 +247,14 @@ async function loadRelatedArticles(category, currentId) {
 
     container.innerHTML = '';
     related.forEach(d => {
-      container.appendChild(createArticleCard(d.id, d.data(), false));
+      container.appendChild(createArticleCard(d.id, d.data()));
     });
+    const section = document.getElementById('relatedSection');
+    if (section) section.style.display = '';
   } catch (err) {
     console.warn("Could not load related articles:", err);
+    const section = document.getElementById('relatedSection');
+    if (section) section.style.display = 'none';
   }
 }
 
@@ -264,4 +273,4 @@ function renderArticleError(container, message) {
   `;
 }
 
-document.addEventListener('DOMContentLoaded', initBlogPage);
+initBlogPage();

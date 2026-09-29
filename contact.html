@@ -11,7 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/responsive.css" />
 </head>
@@ -125,7 +125,7 @@
   <script type="module">
     import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
     import { db, isConfigured, handleFirestoreError } from '/js/firebase-init.js';
-    import { setupMobileNav } from '/js/home.js';
+    import { setupMobileNav } from '/js/ui.js';
 
     setupMobileNav();
 

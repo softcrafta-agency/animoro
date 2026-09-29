@@ -1,20 +1,34 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  doc,
+  getDocFromServer
+} from 'firebase/firestore';
 import { getActiveFirebaseConfig, isConfigPlaceholder } from './firebase-config.js';
 
 const config = getActiveFirebaseConfig();
 export const isConfigured = !isConfigPlaceholder(config);
 
 let appInstance = null;
-let authInstance = null;
 let dbInstance = null;
+let authInstance = null;
 
 if (isConfigured) {
   try {
     appInstance = getApps().length === 0 ? initializeApp(config) : getApp();
-    authInstance = getAuth(appInstance);
-    dbInstance = getFirestore(appInstance);
+    try {
+      dbInstance = initializeFirestore(appInstance, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+    } catch (cacheError) {
+      console.warn('Persistent Firestore cache unavailable; using the default cache.', cacheError);
+      dbInstance = getFirestore(appInstance);
+    }
   } catch (err) {
     console.error('Firebase initialization failed:', err);
   }
@@ -23,17 +37,20 @@ if (isConfigured) {
 }
 
 export const app = appInstance;
-export const auth = authInstance;
 export const db = dbInstance;
+
+export function setAuthInstanceForDiagnostics(instance) {
+  authInstance = instance;
+}
 
 export function handleFirestoreError(error, operationType, path) {
   const errInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth?.currentUser?.uid || null,
-      email: auth?.currentUser?.email || null,
-      emailVerified: auth?.currentUser?.emailVerified || null,
-      isAnonymous: auth?.currentUser?.isAnonymous || null,
+      userId: authInstance?.currentUser?.uid || null,
+      email: authInstance?.currentUser?.email || null,
+      emailVerified: authInstance?.currentUser?.emailVerified || null,
+      isAnonymous: authInstance?.currentUser?.isAnonymous || null,
     },
     operationType,
     path,

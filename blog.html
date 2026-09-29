@@ -12,7 +12,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/responsive.css" />
 </head>
@@ -75,13 +75,15 @@
   <!-- Article View Container -->
   <article class="article-page-wrap" id="blogArticleContainer">
     <!-- Populated by js/blog.js -->
-    <div class="container" style="padding-top: 60px; text-align: center; color: var(--text-muted);">
-      <p>Loading article from Cloud Firestore...</p>
+    <div class="container home-loading-state" role="status" aria-label="Loading article" style="padding-top: 40px;">
+      <span class="home-loading-line"></span>
+      <span class="home-loading-line"></span>
+      <span class="home-loading-line"></span>
     </div>
   </article>
 
   <!-- Related Articles Section -->
-  <section class="section-padded" id="relatedSection" style="border-top: 1px solid var(--border-subtle); background: var(--bg-surface);">
+  <section class="section-padded" id="relatedSection" style="display: none; border-top: 1px solid var(--border-subtle); background: var(--bg-surface);">
     <div class="container">
       <div class="section-header">
         <h3 class="section-title" style="font-size: 1.6rem;">Related Stories</h3>
