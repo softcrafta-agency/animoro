@@ -19,7 +19,8 @@ let currentUploadedCoverData = null;
 let currentCoverMode = 'upload';
 let existingCoverData = null;
 let userRequestedCoverRemoval = false;
-const FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES = 900 * 1024;
+const MAX_COMPRESSED_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_ARTICLE_DOCUMENT_BYTES = 900 * 1024;
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const COVER_MAX_DIMENSION = 1600;
 
@@ -234,7 +235,9 @@ function getArticleImageModalInsertHtml(images) {
   return images.map((image) => {
     const alt = (image.alt || 'Article image').replace(/"/g, '&quot;');
     const src = (image.src || '').replace(/"/g, '&quot;');
-    return `<img src="${src}" alt="${alt}" loading="lazy" decoding="async" class="article-content-image" data-image-batch="${batchId}" />`;
+    const width = Number.isFinite(image.width) ? ` width="${image.width}"` : '';
+    const height = Number.isFinite(image.height) ? ` height="${image.height}"` : '';
+    return `<img src="${src}" alt="${alt}"${width}${height} loading="lazy" decoding="async" class="article-content-image" data-image-batch="${batchId}" />`;
   }).join('');
 }
 
@@ -464,13 +467,17 @@ function setupArticleImageModal() {
       const savedImages = [];
 
       for (const item of articleImageModalState) {
-        const compressed = await compressArticleImageToFirestore(item.file, item.alt || item.defaultAlt || 'Article image');
+        const compressed = await compressArticleImage(item.file, item.alt || item.defaultAlt || 'Article image');
+        const imageUrl = await uploadImageToR2(compressed.blob, {
+          kind: 'articles',
+          slug: document.getElementById('postSlug')?.value || document.getElementById('postTitle')?.value || 'article',
+        });
         const docRef = await addDoc(collection(db, 'imageAssets'), {
           articleId,
           fileName: compressed.fileName,
           mimeType: compressed.mimeType,
           alt: compressed.alt,
-          data: compressed.data,
+          url: imageUrl,
           width: compressed.width,
           height: compressed.height,
           createdAt: serverTimestamp()
@@ -478,8 +485,10 @@ function setupArticleImageModal() {
 
         savedImages.push({
           id: docRef.id,
-          src: compressed.data,
+          src: imageUrl,
           alt: compressed.alt,
+          width: compressed.width,
+          height: compressed.height,
         });
       }
 
@@ -530,20 +539,7 @@ function articleImageCanvasToBlob(canvas, type, quality) {
   });
 }
 
-function articleImageBlobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Could not prepare the processed image.'));
-    reader.readAsDataURL(blob);
-  });
-}
-
-function articleImageEstimatePayloadSize(payload) {
-  return new Blob([JSON.stringify(payload)]).size;
-}
-
-async function compressArticleImageToFirestore(file, altText) {
+async function compressArticleImage(file, altText) {
   if (!file || !file.type || !file.type.startsWith('image/')) {
     throw new Error('Unsupported file type. Please choose JPG, JPEG, PNG, WEBP, or GIF.');
   }
@@ -573,45 +569,68 @@ async function compressArticleImageToFirestore(file, altText) {
     const blob = await articleImageCanvasToBlob(canvas, mimeType, quality);
     if (!blob) continue;
 
-    const data = await articleImageBlobToDataUrl(blob);
-    const payload = {
-      articleId: getCurrentArticleIdFromEditor(),
-      fileName: `${(file.name || 'article-image').replace(/\.[^.]+$/, '')}.webp`,
-      mimeType,
-      alt: altText || 'Article image',
-      data,
-      width: targetWidth,
-      height: targetHeight,
-      createdAt: 'timestamp'
-    };
-
-    const size = articleImageEstimatePayloadSize(payload);
-    if (size <= 1024 * 1024) {
+    if (blob.size <= MAX_COMPRESSED_IMAGE_BYTES) {
       return {
-        fileName: payload.fileName,
-        mimeType: payload.mimeType,
-        alt: payload.alt,
-        data: payload.data,
+        fileName: `${(file.name || 'article-image').replace(/\.[^.]+$/, '')}.webp`,
+        mimeType,
+        alt: altText || 'Article image',
+        blob,
         width: targetWidth,
         height: targetHeight,
       };
     }
 
     if (!bestCandidate || blob.size < bestCandidate.size) {
-      bestCandidate = { ...payload, size: blob.size };
+      bestCandidate = { blob, size: blob.size };
     }
   }
 
-  if (bestCandidate) {
+  if (bestCandidate && bestCandidate.size > MAX_COMPRESSED_IMAGE_BYTES) {
     throw new Error('Image is too large. Please choose a smaller image.');
   }
 
   throw new Error('Compression failed. Please try a different image.');
 }
 
+async function uploadImageToR2(blob, { kind, slug }) {
+  const user = auth?.currentUser;
+  if (!user) {
+    throw new Error('You must be signed in as an admin to upload images.');
+  }
+
+  const idToken = await user.getIdToken();
+  const response = await fetch('/api/upload-image', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': blob.type || 'image/webp',
+      'X-Image-Kind': kind,
+      'X-Article-Slug': slug,
+    },
+    body: blob,
+  });
+
+  let result = {};
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error('The image upload service returned an invalid response. Please try again.');
+  }
+
+  if (!response.ok || !result.url) {
+    throw new Error(result.error || 'Image upload failed. Please try again.');
+  }
+
+  if (!isValidCoverValue(result.url) || !/^https:\/\//i.test(result.url)) {
+    throw new Error('The image upload service returned an invalid image URL.');
+  }
+
+  return result.url;
+}
+
 /**
  * Direct URL + Drag-and-drop upload support for cover images.
- * Uploaded images are compressed to WebP in-browser and stored in Firestore data.
+ * Uploaded images are compressed to WebP in-browser and sent to the Vercel upload API.
  */
 function setupCoverImageUrl() {
   const urlInput = document.getElementById('coverUrlInput');
@@ -646,6 +665,9 @@ function setupCoverImageUrl() {
   }
 
   function resetPreviewState(messageText = 'No cover image selected. Choose an upload or enter a direct URL.') {
+    if (currentUploadedCoverData?.previewUrl) {
+      URL.revokeObjectURL(currentUploadedCoverData.previewUrl);
+    }
     currentUploadedCoverData = null;
     uploadedCoverUrl = '';
     if (previewImg) {
@@ -726,14 +748,21 @@ function setupCoverImageUrl() {
         throw new Error(validation.message);
       }
 
-      currentUploadedCoverData = await compressCoverImage(file);
-      uploadedCoverUrl = currentUploadedCoverData.dataUrl;
+      const compressedCover = await compressCoverImage(file);
+      if (currentUploadedCoverData?.previewUrl) {
+        URL.revokeObjectURL(currentUploadedCoverData.previewUrl);
+      }
+      currentUploadedCoverData = {
+        ...compressedCover,
+        previewUrl: URL.createObjectURL(compressedCover.blob),
+      };
+      uploadedCoverUrl = '';
       userRequestedCoverRemoval = false;
       currentCoverMode = 'upload';
       syncMode('upload');
 
       if (previewImg) {
-        previewImg.src = currentUploadedCoverData.dataUrl;
+        previewImg.src = currentUploadedCoverData.previewUrl;
         previewImg.style.display = 'block';
       }
       if (placeholder) placeholder.style.display = 'none';
@@ -803,9 +832,15 @@ function setupCoverImageUrl() {
       syncMode(mode);
       if (mode === 'url') {
         if (fileInput) fileInput.value = '';
+        if (currentUploadedCoverData?.previewUrl) {
+          URL.revokeObjectURL(currentUploadedCoverData.previewUrl);
+        }
         currentUploadedCoverData = null;
         uploadedCoverUrl = (urlInput && urlInput.value.trim()) || '';
       } else {
+        if (currentUploadedCoverData?.previewUrl) {
+          URL.revokeObjectURL(currentUploadedCoverData.previewUrl);
+        }
         currentUploadedCoverData = null;
         uploadedCoverUrl = '';
       }
@@ -921,33 +956,16 @@ async function compressCoverImage(file) {
       throw new Error('Compression failed. Please try a different image.');
     }
 
-    const dataUrl = await blobToDataURL(blob);
     const candidate = {
-      dataUrl,
       type: 'image/webp',
       name: getWebpFilename(file.name),
+      blob,
       size: blob.size,
       width: targetWidth,
       height: targetHeight,
     };
 
-    const estimatedDocBytes = estimatePayloadSize({
-      coverImage: dataUrl,
-      coverImageType: 'image/webp',
-      coverImageName: candidate.name,
-      coverImageSize: blob.size,
-      coverImageWidth: targetWidth,
-      coverImageHeight: targetHeight,
-      coverImageSource: 'upload',
-      title: 'temp',
-      slug: 'temp',
-      excerpt: 'temp',
-      content: 'temp',
-      authorName: 'temp',
-      status: 'draft',
-    });
-
-    if (blob.size <= 260 * 1024 && estimatedDocBytes <= FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES) {
+    if (blob.size <= MAX_COMPRESSED_IMAGE_BYTES) {
       return candidate;
     }
 
@@ -959,24 +977,8 @@ async function compressCoverImage(file) {
     throw new Error('Compression failed. Please try a smaller image.');
   }
 
-  const estimatedDocBytes = estimatePayloadSize({
-    coverImage: bestCandidate.dataUrl,
-    coverImageType: 'image/webp',
-    coverImageName: bestCandidate.name,
-    coverImageSize: bestCandidate.size,
-    coverImageWidth: bestCandidate.width,
-    coverImageHeight: bestCandidate.height,
-    coverImageSource: 'upload',
-    title: 'temp',
-    slug: 'temp',
-    excerpt: 'temp',
-    content: 'temp',
-    authorName: 'temp',
-    status: 'draft',
-  });
-
-  if (estimatedDocBytes > FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES) {
-    throw new Error('Image is too large to store with this article. Please choose a smaller image.');
+  if (bestCandidate.size > MAX_COMPRESSED_IMAGE_BYTES) {
+    throw new Error('Image is too large. Please choose a smaller image.');
   }
 
   return bestCandidate;
@@ -988,21 +990,8 @@ function canvasToBlob(canvas, type, quality) {
   });
 }
 
-function blobToDataURL(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Could not prepare the image for saving.'));
-    reader.readAsDataURL(blob);
-  });
-}
-
 function estimatePayloadSize(payload) {
   return new Blob([JSON.stringify(payload)]).size;
-}
-
-function isFirestoreDocumentSafe(payload) {
-  return estimatePayloadSize(payload) <= FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES;
 }
 
 function isValidCoverValue(value) {
@@ -1024,7 +1013,8 @@ function buildCoverSelectionFromState() {
   if (currentUploadedCoverData) {
     return {
       mode: 'upload',
-      coverImage: currentUploadedCoverData.dataUrl,
+      coverImage: '',
+      blob: currentUploadedCoverData.blob,
       coverImageType: 'image/webp',
       coverImageName: currentUploadedCoverData.name,
       coverImageSize: currentUploadedCoverData.size,
@@ -1034,6 +1024,18 @@ function buildCoverSelectionFromState() {
   }
 
   const urlValue = document.getElementById('coverUrlInput')?.value.trim() || uploadedCoverUrl || '';
+  if (existingCoverData?.coverImage && urlValue === existingCoverData.coverImage) {
+    return {
+      mode: 'existing',
+      coverImage: existingCoverData.coverImage,
+      coverImageType: existingCoverData.coverImageType || null,
+      coverImageName: existingCoverData.coverImageName || null,
+      coverImageSize: existingCoverData.coverImageSize || null,
+      coverImageWidth: existingCoverData.coverImageWidth || null,
+      coverImageHeight: existingCoverData.coverImageHeight || null,
+    };
+  }
+
   if (urlValue) {
     return {
       mode: 'url',
@@ -1094,7 +1096,7 @@ async function loadPostForEditing(postId) {
     if (editorArea) editorArea.innerHTML = post.content || '';
 
     if (post.coverImage) {
-      uploadedCoverUrl = post.coverImage;
+      uploadedCoverUrl = '';
       const urlInput = document.getElementById('coverUrlInput');
       const previewImg = document.getElementById('coverPreview');
       const placeholder = document.getElementById('coverPlaceholder');
@@ -1186,13 +1188,12 @@ async function handlePostSubmit(e) {
     showFeedback(feedbackEl, "Please enter article body content.", "error");
     return;
   }
-  if (selectedCover.mode === 'url' && !isValidCoverValue(coverImage)) {
-    showFeedback(feedbackEl, "Please enter a direct image URL starting with http:// or https://.", "error");
+  if (content.length > 100000) {
+    showFeedback(feedbackEl, "Article content must be 100,000 characters or less.", "error");
     return;
   }
-
-  if (selectedCover.mode === 'upload' && !coverImage.startsWith('data:image/')) {
-    showFeedback(feedbackEl, "Please choose a valid PNG, JPG, JPEG, or WEBP image to upload.", "error");
+  if (selectedCover.mode === 'url' && !isValidCoverValue(coverImage)) {
+    showFeedback(feedbackEl, "Please enter a direct image URL starting with http:// or https://.", "error");
     return;
   }
 
@@ -1215,6 +1216,29 @@ async function handlePostSubmit(e) {
   submitBtn.disabled = true;
   submitBtn.textContent = editingPostId ? "Saving changes..." : "Publishing article...";
 
+  if (selectedCover.mode === 'upload') {
+    try {
+      selectedCover.coverImage = await uploadImageToR2(selectedCover.blob, {
+        kind: 'covers',
+        slug,
+      });
+    } catch (error) {
+      showFeedback(feedbackEl, error?.message || 'Cover image upload failed. Please try again.', 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = editingPostId ? "Save Changes" : "Publish Article";
+      return;
+    }
+
+    if (!isValidCoverValue(selectedCover.coverImage)) {
+      showFeedback(feedbackEl, "The uploaded cover image URL is invalid. Please try again.", "error");
+      submitBtn.disabled = false;
+      submitBtn.textContent = editingPostId ? "Save Changes" : "Publish Article";
+      return;
+    }
+  }
+
+  const coverImageToSave = selectedCover.coverImage || '';
+
   const articlePayload = {
     title,
     slug,
@@ -1232,7 +1256,7 @@ async function handlePostSubmit(e) {
   };
 
   if (selectedCover.mode === 'upload') {
-    articlePayload.coverImage = selectedCover.coverImage;
+    articlePayload.coverImage = coverImageToSave;
     articlePayload.coverImageType = selectedCover.coverImageType;
     articlePayload.coverImageName = selectedCover.coverImageName;
     articlePayload.coverImageSize = selectedCover.coverImageSize;
@@ -1267,9 +1291,11 @@ async function handlePostSubmit(e) {
     ...(status === 'published' ? { publishedAt: serverTimestamp() } : { publishedAt: null })
   };
 
-  const estimatedSize = estimatePayloadSize(finalDocumentPayload);
-  if (estimatedSize > FIRESTORE_SAFE_DOCUMENT_LIMIT_BYTES) {
-    showFeedback(feedbackEl, "Image is too large to store with this article. Please choose a smaller image.", "error");
+  const estimatedSize = estimatePayloadSize({ ...finalDocumentPayload, coverImage: '' });
+  if (estimatedSize > MAX_ARTICLE_DOCUMENT_BYTES) {
+    showFeedback(feedbackEl, "Article content is too large to save. Please shorten the article.", "error");
+    submitBtn.disabled = false;
+    submitBtn.textContent = editingPostId ? "Save Changes" : "Publish Article";
     return;
   }
 
