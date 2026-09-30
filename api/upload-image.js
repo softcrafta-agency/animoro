@@ -13,7 +13,10 @@ let s3Client;
 function respond(res, status, payload) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  return res.status(status).json(payload);
+  const responseBody = status >= 400
+    ? { success: false, message: payload.message || payload.error || 'Image upload failed.' }
+    : { success: true, ...payload };
+  return res.status(status).json(responseBody);
 }
 
 function getAdminServices() {

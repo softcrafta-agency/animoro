@@ -618,7 +618,7 @@ async function uploadImageToR2(blob, { kind, slug }) {
   }
 
   if (!response.ok || !result.url) {
-    throw new Error(result.error || 'Image upload failed. Please try again.');
+    throw new Error(result.message || result.error || 'Image upload failed. Please try again.');
   }
 
   if (!isValidCoverValue(result.url) || !/^https:\/\//i.test(result.url)) {
