@@ -60,8 +60,17 @@ service cloud.firestore {
                        (isSignedIn() && resource.data.authorId == request.auth.uid) ||
                        (resource.data.status == 'published' &&
                         incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+                        incoming().views is number &&
+                        incoming().views >= 0 &&
                         incoming().views == existing().views + 1);
       allow delete: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    match /posts/{postId}/viewers/{visitorId} {
+      allow get: if true;
+      allow create: if request.resource.data.viewedAt is timestamp &&
+                       request.resource.data.keys().hasOnly(['viewedAt']);
+      allow update, delete: if isSuperOrDocAdmin();
     }
 
     // Article Image Assets Collection

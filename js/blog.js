@@ -1,8 +1,8 @@
 import { 
   doc, 
   getDoc, 
-  updateDoc, 
-  increment, 
+  runTransaction, 
+  serverTimestamp, 
   collection, 
   query, 
   where, 
@@ -10,7 +10,72 @@ import {
   getDocs 
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
+import { auth } from './auth-init.js';
+import { verifyAdminStatus } from './auth.js';
 import { formatDate, createArticleCard, setupMobileNav } from './ui.js';
+
+const VISITOR_ID_KEY = 'animoro_visitor_id';
+
+function generateVisitorId() {
+  const buffer = new Uint8Array(16);
+  if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+    window.crypto.getRandomValues(buffer);
+  } else {
+    for (let index = 0; index < buffer.length; index += 1) {
+      buffer[index] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  const hex = Array.from(buffer, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `animoro_visitor_${hex}`;
+}
+
+function getOrCreateVisitorId() {
+  const existingId = localStorage.getItem(VISITOR_ID_KEY);
+  if (existingId && /^animoro_visitor_[a-f0-9]+$/i.test(existingId)) {
+    return existingId;
+  }
+
+  const nextId = generateVisitorId();
+  localStorage.setItem(VISITOR_ID_KEY, nextId);
+  return nextId;
+}
+
+function getSafeViews(value) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function isPublicArticlePage() {
+  const pathname = window.location.pathname.toLowerCase();
+  return pathname.endsWith('/blog.html') || pathname.endsWith('blog.html');
+}
+
+function isPreviewRequest() {
+  const params = new URLSearchParams(window.location.search);
+  return params.has('preview') || params.get('mode') === 'preview' || params.has('adminPreview');
+}
+
+async function shouldSkipPublicViewTracking() {
+  if (!isPublicArticlePage() || isPreviewRequest()) {
+    return true;
+  }
+
+  if (localStorage.getItem('animoro_admin_user')) {
+    return true;
+  }
+
+  if (!auth || !auth.currentUser) {
+    return false;
+  }
+
+  try {
+    return await verifyAdminStatus(auth.currentUser);
+  } catch (error) {
+    console.warn('Unable to verify admin status for article view check:', error);
+    return false;
+  }
+}
 
 async function initBlogPage() {
   setupMobileNav();
@@ -51,14 +116,14 @@ async function initBlogPage() {
       }
     }
 
-    // Atomic View Counter increment with sessionStorage throttle
-    recordArticleView(postRef, articleId);
-
     // Update dynamic SEO tags
     updateSeoTags(post);
 
     // Render article contents
     renderArticle(mainContainer, articleId, post);
+
+    // Record a single unique public view per anonymous browser visitor per article.
+    recordUniqueArticleView(postRef, articleId);
 
     // Load related articles
     loadRelatedArticles(post.category, articleId);
@@ -70,21 +135,41 @@ async function initBlogPage() {
 }
 
 /**
- * Safely increment view count once per user session using atomic increment(1)
+ * Atomically count one view only when this anonymous browser has not already
+ * recorded itself as a viewer for this article in Firestore.
  */
-async function recordArticleView(postRef, articleId) {
-  const sessionKey = `animoro_viewed_${articleId}`;
-  if (sessionStorage.getItem(sessionKey)) {
-    return; // Already counted this visitor in the current session
+async function recordUniqueArticleView(postRef, articleId) {
+  if (!db || !articleId) {
+    return;
   }
 
   try {
-    await updateDoc(postRef, {
-      views: increment(1)
+    if (await shouldSkipPublicViewTracking()) {
+      return;
+    }
+
+    const visitorId = getOrCreateVisitorId();
+
+    await runTransaction(db, async (transaction) => {
+      const viewerRef = doc(db, 'posts', articleId, 'viewers', visitorId);
+      const viewerSnap = await transaction.get(viewerRef);
+      if (viewerSnap.exists()) {
+        return;
+      }
+
+      const postSnap = await transaction.get(postRef);
+      const currentViews = getSafeViews(postSnap.data()?.views);
+      const nextViews = currentViews + 1;
+
+      transaction.set(viewerRef, {
+        viewedAt: serverTimestamp()
+      });
+      transaction.update(postRef, {
+        views: nextViews
+      });
     });
-    sessionStorage.setItem(sessionKey, 'true');
-  } catch (err) {
-    console.warn("Could not increment view count:", err);
+  } catch (error) {
+    console.warn('Could not record unique public article view:', error);
   }
 }
 
