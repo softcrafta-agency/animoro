@@ -19,7 +19,7 @@ let currentUploadedCoverData = null;
 let currentCoverMode = 'upload';
 let existingCoverData = null;
 let userRequestedCoverRemoval = false;
-const MAX_COMPRESSED_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_COMPRESSED_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_ARTICLE_DOCUMENT_BYTES = 900 * 1024;
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const COVER_MAX_DIMENSION = 1600;
@@ -470,7 +470,7 @@ function setupArticleImageModal() {
         const compressed = await compressArticleImage(item.file, item.alt || item.defaultAlt || 'Article image');
         const imageUrl = await uploadImageToR2(compressed.blob, {
           kind: 'articles',
-          slug: document.getElementById('postSlug')?.value || document.getElementById('postTitle')?.value || 'article',
+          fileName: compressed.fileName,
         });
         const docRef = await addDoc(collection(db, 'imageAssets'), {
           articleId,
@@ -592,32 +592,53 @@ async function compressArticleImage(file, altText) {
   throw new Error('Compression failed. Please try a different image.');
 }
 
-async function uploadImageToR2(blob, { kind, slug }) {
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const separator = dataUrl.indexOf(',');
+      if (separator < 0) {
+        reject(new Error('Could not prepare the image for upload.'));
+        return;
+      }
+      resolve(dataUrl.slice(separator + 1));
+    };
+    reader.onerror = () => reject(new Error('Could not prepare the image for upload.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function uploadImageToR2(blob, { kind, fileName }) {
   const user = auth?.currentUser;
   if (!user) {
     throw new Error('You must be signed in as an admin to upload images.');
   }
 
   const idToken = await user.getIdToken();
+  const data = await blobToBase64(blob);
   const response = await fetch('/api/upload-image', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${idToken}`,
-      'Content-Type': blob.type || 'image/webp',
-      'X-Image-Kind': kind,
-      'X-Article-Slug': slug,
+      'Content-Type': 'application/json',
     },
-    body: blob,
+    body: JSON.stringify({
+      fileName: fileName || 'article-image.webp',
+      contentType: blob.type || 'image/webp',
+      data,
+      type: kind === 'covers' ? 'cover' : 'article',
+    }),
   });
 
   let result = {};
   try {
     result = await response.json();
   } catch {
-    throw new Error('The image upload service returned an invalid response. Please try again.');
+    throw new Error('Image upload service returned an unexpected server response.');
   }
 
-  if (!response.ok || !result.url) {
+  if (!response.ok || result.success !== true || !result.url) {
     throw new Error(result.message || result.error || 'Image upload failed. Please try again.');
   }
 
@@ -1220,7 +1241,7 @@ async function handlePostSubmit(e) {
     try {
       selectedCover.coverImage = await uploadImageToR2(selectedCover.blob, {
         kind: 'covers',
-        slug,
+        fileName: selectedCover.coverImageName,
       });
     } catch (error) {
       showFeedback(feedbackEl, error?.message || 'Cover image upload failed. Please try again.', 'error');
