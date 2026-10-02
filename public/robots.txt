@@ -2,3 +2,4 @@ User-agent: *
 Disallow: /admin.html
 Disallow: /admin-login.html
 Disallow: /admin-post-editor.html
+Sitemap: https://www.animoro.in/sitemap.xml

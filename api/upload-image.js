@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getAdminServices } from './_lib/firebase-admin.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -13,7 +11,6 @@ const IMAGE_TYPES = {
   'image/jpeg': { extension: 'jpg' },
   'image/png': { extension: 'png' },
 };
-let adminApp;
 let s3Client;
 
 function respond(res, status, payload) {
@@ -25,26 +22,6 @@ function respond(res, status, payload) {
     : { success: true, ...payload };
   res.statusCode = status;
   return res.end(JSON.stringify(responseBody));
-}
-
-function getAdminServices() {
-  if (!adminApp) {
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!serviceAccountJson) {
-      throw new Error('Firebase Admin is not configured.');
-    }
-
-    const serviceAccount = JSON.parse(serviceAccountJson);
-    if (typeof serviceAccount.private_key === 'string') {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-    }
-    adminApp = getApps()[0] || initializeApp({ credential: cert(serviceAccount) });
-  }
-
-  return {
-    auth: getAuth(adminApp),
-    firestore: getFirestore(adminApp),
-  };
 }
 
 function getR2Client() {

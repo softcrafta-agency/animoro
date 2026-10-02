@@ -1,0 +1,728 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>404 | Page Not Found | Animoro</title>
+  <meta name="description" content="The page you're looking for could not be found. Continue exploring anime articles, news, and stories on Animoro.">
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      background: #050507;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    .page {
+      min-height: 100vh;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Background */
+
+    .background {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: .22;
+    }
+
+    .glow.red {
+      background: #e50935;
+      top: -250px;
+      left: -200px;
+    }
+
+    .glow.purple {
+      background: #722cff;
+      bottom: -300px;
+      right: -180px;
+    }
+
+    .grid {
+      position: absolute;
+      inset: 0;
+      opacity: .08;
+      background-image:
+        linear-gradient(rgba(255,255,255,.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.15) 1px, transparent 1px);
+      background-size: 70px 70px;
+      mask-image: linear-gradient(to bottom, transparent, black, transparent);
+    }
+
+    .moon {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      right: 8%;
+      top: 12%;
+      background:
+        radial-gradient(circle at 35% 30%, #fff 0 3%, transparent 4%),
+        radial-gradient(circle at 65% 65%, #b9b9c4 0 7%, transparent 8%),
+        radial-gradient(circle at 40% 70%, #777782 0 5%, transparent 6%),
+        linear-gradient(145deg, #f7f7fa, #858590);
+      box-shadow:
+        0 0 50px rgba(255,255,255,.15),
+        0 0 140px rgba(125,70,255,.18);
+      opacity: .75;
+    }
+
+    /* Stars */
+
+    .stars {
+      position: absolute;
+      inset: 0;
+    }
+
+    .star {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: #fff;
+      border-radius: 50%;
+      opacity: .7;
+      animation: twinkle 3s infinite ease-in-out;
+    }
+
+    .star:nth-child(1) { left: 8%; top: 20%; animation-delay: .2s; }
+    .star:nth-child(2) { left: 17%; top: 72%; animation-delay: 1s; }
+    .star:nth-child(3) { left: 30%; top: 15%; animation-delay: 1.5s; }
+    .star:nth-child(4) { left: 42%; top: 80%; animation-delay: .7s; }
+    .star:nth-child(5) { left: 58%; top: 24%; animation-delay: 2s; }
+    .star:nth-child(6) { left: 70%; top: 70%; animation-delay: .4s; }
+    .star:nth-child(7) { left: 84%; top: 42%; animation-delay: 1.3s; }
+    .star:nth-child(8) { left: 92%; top: 18%; animation-delay: .9s; }
+    .star:nth-child(9) { left: 52%; top: 48%; animation-delay: 2.2s; }
+    .star:nth-child(10) { left: 12%; top: 48%; animation-delay: 1.8s; }
+
+    @keyframes twinkle {
+      0%, 100% {
+        opacity: .2;
+        transform: scale(.7);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.4);
+      }
+    }
+
+    /* Navbar */
+
+    .navbar {
+      position: relative;
+      z-index: 5;
+      width: 100%;
+      padding: 28px 6%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      text-decoration: none;
+      color: #fff;
+      font-size: 25px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    .logo span {
+      color: #ff1744;
+    }
+
+    .nav-link {
+      color: #aaa;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: .3s ease;
+    }
+
+    .nav-link:hover {
+      color: #fff;
+    }
+
+    /* Main */
+
+    .content {
+      position: relative;
+      z-index: 3;
+      flex: 1;
+      width: 90%;
+      max-width: 1250px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 50px;
+      padding: 50px 0 80px;
+    }
+
+    .text-content {
+      max-width: 650px;
+      animation: contentIn 1s ease forwards;
+    }
+
+    @keyframes contentIn {
+      from {
+        opacity: 0;
+        transform: translateY(35px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .small-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: #ff3158;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .small-label::before {
+      content: "";
+      width: 30px;
+      height: 2px;
+      background: #ff1744;
+      box-shadow: 0 0 12px #ff1744;
+    }
+
+    .error-code {
+      font-size: clamp(110px, 18vw, 220px);
+      line-height: .8;
+      font-weight: 900;
+      letter-spacing: -15px;
+      margin-left: -12px;
+      background: linear-gradient(
+        135deg,
+        #fff 0%,
+        #fff 35%,
+        #ff1744 65%,
+        #7b2cff 100%
+      );
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 70px rgba(255,23,68,.12);
+    }
+
+    h1 {
+      margin-top: 35px;
+      font-size: clamp(30px, 4vw, 54px);
+      line-height: 1.08;
+      letter-spacing: -2px;
+    }
+
+    h1 span {
+      color: #ff1744;
+    }
+
+    .description {
+      color: #999;
+      font-size: 16px;
+      line-height: 1.8;
+      max-width: 560px;
+      margin-top: 18px;
+    }
+
+    .episode {
+      color: #666;
+      font-size: 12px;
+      margin-top: 15px;
+      letter-spacing: .5px;
+    }
+
+    /* Buttons */
+
+    .buttons {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 32px;
+    }
+
+    .btn {
+      min-height: 50px;
+      padding: 0 24px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 800;
+      transition: .3s ease;
+    }
+
+    .btn-primary {
+      color: #fff;
+      background: #e50935;
+      box-shadow: 0 10px 35px rgba(229,9,53,.22);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      background: #ff1744;
+      box-shadow: 0 14px 45px rgba(229,9,53,.35);
+    }
+
+    .btn-secondary {
+      color: #fff;
+      border: 1px solid #29292f;
+      background: rgba(255,255,255,.035);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-secondary:hover {
+      transform: translateY(-3px);
+      border-color: #ff1744;
+      background: rgba(255,23,68,.08);
+    }
+
+    /* Character */
+
+    .character-area {
+      position: relative;
+      width: 450px;
+      height: 560px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      animation: characterIn 1.2s ease forwards;
+    }
+
+    @keyframes characterIn {
+      from {
+        opacity: 0;
+        transform: translateX(50px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .character-glow {
+      position: absolute;
+      width: 330px;
+      height: 330px;
+      border-radius: 50%;
+      background: #7b2cff;
+      filter: blur(90px);
+      opacity: .2;
+    }
+
+    /*
+      Original anime-inspired character.
+      CSS silhouette keeps the page self-contained.
+    */
+
+    .character {
+      position: relative;
+      width: 280px;
+      height: 470px;
+      animation: float 5s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-14px);
+      }
+    }
+
+    .head {
+      position: absolute;
+      width: 125px;
+      height: 145px;
+      background: linear-gradient(135deg, #f2c3ae, #c98170);
+      border-radius: 48% 48% 45% 45%;
+      top: 45px;
+      left: 77px;
+      z-index: 3;
+      box-shadow: 0 20px 40px rgba(0,0,0,.3);
+    }
+
+    .hair {
+      position: absolute;
+      width: 150px;
+      height: 125px;
+      background: #101015;
+      border-radius: 65% 55% 35% 30%;
+      top: 20px;
+      left: 63px;
+      z-index: 4;
+      transform: rotate(-5deg);
+    }
+
+    .hair::after {
+      content: "";
+      position: absolute;
+      width: 70px;
+      height: 130px;
+      background: #101015;
+      right: -15px;
+      top: 35px;
+      clip-path: polygon(0 0,100% 10%,75% 100%,45% 65%);
+    }
+
+    .eye {
+      position: absolute;
+      width: 14px;
+      height: 8px;
+      background: #17171c;
+      border-radius: 50%;
+      top: 105px;
+      z-index: 6;
+    }
+
+    .eye.left {
+      left: 103px;
+    }
+
+    .eye.right {
+      left: 157px;
+    }
+
+    .red-eye {
+      box-shadow: 0 0 8px #ff1744;
+      background: #ff1744;
+    }
+
+    .body {
+      position: absolute;
+      width: 190px;
+      height: 260px;
+      background: linear-gradient(145deg, #191921, #08080c);
+      top: 180px;
+      left: 45px;
+      clip-path: polygon(20% 0,80% 0,100% 100%,0 100%);
+      z-index: 2;
+    }
+
+    .coat {
+      position: absolute;
+      width: 220px;
+      height: 230px;
+      background: linear-gradient(135deg, #292932, #09090d);
+      top: 185px;
+      left: 30px;
+      clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+      z-index: 1;
+      opacity: .9;
+    }
+
+    .shirt {
+      position: absolute;
+      width: 60px;
+      height: 120px;
+      background: #050507;
+      top: 190px;
+      left: 110px;
+      z-index: 3;
+      clip-path: polygon(0 0,100% 0,70% 100%,30% 100%);
+    }
+
+    .scarf {
+      position: absolute;
+      width: 125px;
+      height: 20px;
+      background: #e50935;
+      top: 190px;
+      left: 78px;
+      transform: rotate(-3deg);
+      z-index: 5;
+      box-shadow: 0 0 18px rgba(229,9,53,.5);
+    }
+
+    .leg {
+      position: absolute;
+      width: 62px;
+      height: 170px;
+      background: #0a0a0f;
+      top: 395px;
+      z-index: 0;
+    }
+
+    .leg.left {
+      left: 70px;
+      transform: rotate(4deg);
+    }
+
+    .leg.right {
+      right: 70px;
+      transform: rotate(-4deg);
+    }
+
+    /* Footer */
+
+    footer {
+      position: relative;
+      z-index: 3;
+      padding: 20px 6%;
+      text-align: center;
+      color: #555;
+      font-size: 12px;
+    }
+
+    footer span {
+      color: #888;
+    }
+
+    /* Mobile */
+
+    @media (max-width: 850px) {
+      .navbar {
+        padding: 22px 6%;
+      }
+
+      .content {
+        flex-direction: column;
+        text-align: center;
+        padding-top: 30px;
+        gap: 10px;
+      }
+
+      .text-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .error-code {
+        font-size: clamp(110px, 34vw, 170px);
+        letter-spacing: -9px;
+      }
+
+      h1 {
+        margin-top: 25px;
+      }
+
+      .description {
+        font-size: 14px;
+      }
+
+      .buttons {
+        justify-content: center;
+      }
+
+      .character-area {
+        width: 320px;
+        height: 430px;
+        transform: scale(.82);
+        margin-top: -40px;
+      }
+
+      .moon {
+        width: 220px;
+        height: 220px;
+        right: -60px;
+        top: 20%;
+      }
+    }
+
+    @media (max-width: 450px) {
+      .nav-link {
+        display: none;
+      }
+
+      .error-code {
+        font-size: 105px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      .description {
+        max-width: 320px;
+      }
+
+      .buttons {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .character-area {
+        transform: scale(.7);
+        margin-top: -65px;
+      }
+
+      footer {
+        padding-bottom: 15px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="page">
+
+    <div class="background">
+      <div class="glow red"></div>
+      <div class="glow purple"></div>
+      <div class="grid"></div>
+      <div class="moon"></div>
+
+      <div class="stars">
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+        <span class="star"></span>
+      </div>
+    </div>
+
+    <nav class="navbar">
+      <a href="/" class="logo">
+        Ani<span>moro</span>
+      </a>
+
+      <a href="/" class="nav-link">
+        Return to Story
+      </a>
+    </nav>
+
+    <main class="content">
+
+      <section class="text-content">
+
+        <div class="small-label">
+          Lost Episode
+        </div>
+
+        <div class="error-code">
+          404
+        </div>
+
+        <h1>
+          Oops! You Entered the
+          <span>Wrong Episode.</span>
+        </h1>
+
+        <p class="description">
+          The page you're looking for has disappeared into another
+          anime world. Don't worry — your story doesn't end here.
+        </p>
+
+        <p class="episode">
+          EPISODE 404 • PAGE NOT FOUND
+        </p>
+
+        <div class="buttons">
+
+          <a href="/" class="btn btn-primary">
+            ← Back to Home
+          </a>
+
+          <a href="/blogs.html" class="btn btn-secondary">
+            Explore Anime
+          </a>
+
+        </div>
+
+      </section>
+
+      <section class="character-area" aria-hidden="true">
+
+        <div class="character-glow"></div>
+
+        <div class="character">
+
+          <div class="hair"></div>
+
+          <div class="head"></div>
+
+          <div class="eye left red-eye"></div>
+          <div class="eye right"></div>
+
+          <div class="coat"></div>
+          <div class="body"></div>
+          <div class="shirt"></div>
+          <div class="scarf"></div>
+
+          <div class="leg left"></div>
+          <div class="leg right"></div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <footer>
+      © 2026 <span>Animoro</span> — The story continues.
+    </footer>
+
+  </div>
+
+</body>
+</html>
+```

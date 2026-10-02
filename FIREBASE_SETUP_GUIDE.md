@@ -91,3 +91,9 @@ Animoro enforces strict role-based Firestore security rules:
    - Click **Publish Article**.
 
 Your article is now live on the homepage, under its category archive, searchable in real-time, and equipped with an atomic view counter!
+
+## 6. Dynamic XML Sitemap
+
+The public sitemap is served at `https://www.animoro.in/sitemap.xml` through the existing Vercel API setup. It includes public pages, public categories, and posts whose `status` is `published`; new posts are picked up after the cache expires (normally within five minutes).
+
+The sitemap reuses the existing `FIREBASE_SERVICE_ACCOUNT_JSON` Vercel environment variable used by the image API. Do not expose this value in client-side code. Test the XML generator with `node --test api/_lib/sitemap.test.js`. For an end-to-end local test, run `vercel dev` with the existing server-side Firebase environment variable configured, then request `http://localhost:3000/sitemap.xml`.
