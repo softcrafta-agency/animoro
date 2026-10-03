@@ -20,6 +20,7 @@ async function initAdminDashboard() {
     currentAdmin = user;
     updateAdminUserDisplay(user);
     setupTabs();
+    setupMobileAdminNavigation();
     setupPostsTableControls();
     setupCategoryManager();
     setupAnimeManager();
@@ -76,12 +77,46 @@ function setupTabs() {
     item.addEventListener('click', () => {
       const tab = item.getAttribute('data-tab');
       activateTab(tab);
+      closeMobileAdminNavigation();
     });
   });
 
   // Check initial hash
   const initialHash = window.location.hash.replace('#', '') || 'overview';
   activateTab(initialHash);
+}
+
+function setupMobileAdminNavigation() {
+  const toggle = document.getElementById('adminMobileToggle');
+  const backdrop = document.getElementById('adminSidebarBackdrop');
+  const sidebar = document.getElementById('adminSidebar');
+  if (!toggle || !backdrop || !sidebar) return;
+
+  toggle.addEventListener('click', () => {
+    const isOpen = sidebar.classList.toggle('open');
+    backdrop.classList.toggle('show', isOpen);
+    toggle.setAttribute('aria-expanded', String(isOpen));
+    toggle.setAttribute('aria-label', isOpen ? 'Close dashboard navigation' : 'Open dashboard navigation');
+    document.body.classList.toggle('admin-navigation-open', isOpen);
+  });
+
+  backdrop.addEventListener('click', closeMobileAdminNavigation);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeMobileAdminNavigation();
+  });
+}
+
+function closeMobileAdminNavigation() {
+  const sidebar = document.getElementById('adminSidebar');
+  const backdrop = document.getElementById('adminSidebarBackdrop');
+  const toggle = document.getElementById('adminMobileToggle');
+  if (!sidebar || !backdrop || !toggle) return;
+
+  sidebar.classList.remove('open');
+  backdrop.classList.remove('show');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-label', 'Open dashboard navigation');
+  document.body.classList.remove('admin-navigation-open');
 }
 
 async function refreshDashboardData() {

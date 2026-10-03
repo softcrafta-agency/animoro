@@ -11,14 +11,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-BZ-XSxlD.js"></script>
+  <script type="module" crossorigin src="/assets/admin-CexyfOLJ.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/style-DSYVmVy8.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-init-D6gjjzsT.js">
   <link rel="modulepreload" crossorigin href="/assets/auth-t-GJYb2S.js">
   <link rel="modulepreload" crossorigin href="/assets/anime-url-RVaBCVlS.js">
   <link rel="modulepreload" crossorigin href="/assets/ui-CE58eBW4.js">
   <link rel="stylesheet" crossorigin href="/assets/style-DLgTRf1n.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-p9ZG_aBK.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-QzZJ842M.css">
 </head>
 <body class="admin-body">
 
@@ -90,7 +90,7 @@
     <!-- Topbar -->
     <header class="admin-topbar">
       <div style="display: flex; align-items: center; gap: 16px;">
-        <button id="adminMobileToggle" class="action-btn-sm" style="display: none;" aria-label="Toggle Sidebar">
+        <button id="adminMobileToggle" class="action-btn-sm" aria-label="Open dashboard navigation" aria-controls="adminSidebar" aria-expanded="false">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
         <h2 class="admin-topbar-title" id="adminViewTitle">Dashboard Overview</h2>
@@ -131,6 +131,8 @@
           </div>
         </div>
       </div>
+
+      <button class="admin-sidebar-backdrop" id="adminSidebarBackdrop" type="button" aria-label="Close dashboard navigation"></button>
 
       <!-- ============================================================
            TAB 1: DASHBOARD OVERVIEW
