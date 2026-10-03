@@ -13,6 +13,13 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { auth } from './auth-init.js';
 import { verifyAdminStatus } from './auth.js';
 import { formatDate, createArticleCard, setupMobileNav } from './ui.js';
+import {
+  getArticlePath,
+  getArticleSlug,
+  getCanonicalArticleUrl,
+  isValidArticleSlug,
+  normalizeArticleSlug
+} from './article-url.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
 
@@ -48,7 +55,7 @@ function getSafeViews(value) {
 
 function isPublicArticlePage() {
   const pathname = window.location.pathname.toLowerCase();
-  return pathname.endsWith('/blog.html') || pathname.endsWith('blog.html');
+  return pathname === '/blog.html' || pathname.startsWith('/blog.html/');
 }
 
 function isPreviewRequest() {
@@ -82,12 +89,13 @@ async function initBlogPage() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const articleId = urlParams.get('id');
+  const requestedSlug = getRequestedSlug();
 
   const mainContainer = document.getElementById('blogArticleContainer');
   if (!mainContainer) return;
 
-  if (!articleId) {
-    renderArticleError(mainContainer, "No article ID provided in the URL.");
+  if (!articleId && !requestedSlug) {
+    window.location.replace('/404.html');
     return;
   }
 
@@ -97,15 +105,28 @@ async function initBlogPage() {
   }
 
   try {
-    const postRef = doc(db, 'posts', articleId);
-    const postSnap = await getDoc(postRef);
+    let postSnap;
+    if (requestedSlug) {
+      const postQuery = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('slug', '==', requestedSlug),
+        limit(1)
+      );
+      const matchingPosts = await getDocs(postQuery);
+      postSnap = matchingPosts.docs[0] || null;
+    } else {
+      postSnap = await getDoc(doc(db, 'posts', articleId));
+    }
 
-    if (!postSnap.exists()) {
-      renderArticleError(mainContainer, "Article not found. It may have been deleted or moved.");
+    if (!postSnap || !postSnap.exists()) {
+      window.location.replace('/404.html');
       return;
     }
 
     const post = postSnap.data();
+    const postId = postSnap.id;
+    const postRef = doc(db, 'posts', postId);
 
     // Check status: only show published articles to public visitors
     if (post.status !== 'published') {
@@ -116,21 +137,73 @@ async function initBlogPage() {
       }
     }
 
+    let slug = getArticleSlug(post);
+    let shouldCanonicalizeLegacyUrl = true;
+    if (!requestedSlug && !isValidArticleSlug(post.slug)) {
+      const legacySlug = await resolveLegacyArticleSlug(articleId, post.title);
+      slug = legacySlug.slug;
+      shouldCanonicalizeLegacyUrl = legacySlug.persisted;
+    }
+    const articlePath = getArticlePath({ ...post, slug });
+    const canonicalUrl = getCanonicalArticleUrl({ ...post, slug });
+
+    if (shouldCanonicalizeLegacyUrl &&
+        (window.location.pathname !== articlePath || urlParams.has('id'))) {
+      window.location.replace(articlePath);
+      return;
+    }
+
     // Update dynamic SEO tags
-    updateSeoTags(post);
+    updateSeoTags(post, canonicalUrl);
 
     // Render article contents
-    renderArticle(mainContainer, articleId, post);
+    renderArticle(mainContainer, post, canonicalUrl);
 
     // Record a single unique public view per anonymous browser visitor per article.
-    recordUniqueArticleView(postRef, articleId);
+    recordUniqueArticleView(postRef, postId);
 
     // Load related articles
-    loadRelatedArticles(post.category, articleId);
+    loadRelatedArticles(post.category, postId);
 
   } catch (error) {
-    handleFirestoreError(error, 'get', `posts/${articleId}`);
+    handleFirestoreError(error, requestedSlug ? 'list' : 'get', requestedSlug ? 'posts' : `posts/${articleId}`);
     renderArticleError(mainContainer, "Unable to load article. Please check your network connection.");
+  }
+}
+
+function getRequestedSlug() {
+  const prefix = '/blog.html/';
+  const pathname = window.location.pathname;
+  if (!pathname.startsWith(prefix)) return '';
+
+  const encodedSlug = pathname.slice(prefix.length);
+  if (!encodedSlug || encodedSlug.includes('/')) return '';
+
+  try {
+    const decodedSlug = decodeURIComponent(encodedSlug);
+    if (decodedSlug.includes('/') || decodedSlug.includes('\\')) return '';
+    return normalizeArticleSlug(decodedSlug);
+  } catch (error) {
+    console.warn('Invalid encoded article slug in URL:', error);
+    return '';
+  }
+}
+
+async function resolveLegacyArticleSlug(articleId, title) {
+  try {
+    const response = await fetch(`/api/article-slug?id=${encodeURIComponent(articleId)}`);
+    if (!response.ok) {
+      throw new Error(`Article slug migration returned HTTP ${response.status}.`);
+    }
+
+    const result = await response.json();
+    if (typeof result.slug !== 'string' || !result.slug) {
+      throw new Error('Article slug migration returned an invalid slug.');
+    }
+    return { slug: result.slug, persisted: true };
+  } catch (error) {
+    console.error('Could not persist a slug for this legacy article:', error);
+    return { slug: normalizeArticleSlug(title), persisted: false };
   }
 }
 
@@ -176,7 +249,7 @@ async function recordUniqueArticleView(postRef, articleId) {
 /**
  * Update Page Title & OpenGraph Meta Tags
  */
-function updateSeoTags(post) {
+function updateSeoTags(post, canonicalUrl) {
   document.title = `${post.title} — Animoro`;
 
   const metaDesc = document.querySelector('meta[name="description"]');
@@ -188,8 +261,25 @@ function updateSeoTags(post) {
   let ogDesc = document.querySelector('meta[property="og:description"]');
   if (ogDesc) ogDesc.setAttribute('content', post.excerpt || post.title);
 
-  let ogImage = document.querySelector('meta[property="og:image"]');
-  if (ogImage && post.coverImage) ogImage.setAttribute('content', post.coverImage);
+  setSingleMetaTag('property', 'og:url', canonicalUrl);
+  if (post.coverImage) setSingleMetaTag('property', 'og:image', post.coverImage);
+
+  const canonicalLinks = [...document.querySelectorAll('link[rel~="canonical"]')];
+  const canonicalLink = canonicalLinks.shift() || document.createElement('link');
+  canonicalLink.rel = 'canonical';
+  canonicalLink.href = canonicalUrl;
+  if (!canonicalLink.isConnected) document.head.appendChild(canonicalLink);
+  canonicalLinks.forEach(link => link.remove());
+}
+
+function setSingleMetaTag(attribute, name, content) {
+  const selector = `meta[${attribute}="${name}"]`;
+  const tags = [...document.querySelectorAll(selector)];
+  const meta = tags.shift() || document.createElement('meta');
+  meta.setAttribute(attribute, name);
+  meta.setAttribute('content', content);
+  if (!meta.isConnected) document.head.appendChild(meta);
+  tags.forEach(tag => tag.remove());
 }
 
 function escapeHtml(value) {
@@ -219,9 +309,9 @@ function renderCoverImageFallback(wrap) {
   `;
 }
 
-function renderArticle(container, id, post) {
+function renderArticle(container, post, canonicalUrl) {
   const tagsHtml = (post.tags || []).map(t => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join('');
-  const currentUrl = window.location.href;
+  const currentUrl = canonicalUrl;
   const coverSource = getCoverImageSource(post.coverImage);
 
   container.innerHTML = `
@@ -299,7 +389,7 @@ function renderArticle(container, id, post) {
   if (copyBtn && copyBtnText) {
     copyBtn.addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(canonicalUrl);
         copyBtnText.textContent = "Copied!";
         setTimeout(() => { copyBtnText.textContent = "Copy Link"; }, 2500);
       } catch (err) {

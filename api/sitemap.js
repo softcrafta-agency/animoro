@@ -1,5 +1,5 @@
 import { getAdminServices } from './_lib/firebase-admin.js';
-import { buildSitemap } from './_lib/sitemap.js';
+import { assignPostSlugs, buildSitemap } from './_lib/sitemap.js';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_CONTROL = 'public, max-age=300, s-maxage=300';
@@ -11,14 +11,30 @@ let refreshInProgress;
 async function loadSitemap() {
   const { firestore } = getAdminServices();
   const [postsSnapshot, categoriesSnapshot] = await Promise.all([
-    firestore.collection('posts').where('status', '==', 'published').get(),
+    firestore.collection('posts').get(),
     firestore.collection('categories').get(),
   ]);
 
-  const posts = postsSnapshot.docs.map(document => ({
-    id: document.id,
-    ...document.data(),
-  }));
+  const storedPosts = postsSnapshot.docs.map(document => {
+    const data = document.data();
+    return {
+      reference: document.ref,
+      storedSlug: data.slug,
+      id: document.id,
+      ...data,
+    };
+  });
+  const posts = assignPostSlugs(storedPosts);
+  const missingSlugs = posts.filter(post => post.slug !== post.storedSlug);
+
+  for (let offset = 0; offset < missingSlugs.length; offset += 500) {
+    const batch = firestore.batch();
+    missingSlugs
+      .slice(offset, offset + 500)
+      .forEach(post => batch.update(post.reference, { slug: post.slug }));
+    await batch.commit();
+  }
+
   const categories = categoriesSnapshot.docs.map(document => document.data());
 
   return buildSitemap(posts, categories);

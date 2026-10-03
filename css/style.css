@@ -150,6 +150,14 @@ input, textarea, select {
   text-decoration: none;
 }
 
+.brand-logo-image {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
 .brand-badge,
 .logo-badge {
   background: linear-gradient(135deg, var(--accent-crimson), #be123c);
@@ -1689,4 +1697,3 @@ input, textarea, select {
 .home-loading-line:nth-child(3) {
   width: min(52%, 170px);
 }
-

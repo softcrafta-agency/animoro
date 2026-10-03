@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { createArticleCard, formatDate, setupMobileNav } from './ui.js';
+import { getArticlePath } from './article-url.js';
 
 export { createArticleCard, formatDate, formatViews, setupMobileNav } from './ui.js';
 
@@ -93,7 +94,9 @@ function renderSliderEmptyState(container, message) {
 }
 
 function renderSlides(container, slides) {
-  const trackHtml = slides.map((post, idx) => `
+  const trackHtml = slides.map((post, idx) => {
+    const articlePath = getArticlePath(post);
+    return `
     <div class="slider-slide ${idx === 0 ? 'active' : ''}" data-index="${idx}">
       <img class="slide-bg" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1600&q=80'}" alt="${post.title}" width="1600" height="900" loading="${idx === 0 ? 'eager' : 'lazy'}" fetchpriority="${idx === 0 ? 'high' : 'auto'}" decoding="async" />
       <div class="slide-overlay"></div>
@@ -101,7 +104,7 @@ function renderSlides(container, slides) {
         <span class="badge-featured">Featured Story</span>
         <span class="badge-category">${post.category || 'Anime'}</span>
         <h2 class="slide-title">
-          <a href="blog.html?id=${post.id}">${post.title}</a>
+          <a href="${articlePath}">${post.title}</a>
         </h2>
         <p class="slide-excerpt">${post.excerpt || ''}</p>
         <div class="slide-meta">
@@ -114,13 +117,14 @@ function renderSlides(container, slides) {
             <span>${formatDate(post.publishedAt || post.createdAt)}</span>
           </div>
         </div>
-        <a href="blog.html?id=${post.id}" class="btn-cta">
+        <a href="${articlePath}" class="btn-cta">
           Read Article
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </a>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   const dotsHtml = slides.map((_, idx) => `
     <button class="slider-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}" aria-label="Go to slide ${idx + 1}"></button>
@@ -422,7 +426,7 @@ async function initTrendingArticles() {
           <div class="trending-info">
             <span class="trending-category">${post.category || 'Anime'}</span>
             <h4 class="trending-title">
-              <a href="blog.html?id=${doc.id}">${post.title}</a>
+              <a href="${getArticlePath(post)}">${post.title}</a>
             </h4>
           </div>
         </div>

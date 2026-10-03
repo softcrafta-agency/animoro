@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { formatDate, formatViews } from './ui.js';
+import { getArticlePath } from './article-url.js';
 
 let adminPostsList = [];
 let currentFilter = 'all';
@@ -160,6 +161,7 @@ export function renderPostsTable() {
 
   tbody.innerHTML = filtered.map(post => {
     const isPublished = post.status === 'published';
+    const articlePath = getArticlePath(post);
     return `
       <tr data-id="${post.id}">
         <td>
@@ -170,7 +172,7 @@ export function renderPostsTable() {
             ${post.title}
           </div>
           <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">
-            /blog/${post.slug || post.id}
+            ${articlePath}
           </div>
         </td>
         <td>
@@ -199,7 +201,7 @@ export function renderPostsTable() {
               Edit
             </a>
             ${isPublished ? `
-              <a href="blog.html?id=${post.id}" target="_blank" class="action-btn-sm" title="View Published Article">
+              <a href="${articlePath}" target="_blank" class="action-btn-sm" title="View Published Article">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
               </a>
             ` : ''}

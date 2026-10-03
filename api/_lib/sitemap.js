@@ -1,3 +1,9 @@
+import {
+  createUniqueArticleSlug,
+  isValidArticleSlug,
+  normalizeArticleSlug
+} from '../../js/article-url.js';
+
 export const SITE_ORIGIN = 'https://www.animoro.in';
 
 const STATIC_PATHS = [
@@ -40,10 +46,25 @@ function getLastModified(post) {
   return null;
 }
 
-function articleUrl(id) {
-  const url = new URL('/blog.html', `${SITE_ORIGIN}/`);
-  url.searchParams.set('id', id);
-  return url.toString();
+function articleUrl(slug) {
+  return new URL(`/blog.html/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
+}
+
+export function assignPostSlugs(posts) {
+  const reservedSlugs = new Set(
+    posts
+      .map(post => post.slug)
+      .filter(isValidArticleSlug)
+  );
+
+  return posts.map(post => {
+    if (isValidArticleSlug(post.slug)) return post;
+
+    const baseSlug = normalizeArticleSlug(post.title);
+    const slug = createUniqueArticleSlug(baseSlug, reservedSlugs);
+    reservedSlugs.add(slug);
+    return { ...post, slug };
+  });
 }
 
 function categoryUrl(name) {
@@ -73,7 +94,7 @@ export function buildSitemap(posts, categories) {
     add(new URL(path, `${SITE_ORIGIN}/`).toString());
   }
 
-  const publicPosts = posts.filter(post => post.status === 'published');
+  const publicPosts = assignPostSlugs(posts.filter(post => post.status === 'published'));
   const categoryNames = new Set();
 
   for (const category of categories) {
@@ -93,8 +114,8 @@ export function buildSitemap(posts, categories) {
   }
 
   for (const post of publicPosts) {
-    if (typeof post.id !== 'string' || !post.id) continue;
-    add(articleUrl(post.id), getLastModified(post));
+    if (!isValidArticleSlug(post.slug)) continue;
+    add(articleUrl(post.slug), getLastModified(post));
   }
 
   return (

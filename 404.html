@@ -8,6 +8,8 @@
   <title>404 | Page Not Found | Animoro</title>
   <meta name="description" content="The page you're looking for could not be found. Continue exploring anime articles, news, and stories on Animoro.">
   <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -153,11 +155,21 @@
     }
 
     .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
       text-decoration: none;
       color: #fff;
       font-size: 25px;
       font-weight: 900;
       letter-spacing: -1px;
+    }
+
+    .logo img {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
     }
 
     .logo span {
@@ -642,6 +654,7 @@
 
     <nav class="navbar">
       <a href="/" class="logo">
+        <img src="/logo.png" alt="">
         Ani<span>moro</span>
       </a>
 

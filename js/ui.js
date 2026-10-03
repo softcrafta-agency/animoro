@@ -1,3 +1,5 @@
+import { getArticlePath } from './article-url.js';
+
 export function formatDate(timestamp) {
   if (!timestamp) return 'Recent';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -18,8 +20,9 @@ export function formatViews(views) {
 export function createArticleCard(id, post) {
   const card = document.createElement('article');
   card.className = 'article-card';
+  const articlePath = getArticlePath(post);
   card.innerHTML = `
-    <a href="blog.html?id=${id}" class="card-img-wrap">
+    <a href="${articlePath}" class="card-img-wrap">
       <img class="card-img" src="${post.coverImage || 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80'}" alt="${post.title}" width="800" height="450" loading="lazy" decoding="async" />
       <span class="card-category-badge">${post.category || 'General'}</span>
     </a>
@@ -28,7 +31,7 @@ export function createArticleCard(id, post) {
         <span>${formatDate(post.publishedAt || post.createdAt)}</span>
       </div>
       <h3 class="card-title">
-        <a href="blog.html?id=${id}">${post.title}</a>
+        <a href="${articlePath}">${post.title}</a>
       </h3>
       <p class="card-excerpt">${post.excerpt || ''}</p>
       <div class="card-footer">
@@ -36,7 +39,7 @@ export function createArticleCard(id, post) {
           <div class="author-avatar">${(post.authorName || 'A')[0].toUpperCase()}</div>
           <span>${post.authorName || 'Animoro Editor'}</span>
         </div>
-        <a href="blog.html?id=${id}" style="color: var(--accent-crimson); font-weight: 600; display: flex; align-items: center; gap: 4px;">
+        <a href="${articlePath}" style="color: var(--accent-crimson); font-weight: 600; display: flex; align-items: center; gap: 4px;">
           Read
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </a>

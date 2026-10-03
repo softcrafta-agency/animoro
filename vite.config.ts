@@ -15,6 +15,7 @@ export default defineConfig(() => {
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html'),
+          notFound: path.resolve(__dirname, '404.html'),
           blogs: path.resolve(__dirname, 'blogs.html'),
           blog: path.resolve(__dirname, 'blog.html'),
           category: path.resolve(__dirname, 'category.html'),

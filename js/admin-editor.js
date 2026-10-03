@@ -5,14 +5,21 @@ import {
   addDoc, 
   updateDoc, 
   serverTimestamp,
-  deleteField 
+  deleteField,
+  query,
+  where,
+  limit,
+  getDocs
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { requireAdminAuth, verifyAdminStatus } from './auth.js';
 import { auth } from './auth-init.js';
+import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
+let originalPostSlug = '';
+let slugWasManuallyEdited = false;
 let postTags = [];
 let uploadedCoverUrl = '';
 let currentUploadedCoverData = null;
@@ -53,9 +60,12 @@ function setupFormControls() {
 
   if (titleInput && slugInput) {
     titleInput.addEventListener('input', () => {
-      if (!editingPostId) {
-        slugInput.value = generateSlug(titleInput.value);
+      if (!editingPostId && !slugWasManuallyEdited) {
+        slugInput.value = normalizeArticleSlug(titleInput.value);
       }
+    });
+    slugInput.addEventListener('input', () => {
+      slugWasManuallyEdited = true;
     });
   }
 
@@ -111,15 +121,6 @@ function setupFormControls() {
       handlePostSubmit(e);
     });
   }
-}
-
-function generateSlug(text) {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 function addTag(tag) {
@@ -1095,6 +1096,7 @@ async function loadPostForEditing(postId) {
     }
 
     const post = snap.data();
+    originalPostSlug = typeof post.slug === 'string' ? post.slug : '';
     existingCoverData = {
       coverImage: post.coverImage || '',
       coverImageType: post.coverImageType || null,
@@ -1186,7 +1188,7 @@ async function handlePostSubmit(e) {
   }
 
   const title = document.getElementById('postTitle').value.trim();
-  const slug = document.getElementById('postSlug').value.trim() || generateSlug(title);
+  const requestedSlug = document.getElementById('postSlug').value.trim() || title;
   let excerpt = document.getElementById('postExcerpt').value.trim();
   const category = document.getElementById('postCategory').value;
   const authorName = document.getElementById('postAuthor').value.trim() || 'Animoro Editor';
@@ -1235,6 +1237,24 @@ async function handlePostSubmit(e) {
   }
 
   submitBtn.disabled = true;
+  submitBtn.textContent = 'Checking article URL...';
+
+  let slug;
+  try {
+    const normalizedSlug = normalizeArticleSlug(requestedSlug);
+    if (editingPostId && normalizedSlug === originalPostSlug && isValidArticleSlug(originalPostSlug)) {
+      slug = originalPostSlug;
+    } else {
+      slug = await findAvailablePostSlug(normalizedSlug, editingPostId);
+    }
+  } catch (error) {
+    handleFirestoreError(error, 'list', 'posts');
+    showFeedback(feedbackEl, 'Unable to verify that this article URL is unique. Please try again.', 'error');
+    submitBtn.disabled = false;
+    submitBtn.textContent = editingPostId ? 'Save Changes' : 'Publish Article';
+    return;
+  }
+
   submitBtn.textContent = editingPostId ? "Saving changes..." : "Publishing article...";
 
   if (selectedCover.mode === 'upload') {
@@ -1415,6 +1435,28 @@ service cloud.firestore {
     submitBtn.disabled = false;
     submitBtn.textContent = editingPostId ? "Save Changes" : "Publish Article";
   }
+}
+
+async function findAvailablePostSlug(baseSlug, currentPostId) {
+  const base = normalizeArticleSlug(baseSlug);
+
+  for (let suffix = 1; suffix < 10000; suffix += 1) {
+    const suffixText = suffix === 1 ? '' : `-${suffix}`;
+    const candidate = suffix === 1
+      ? base
+      : `${base.slice(0, 200 - suffixText.length).replace(/-+$/g, '')}${suffixText}`;
+    const slugQuery = query(
+      collection(db, 'posts'),
+      where('slug', '==', candidate),
+      limit(2)
+    );
+    const matches = await getDocs(slugQuery);
+    if (!matches.docs.some(post => post.id !== currentPostId)) {
+      return candidate;
+    }
+  }
+
+  throw new Error('No available article slug could be generated.');
 }
 
 function showFeedback(el, msg, type) {
