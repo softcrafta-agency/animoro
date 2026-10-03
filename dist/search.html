@@ -12,13 +12,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/search-I2xwzn5o.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/style-C0XIs__r.js">
-  <link rel="modulepreload" crossorigin href="/assets/firebase-init-BhM3mLd8.js">
-  <link rel="modulepreload" crossorigin href="/assets/article-url-Cl5Niljs.js">
-  <link rel="modulepreload" crossorigin href="/assets/ui-CnYcpVm_.js">
-  <link rel="stylesheet" crossorigin href="/assets/style-DpQ3nmiO.css">
-  <link rel="stylesheet" crossorigin href="/assets/responsive-DR1VGuqe.css">
+  <script type="module" crossorigin src="/assets/search-CUxNIH_p.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DSYVmVy8.js">
+  <link rel="modulepreload" crossorigin href="/assets/firebase-init-D6gjjzsT.js">
+  <link rel="modulepreload" crossorigin href="/assets/anime-url-RVaBCVlS.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-CE58eBW4.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-DLgTRf1n.css">
+  <link rel="stylesheet" crossorigin href="/assets/responsive-BTfMlmOe.css">
 </head>
 <body>
 
@@ -76,18 +76,29 @@
         <h1 class="section-title" style="font-size: 2.3rem;">Search Animoro</h1>
         <p class="section-subtitle" style="margin-bottom: 24px;">Search through titles, categories, authors, and anime tags.</p>
 
-        <div class="search-input-wrap">
-          <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="searchInput" class="search-field" placeholder="Search by title, anime series, category, or tag..." autofocus />
-        </div>
+        <form id="searchForm" action="/search.html" role="search">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <label class="visually-hidden" for="searchInput">Search Animoro articles and anime</label>
+            <input type="search" id="searchInput" class="search-field" name="q" placeholder="Search Animoro..." autocomplete="off" aria-autocomplete="list" aria-controls="searchSuggestions" aria-expanded="false" autofocus />
+          </div>
+          <div id="searchSuggestions" class="search-suggestions" role="listbox" aria-label="Search suggestions" hidden></div>
+        </form>
         <div id="searchResultsCount" style="margin-top: 12px; font-size: 0.88rem; color: var(--text-muted);"></div>
       </div>
 
-      <div class="articles-grid" id="searchResultsContainer">
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <p class="empty-state-desc">Type keywords above to search across our full anime catalog.</p>
+      <section id="animeSearchSection" aria-labelledby="animeSearchHeading" hidden>
+        <h2 id="animeSearchHeading" class="section-title">Anime</h2>
+        <div class="articles-grid" id="animeSearchResults"></div>
+      </section>
+      <section aria-labelledby="articleSearchHeading">
+        <h2 id="articleSearchHeading" class="section-title">Articles</h2>
+        <div class="articles-grid" id="searchResultsContainer">
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <p class="empty-state-desc">Type keywords above to search across our full anime catalog.</p>
+          </div>
         </div>
-      </div>
+      </section>
       <div style="text-align: center; margin-top: 32px;">
         <button class="btn-outline" id="loadMoreSearchResultsBtn" style="display: none;">Search Older Articles</button>
       </div>

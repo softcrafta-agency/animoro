@@ -15,6 +15,7 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { requireAdminAuth, verifyAdminStatus } from './auth.js';
 import { auth } from './auth-init.js';
 import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
+import { normalizeAnimeSlug } from './anime-url.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -1110,6 +1111,10 @@ async function loadPostForEditing(postId) {
     document.getElementById('postSlug').value = post.slug || '';
     document.getElementById('postExcerpt').value = post.excerpt || '';
     document.getElementById('postCategory').value = post.category || 'Anime News';
+    document.getElementById('postAnimeTitle').value = post.animeTitle || '';
+    document.getElementById('postAnimeSlug').value = post.animeSlug || '';
+    document.getElementById('postSeoTitle').value = post.seoTitle || '';
+    document.getElementById('postSeoDescription').value = post.seoDescription || '';
     document.getElementById('postAuthor').value = post.authorName || '';
     document.getElementById('postStatus').value = post.status || 'draft';
     document.getElementById('postFeatured').checked = !!post.featured;
@@ -1191,6 +1196,11 @@ async function handlePostSubmit(e) {
   const requestedSlug = document.getElementById('postSlug').value.trim() || title;
   let excerpt = document.getElementById('postExcerpt').value.trim();
   const category = document.getElementById('postCategory').value;
+  const animeTitle = document.getElementById('postAnimeTitle').value.trim();
+  const animeSlugInput = document.getElementById('postAnimeSlug').value.trim();
+  const animeSlug = animeSlugInput ? normalizeAnimeSlug(animeSlugInput) : '';
+  const seoTitle = document.getElementById('postSeoTitle').value.trim();
+  const seoDescription = document.getElementById('postSeoDescription').value.trim();
   const authorName = document.getElementById('postAuthor').value.trim() || 'Animoro Editor';
   const status = document.getElementById('postStatus').value;
   const featured = document.getElementById('postFeatured').checked;
@@ -1286,6 +1296,10 @@ async function handlePostSubmit(e) {
     excerpt,
     content,
     category,
+    animeTitle,
+    animeSlug,
+    seoTitle,
+    seoDescription,
     tags: postTags,
     authorName,
     authorId: currentUser.uid,
@@ -1404,8 +1418,18 @@ service cloud.firestore {
       allow get: if (resource.data.status == 'published') || isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
       allow list: if (resource.data.status == 'published') || isAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
       allow create: if isSuperOrDocAdmin() || (isSignedIn() && incoming().authorId == request.auth.uid);
-      allow update: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid) || (resource.data.status == 'published' && incoming().diff(resource.data).affectedKeys().hasOnly(['views']) && incoming().views == resource.data.views + 1);
+      allow update: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid) || (resource.data.status == 'published' && incoming().diff(resource.data).affectedKeys().hasOnly(['views', 'lastViewedAt']) && incoming().views is number && incoming().views >= 0 && incoming().views == resource.data.views + 1 && incoming().lastViewedAt is timestamp);
       allow delete: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+    match /posts/{postId}/viewers/{visitorId} {
+      allow get: if true;
+      allow create: if request.resource.data.viewedAt is timestamp && request.resource.data.keys().hasOnly(['viewedAt']);
+      allow update: if resource.data.viewedAt is timestamp && request.time > resource.data.viewedAt + duration.value(1, 'd') && request.resource.data.viewedAt is timestamp && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
+      allow delete: if isSuperOrDocAdmin();
+    }
+    match /anime/{animeId} {
+      allow get, list: if resource.data.visibility == 'published' || isSuperOrDocAdmin();
+      allow create, update, delete: if isSuperOrDocAdmin();
     }
     match /categories/{categoryId} { allow get, list: if true; allow create, update, delete: if isSuperOrDocAdmin(); }
     match /contacts/{contactId} { allow create: if true; allow get, list, update, delete: if isSuperOrDocAdmin(); }

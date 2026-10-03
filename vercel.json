@@ -5,6 +5,10 @@
       "destination": "/blog.html"
     },
     {
+      "source": "/anime.html/:slug*",
+      "destination": "/anime.html"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     }

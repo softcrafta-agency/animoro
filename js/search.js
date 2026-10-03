@@ -8,7 +8,9 @@ import {
   startAfter
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { createArticleCard, setupMobileNav } from './ui.js';
+import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
+import { getArticlePath } from './article-url.js';
+import { getAnimePath } from './anime-url.js';
 
 let allPublishedPosts = [];
 let lastPostDoc = null;
@@ -16,14 +18,19 @@ let hasMorePosts = true;
 let pendingPageRequest = null;
 let usingFallback = false;
 let isLoaded = false;
+let animeResults = [];
+let isAnimeLoaded = false;
+let searchSuggestions = [];
+let activeSuggestionIndex = -1;
 const PAGE_SIZE = 50;
 
 function initSearchPage() {
   setupMobileNav();
 
   const searchInput = document.getElementById('searchInput');
+  const searchForm = document.getElementById('searchForm');
+  const suggestions = document.getElementById('searchSuggestions');
   const resultsContainer = document.getElementById('searchResultsContainer');
-  const resultsCount = document.getElementById('searchResultsCount');
 
   const params = new URLSearchParams(window.location.search);
   const initialQuery = params.get('q') || '';
@@ -33,7 +40,31 @@ function initSearchPage() {
     let debounceTimer;
     searchInput.addEventListener('input', (e) => {
       clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => searchArticles(e.target.value.trim()), 180);
+      const term = e.target.value.trim();
+      updateSearchUrl(term);
+      debounceTimer = setTimeout(() => searchArticles(term), 180);
+    });
+    searchInput.addEventListener('keydown', handleSearchKeydown);
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.trim()) renderSuggestions(searchInput.value.trim());
+    });
+  }
+
+  if (searchForm) {
+    searchForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const term = searchInput?.value.trim() || '';
+      if (term) {
+        updateSearchUrl(term);
+        searchArticles(term);
+        closeSuggestions();
+      }
+    });
+  }
+
+  if (suggestions) {
+    document.addEventListener('click', event => {
+      if (!searchForm?.contains(event.target)) closeSuggestions();
     });
   }
 
@@ -75,8 +106,38 @@ async function searchArticles(term) {
     return;
   }
 
-  if (!isLoaded) await loadNextPublishedPage();
+  if (!isLoaded || !isAnimeLoaded) {
+    await Promise.all([loadNextPublishedPage(), loadAnimePage()]);
+  }
   renderSearchResults(term);
+  renderSuggestions(term);
+}
+
+function updateSearchUrl(term) {
+  const url = new URL(window.location.href);
+  if (term) url.searchParams.set('q', term);
+  else url.searchParams.delete('q');
+  window.history.replaceState({}, '', url);
+}
+
+async function loadAnimePage() {
+  if (isAnimeLoaded || !db) return;
+
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, 'anime'),
+      where('visibility', '==', 'published'),
+      limit(50)
+    ));
+    animeResults = snapshot.docs.map(document => ({
+      id: document.id,
+      ...document.data()
+    }));
+    isAnimeLoaded = true;
+  } catch (error) {
+    handleFirestoreError(error, 'list', 'anime');
+    isAnimeLoaded = true;
+  }
 }
 
 function loadNextPublishedPage() {
@@ -131,25 +192,48 @@ function loadNextPublishedPage() {
 function renderSearchResults(term = document.getElementById('searchInput')?.value.trim() || '') {
   const resultsContainer = document.getElementById('searchResultsContainer');
   const resultsCount = document.getElementById('searchResultsCount');
+  const animeContainer = document.getElementById('animeSearchResults');
+  const animeSection = document.getElementById('animeSearchSection');
   if (!resultsContainer) return;
 
   const lower = term.toLowerCase();
   const matched = allPublishedPosts.filter(post => {
     const titleMatch = (post.title || '').toLowerCase().includes(lower);
+    const slugMatch = (post.slug || '').toLowerCase().includes(lower);
     const excerptMatch = (post.excerpt || '').toLowerCase().includes(lower);
     const catMatch = (post.category || '').toLowerCase().includes(lower);
     const authorMatch = (post.authorName || '').toLowerCase().includes(lower);
     const tagMatch = (post.tags || []).some(tag => String(tag).toLowerCase().includes(lower));
 
-    return titleMatch || excerptMatch || catMatch || authorMatch || tagMatch;
+    return titleMatch || slugMatch || excerptMatch || catMatch || authorMatch || tagMatch;
   });
+  const matchedAnime = animeResults.filter(anime => [
+    anime.title,
+    anime.slug,
+    anime.synopsis,
+    anime.studio,
+    ...(anime.alternativeTitles || []),
+    ...(anime.genres || []),
+    ...(anime.tags || []),
+  ].some(value => String(value || '').toLowerCase().includes(lower)));
 
   if (resultsCount) {
-    resultsCount.textContent = `Found ${matched.length} matching article${matched.length === 1 ? '' : 's'} in ${allPublishedPosts.length} loaded.`;
+    resultsCount.textContent = `Found ${matchedAnime.length} anime and ${matched.length} matching article${matched.length === 1 ? '' : 's'} in the loaded results.`;
+  }
+
+  if (animeContainer && animeSection) {
+    animeContainer.replaceChildren();
+    animeSection.hidden = matchedAnime.length === 0;
+    matchedAnime.slice(0, 12).forEach(anime => {
+      animeContainer.appendChild(createAnimeCard(anime));
+    });
   }
 
   if (matched.length === 0) {
-    renderSearchMessage(hasMorePosts
+    resultsContainer.innerHTML = '';
+    renderSearchMessage(matchedAnime.length > 0
+      ? 'No matching articles found.'
+      : hasMorePosts
       ? 'No matches in the articles loaded so far. Search older articles to continue.'
       : 'No articles found. Try another search.');
     updateLoadMoreButton();
@@ -161,6 +245,92 @@ function renderSearchResults(term = document.getElementById('searchInput')?.valu
     resultsContainer.appendChild(createArticleCard(post.id, post));
   });
   updateLoadMoreButton();
+}
+
+function renderSuggestions(term) {
+  const container = document.getElementById('searchSuggestions');
+  if (!container) return;
+  const normalizedTerm = term.toLowerCase();
+  const anime = animeResults
+    .filter(item => String(item.title || '').toLowerCase().includes(normalizedTerm))
+    .slice(0, 3)
+    .map(item => ({ label: item.title, type: 'ANIME', href: getAnimePath(item) }));
+  const articles = allPublishedPosts
+    .filter(post => [post.title, post.slug, post.category, ...(post.tags || [])]
+      .some(value => String(value || '').toLowerCase().includes(normalizedTerm)))
+    .slice(0, 5)
+    .map(post => ({ label: post.title, type: 'ARTICLE', href: getArticlePath(post) }));
+  const categories = [...new Set(allPublishedPosts
+    .filter(post => String(post.category || '').toLowerCase().includes(normalizedTerm))
+    .map(post => post.category))]
+    .slice(0, 2)
+    .map(category => ({
+      label: category,
+      type: 'CATEGORY',
+      href: `/category.html?category=${encodeURIComponent(category)}`
+    }));
+
+  searchSuggestions = [...anime, ...articles, ...categories];
+  activeSuggestionIndex = -1;
+  container.replaceChildren();
+
+  if (!searchSuggestions.length) {
+    closeSuggestions();
+    return;
+  }
+
+  searchSuggestions.forEach((suggestion, index) => {
+    const option = document.createElement('a');
+    option.id = `search-suggestion-${index}`;
+    option.className = 'search-suggestion';
+    option.href = suggestion.href;
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', 'false');
+    const type = document.createElement('span');
+    type.className = 'search-suggestion-type';
+    type.textContent = suggestion.type;
+    const label = document.createElement('span');
+    label.textContent = suggestion.label;
+    option.append(type, label);
+    container.appendChild(option);
+  });
+
+  container.hidden = false;
+  document.getElementById('searchInput')?.setAttribute('aria-expanded', 'true');
+}
+
+function handleSearchKeydown(event) {
+  if (!searchSuggestions.length) return;
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    const direction = event.key === 'ArrowDown' ? 1 : -1;
+    activeSuggestionIndex = (activeSuggestionIndex + direction + searchSuggestions.length) % searchSuggestions.length;
+    updateActiveSuggestion();
+  } else if (event.key === 'Escape') {
+    closeSuggestions();
+  } else if (event.key === 'Enter' && activeSuggestionIndex >= 0) {
+    event.preventDefault();
+    window.location.assign(searchSuggestions[activeSuggestionIndex].href);
+  }
+}
+
+function updateActiveSuggestion() {
+  const input = document.getElementById('searchInput');
+  const options = document.querySelectorAll('#searchSuggestions [role="option"]');
+  options.forEach((option, index) => {
+    const isActive = index === activeSuggestionIndex;
+    option.setAttribute('aria-selected', String(isActive));
+    if (isActive) input?.setAttribute('aria-activedescendant', option.id);
+  });
+}
+
+function closeSuggestions() {
+  const container = document.getElementById('searchSuggestions');
+  const input = document.getElementById('searchInput');
+  if (container) container.hidden = true;
+  input?.setAttribute('aria-expanded', 'false');
+  input?.removeAttribute('aria-activedescendant');
 }
 
 function renderSearchMessage(message) {

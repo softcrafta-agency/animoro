@@ -12,8 +12,8 @@
         "destination": "/blog.html"
       },
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "/anime.html/**",
+        "destination": "/anime.html"
       }
     ]
   },

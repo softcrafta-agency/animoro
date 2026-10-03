@@ -3,15 +3,20 @@ import {
   isValidArticleSlug,
   normalizeArticleSlug
 } from '../../js/article-url.js';
+import {
+  isValidAnimeSlug,
+  normalizeAnimeSlug
+} from '../../js/anime-url.js';
 
 export const SITE_ORIGIN = 'https://www.animoro.in';
 
 const STATIC_PATHS = [
   '/',
   '/blogs.html',
+  '/anime.html',
+  '/anime-calendar.html',
   '/about.html',
   '/contact.html',
-  '/search.html',
 ];
 
 function escapeXml(value) {
@@ -50,6 +55,10 @@ function articleUrl(slug) {
   return new URL(`/blog.html/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
 }
 
+function animeUrl(slug) {
+  return new URL(`/anime.html/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
+}
+
 export function assignPostSlugs(posts) {
   const reservedSlugs = new Set(
     posts
@@ -67,6 +76,19 @@ export function assignPostSlugs(posts) {
   });
 }
 
+export function assignAnimeSlugs(entries) {
+  const reservedSlugs = new Set(
+    entries.map(entry => entry.slug).filter(isValidAnimeSlug)
+  );
+
+  return entries.map(entry => {
+    if (isValidAnimeSlug(entry.slug)) return entry;
+    const slug = createUniqueArticleSlug(normalizeAnimeSlug(entry.title), reservedSlugs);
+    reservedSlugs.add(slug);
+    return { ...entry, slug };
+  });
+}
+
 function categoryUrl(name) {
   return `${SITE_ORIGIN}/category.html?category=${encodeURIComponent(name)}`;
 }
@@ -80,7 +102,7 @@ function appendUrl(urls, location, lastModified = null) {
   );
 }
 
-export function buildSitemap(posts, categories) {
+export function buildSitemap(posts, categories, animeEntries = []) {
   const urls = [];
   const seenLocations = new Set();
 
@@ -95,6 +117,7 @@ export function buildSitemap(posts, categories) {
   }
 
   const publicPosts = assignPostSlugs(posts.filter(post => post.status === 'published'));
+  const publicAnime = assignAnimeSlugs(animeEntries.filter(anime => anime.visibility === 'published'));
   const categoryNames = new Set();
 
   for (const category of categories) {
@@ -107,6 +130,10 @@ export function buildSitemap(posts, categories) {
     if (typeof post.category === 'string' && post.category.trim()) {
       categoryNames.add(post.category.trim());
     }
+  }
+
+  for (const anime of publicAnime) {
+    if (isValidAnimeSlug(anime.slug)) add(animeUrl(anime.slug), getLastModified(anime));
   }
 
   for (const name of [...categoryNames].sort((a, b) => a.localeCompare(b))) {

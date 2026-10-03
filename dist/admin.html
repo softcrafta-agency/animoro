@@ -11,13 +11,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-C746HOBV.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/style-C0XIs__r.js">
-  <link rel="modulepreload" crossorigin href="/assets/firebase-init-BhM3mLd8.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-Ir-a2F7v.js">
-  <link rel="modulepreload" crossorigin href="/assets/article-url-Cl5Niljs.js">
-  <link rel="modulepreload" crossorigin href="/assets/ui-CnYcpVm_.js">
-  <link rel="stylesheet" crossorigin href="/assets/style-DpQ3nmiO.css">
+  <script type="module" crossorigin src="/assets/admin-BZ-XSxlD.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DSYVmVy8.js">
+  <link rel="modulepreload" crossorigin href="/assets/firebase-init-D6gjjzsT.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-t-GJYb2S.js">
+  <link rel="modulepreload" crossorigin href="/assets/anime-url-RVaBCVlS.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-CE58eBW4.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-DLgTRf1n.css">
   <link rel="stylesheet" crossorigin href="/assets/admin-p9ZG_aBK.css">
 </head>
 <body class="admin-body">
@@ -41,6 +41,11 @@
       <div class="admin-nav-item" data-tab="posts">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
         Articles
+      </div>
+
+      <div class="admin-nav-item" data-tab="anime">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+        Anime Database
       </div>
 
       <a href="admin-post-editor.html" class="admin-nav-item" style="text-decoration: none;">
@@ -245,6 +250,45 @@
                 <!-- Loaded dynamically by js/admin-posts.js -->
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-tab-pane" id="tab-anime" style="display: none;">
+        <div class="anime-admin-layout">
+          <div class="editor-card">
+            <h3 style="font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 16px;" id="animeFormHeading">Add Anime</h3>
+            <div id="animeManagerFeedback" class="form-feedback" role="status"></div>
+            <form id="animeManagerForm">
+              <input type="hidden" id="animeDocumentId" />
+              <div class="form-group"><label class="form-label" for="animeTitle">Title</label><input class="form-input" id="animeTitle" maxlength="200" required /></div>
+              <div class="form-group"><label class="form-label" for="animeSlug">Slug</label><input class="form-input" id="animeSlug" maxlength="200" required /></div>
+              <div class="form-group"><label class="form-label" for="animeAlternativeTitles">Alternative Titles (comma separated)</label><input class="form-input" id="animeAlternativeTitles" /></div>
+              <div class="form-group"><label class="form-label" for="animeSynopsis">Synopsis</label><textarea class="form-textarea" id="animeSynopsis" maxlength="5000"></textarea></div>
+              <div class="form-group"><label class="form-label" for="animeCoverImage">Cover Image URL</label><input class="form-input" id="animeCoverImage" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="animeBannerImage">Banner Image URL</label><input class="form-input" id="animeBannerImage" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="animeGenres">Genres (comma separated)</label><input class="form-input" id="animeGenres" /></div>
+              <div class="form-group"><label class="form-label" for="animeType">Type</label><input class="form-input" id="animeType" placeholder="TV, Movie, OVA..." /></div>
+              <div class="form-group"><label class="form-label" for="animeStatus">Series Status</label><select class="form-select" id="animeStatus"><option value="">Not specified</option><option value="upcoming">Upcoming</option><option value="airing">Airing</option><option value="completed">Completed</option><option value="hiatus">Hiatus</option></select></div>
+              <div class="form-group"><label class="form-label" for="animeReleaseYear">Release Year</label><input class="form-input" id="animeReleaseYear" type="number" min="1900" max="2200" /></div>
+              <div class="form-group"><label class="form-label" for="animeStudio">Studio</label><input class="form-input" id="animeStudio" /></div>
+              <div class="form-group"><label class="form-label" for="animeEpisodes">Episodes</label><input class="form-input" id="animeEpisodes" type="number" min="0" /></div>
+              <div class="form-group"><label class="form-label" for="animeSeason">Season</label><input class="form-input" id="animeSeason" placeholder="Spring 2026" /></div>
+              <div class="form-group"><label class="form-label" for="animeSource">Source</label><input class="form-input" id="animeSource" placeholder="Manga, Original..." /></div>
+              <div class="form-group"><label class="form-label" for="animeRating">Rating (only when verified)</label><input class="form-input" id="animeRating" type="number" min="0" max="10" step="0.1" /></div>
+              <div class="form-group"><label class="form-label" for="animeCharacters">Characters (comma separated)</label><input class="form-input" id="animeCharacters" /></div>
+              <div class="form-group"><label class="form-label" for="animeTags">Tags (comma separated)</label><input class="form-input" id="animeTags" /></div>
+              <div class="form-group"><label class="form-label" for="animeReleaseDay">Release Day</label><select class="form-select" id="animeReleaseDay"><option value="">Not scheduled</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
+              <div class="form-group"><label class="form-label" for="animeReleaseTime">Release Time</label><input class="form-input" id="animeReleaseTime" type="time" /></div>
+              <div class="form-group"><label class="form-label" for="animeTimezone">Release Timezone (IANA)</label><input class="form-input" id="animeTimezone" placeholder="Asia/Kolkata" /></div>
+              <div class="form-group"><label class="form-label" for="animeNextEpisode">Next Episode</label><input class="form-input" id="animeNextEpisode" type="number" min="1" /></div>
+              <div class="form-group"><label class="form-label" for="animeVisibility">Publication</label><select class="form-select" id="animeVisibility"><option value="draft">Draft</option><option value="published">Published</option></select></div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;"><button type="submit" class="btn-cta" id="saveAnimeButton">Save Anime</button><button type="button" class="action-btn-sm" id="cancelAnimeEditButton" hidden>Cancel Edit</button></div>
+            </form>
+          </div>
+          <div class="data-table-container">
+            <div class="table-toolbar"><h3 style="font-family:var(--font-display);font-size:1.1rem;">Anime Entries</h3></div>
+            <div class="table-responsive"><table class="admin-table"><thead><tr><th>Title</th><th>Slug</th><th>Publication</th><th>Release</th><th>Actions</th></tr></thead><tbody id="animeAdminTableBody"><tr><td colspan="5">Loading anime entries...</td></tr></tbody></table></div>
           </div>
         </div>
       </section>

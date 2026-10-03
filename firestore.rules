@@ -59,10 +59,11 @@ service cloud.firestore {
       allow update: if isSuperOrDocAdmin() ||
                        (isSignedIn() && resource.data.authorId == request.auth.uid) ||
                        (resource.data.status == 'published' &&
-                        incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+                        incoming().diff(existing()).affectedKeys().hasOnly(['views', 'lastViewedAt']) &&
                         incoming().views is number &&
                         incoming().views >= 0 &&
-                        incoming().views == existing().views + 1);
+                        incoming().views == existing().views + 1 &&
+                        incoming().lastViewedAt is timestamp);
       allow delete: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
     }
 
@@ -70,7 +71,16 @@ service cloud.firestore {
       allow get: if true;
       allow create: if request.resource.data.viewedAt is timestamp &&
                        request.resource.data.keys().hasOnly(['viewedAt']);
-      allow update, delete: if isSuperOrDocAdmin();
+      allow update: if resource.data.viewedAt is timestamp &&
+                       request.time > resource.data.viewedAt + duration.value(1, 'd') &&
+                       request.resource.data.viewedAt is timestamp &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
+      allow delete: if isSuperOrDocAdmin();
+    }
+
+    match /anime/{animeId} {
+      allow get, list: if resource.data.visibility == 'published' || isSuperOrDocAdmin();
+      allow create, update, delete: if isSuperOrDocAdmin();
     }
 
     // Article Image Assets Collection

@@ -18,11 +18,48 @@
         "featured": { "type": "boolean" },
         "featuredOrder": { "type": "number" },
         "views": { "type": "number" },
+        "lastViewedAt": { "type": "string", "format": "date-time" },
+        "animeTitle": { "type": "string", "maxLength": 200 },
+        "animeSlug": { "type": "string", "maxLength": 200 },
+        "seoTitle": { "type": "string", "maxLength": 200 },
+        "seoDescription": { "type": "string", "maxLength": 1000 },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "publishedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "slug", "excerpt", "content", "category", "authorName", "status"]
+    },
+    "Anime": {
+      "title": "Anime",
+      "description": "Anime series with optional release schedule",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "slug": { "type": "string", "maxLength": 200 },
+        "alternativeTitles": { "type": "array" },
+        "synopsis": { "type": "string", "maxLength": 5000 },
+        "coverImage": { "type": "string", "maxLength": 2000 },
+        "bannerImage": { "type": "string", "maxLength": 2000 },
+        "genres": { "type": "array" },
+        "type": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["", "airing", "completed", "upcoming", "hiatus"] },
+        "releaseYear": { "type": "number" },
+        "studio": { "type": "string", "maxLength": 200 },
+        "episodes": { "type": "number" },
+        "season": { "type": "string", "maxLength": 100 },
+        "source": { "type": "string", "maxLength": 100 },
+        "rating": { "type": "number" },
+        "characters": { "type": "array" },
+        "tags": { "type": "array" },
+        "releaseDay": { "type": "string", "enum": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] },
+        "releaseTime": { "type": "string", "format": "time" },
+        "timezone": { "type": "string", "maxLength": 100 },
+        "nextEpisode": { "type": "number" },
+        "visibility": { "type": "string", "enum": ["draft", "published"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "visibility"]
     },
     "Category": {
       "title": "Category",
@@ -66,6 +103,10 @@
     "/posts/{postId}": {
       "schema": "Post",
       "description": "Anime blog articles"
+    },
+    "/anime/{animeId}": {
+      "schema": "Anime",
+      "description": "Anime series and optional release schedules"
     },
     "/categories/{categoryId}": {
       "schema": "Category",

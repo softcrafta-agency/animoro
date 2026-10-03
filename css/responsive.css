@@ -2,6 +2,10 @@
    ANIMORO RESPONSIVE STYLESHEET
    ============================================================ */
 
+.mobile-bottom-nav {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   .home-layout-grid {
     grid-template-columns: 1fr;
@@ -25,6 +29,63 @@
 }
 
 @media (max-width: 768px) {
+  body.has-mobile-bottom-nav {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    z-index: 1200;
+    inset: auto 0 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-height: 60px;
+    padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
+    background: rgba(10, 12, 18, 0.97);
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.22);
+  }
+
+  .mobile-bottom-nav a,
+  .mobile-bottom-nav button {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1px;
+    color: var(--text-muted);
+    font: inherit;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-nav a[aria-current="page"] {
+    color: var(--accent-crimson-hover);
+  }
+
+  .mobile-bottom-nav a:focus-visible,
+  .mobile-bottom-nav button:focus-visible {
+    outline: 2px solid var(--accent-crimson);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .mobile-bottom-nav a > span,
+  .mobile-bottom-nav button > span {
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+
+  .mobile-bottom-nav small {
+    overflow: hidden;
+    max-width: 100%;
+    font-size: 0.62rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .main-nav {
     display: none;
   }

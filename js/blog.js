@@ -20,8 +20,10 @@ import {
   isValidArticleSlug,
   normalizeArticleSlug
 } from './article-url.js';
+import { getAnimePath, isValidAnimeSlug } from './anime-url.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
+const VIEW_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function generateVisitorId() {
   const buffer = new Uint8Array(16);
@@ -160,10 +162,10 @@ async function initBlogPage() {
     renderArticle(mainContainer, post, canonicalUrl);
 
     // Record a single unique public view per anonymous browser visitor per article.
-    recordUniqueArticleView(postRef, postId);
+    recordCooldownArticleView(postRef, postId);
 
     // Load related articles
-    loadRelatedArticles(post.category, postId);
+    void loadRelatedArticles(post, postId);
 
   } catch (error) {
     handleFirestoreError(error, requestedSlug ? 'list' : 'get', requestedSlug ? 'posts' : `posts/${articleId}`);
@@ -208,10 +210,9 @@ async function resolveLegacyArticleSlug(articleId, title) {
 }
 
 /**
- * Atomically count one view only when this anonymous browser has not already
- * recorded itself as a viewer for this article in Firestore.
+ * Atomically count one view per anonymous browser every 24 hours per article.
  */
-async function recordUniqueArticleView(postRef, articleId) {
+async function recordCooldownArticleView(postRef, articleId) {
   if (!db || !articleId) {
     return;
   }
@@ -226,7 +227,8 @@ async function recordUniqueArticleView(postRef, articleId) {
     await runTransaction(db, async (transaction) => {
       const viewerRef = doc(db, 'posts', articleId, 'viewers', visitorId);
       const viewerSnap = await transaction.get(viewerRef);
-      if (viewerSnap.exists()) {
+      const previousView = viewerSnap.data()?.viewedAt?.toMillis?.() || 0;
+      if (Date.now() - previousView < VIEW_COOLDOWN_MS) {
         return;
       }
 
@@ -234,15 +236,16 @@ async function recordUniqueArticleView(postRef, articleId) {
       const currentViews = getSafeViews(postSnap.data()?.views);
       const nextViews = currentViews + 1;
 
-      transaction.set(viewerRef, {
-        viewedAt: serverTimestamp()
-      });
+      const viewerData = { viewedAt: serverTimestamp() };
+      if (viewerSnap.exists()) transaction.update(viewerRef, viewerData);
+      else transaction.set(viewerRef, viewerData);
       transaction.update(postRef, {
-        views: nextViews
+        views: nextViews,
+        lastViewedAt: serverTimestamp()
       });
     });
   } catch (error) {
-    console.warn('Could not record unique public article view:', error);
+    console.warn('Could not record public article view:', error);
   }
 }
 
@@ -250,19 +253,24 @@ async function recordUniqueArticleView(postRef, articleId) {
  * Update Page Title & OpenGraph Meta Tags
  */
 function updateSeoTags(post, canonicalUrl) {
-  document.title = `${post.title} — Animoro`;
+  const title = post.seoTitle || post.title;
+  const description = post.seoDescription || post.excerpt || post.title;
+  document.title = `${title} — Animoro`;
 
   const metaDesc = document.querySelector('meta[name="description"]');
-  if (metaDesc) metaDesc.setAttribute('content', post.excerpt || post.title);
+  if (metaDesc) metaDesc.setAttribute('content', description);
 
-  let ogTitle = document.querySelector('meta[property="og:title"]');
-  if (ogTitle) ogTitle.setAttribute('content', post.title);
-
-  let ogDesc = document.querySelector('meta[property="og:description"]');
-  if (ogDesc) ogDesc.setAttribute('content', post.excerpt || post.title);
-
+  setSingleMetaTag('property', 'og:type', 'article');
+  setSingleMetaTag('property', 'og:title', title);
+  setSingleMetaTag('property', 'og:description', description);
   setSingleMetaTag('property', 'og:url', canonicalUrl);
-  if (post.coverImage) setSingleMetaTag('property', 'og:image', post.coverImage);
+  if (post.coverImage) {
+    setSingleMetaTag('property', 'og:image', post.coverImage);
+    setSingleMetaTag('name', 'twitter:image', post.coverImage);
+  }
+  setSingleMetaTag('name', 'twitter:card', post.coverImage ? 'summary_large_image' : 'summary');
+  setSingleMetaTag('name', 'twitter:title', title);
+  setSingleMetaTag('name', 'twitter:description', description);
 
   const canonicalLinks = [...document.querySelectorAll('link[rel~="canonical"]')];
   const canonicalLink = canonicalLinks.shift() || document.createElement('link');
@@ -270,6 +278,54 @@ function updateSeoTags(post, canonicalUrl) {
   canonicalLink.href = canonicalUrl;
   if (!canonicalLink.isConnected) document.head.appendChild(canonicalLink);
   canonicalLinks.forEach(link => link.remove());
+  setArticleStructuredData(post, canonicalUrl, title, description);
+}
+
+function setArticleStructuredData(post, canonicalUrl, title, description) {
+  const datePublished = toIsoDateTime(post.publishedAt || post.createdAt);
+  const dateModified = toIsoDateTime(post.updatedAt);
+  const image = getPublicImageUrl(post.coverImage);
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: title,
+    description,
+    url: canonicalUrl,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Animoro',
+      url: 'https://www.animoro.in/'
+    },
+    ...(image ? { image: [image] } : {}),
+    ...(post.authorName ? { author: { '@type': 'Person', name: post.authorName } } : {}),
+    ...(datePublished ? { datePublished } : {}),
+    ...(dateModified ? { dateModified } : {}),
+  };
+  let script = document.getElementById('articleJsonLd');
+  if (!script) {
+    script = document.createElement('script');
+    script.id = 'articleJsonLd';
+    script.type = 'application/ld+json';
+    document.head.appendChild(script);
+  }
+  script.textContent = JSON.stringify(schema).replace(/</g, '\\u003c');
+}
+
+function toIsoDateTime(value) {
+  if (!value) return '';
+  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
+function getPublicImageUrl(value) {
+  if (typeof value !== 'string') return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
 }
 
 function setSingleMetaTag(attribute, name, content) {
@@ -320,6 +376,11 @@ function renderArticle(container, post, canonicalUrl) {
         <a href="category.html?category=${encodeURIComponent(post.category || 'Anime')}" class="badge-category" style="margin-left: 0;">
           ${escapeHtml(post.category || 'General')}
         </a>
+        ${isValidAnimeSlug(post.animeSlug) ? `
+          <a href="${getAnimePath({ slug: post.animeSlug, title: post.animeTitle })}" class="badge-category">
+            ${escapeHtml(post.animeTitle || 'Anime')}
+          </a>
+        ` : ''}
         <span style="color: var(--text-muted); font-size: 0.85rem;">•</span>
         <span style="color: var(--text-secondary); font-size: 0.85rem;">${formatDate(post.publishedAt || post.createdAt)}</span>
       </div>
@@ -399,20 +460,64 @@ function renderArticle(container, post, canonicalUrl) {
   }
 }
 
-async function loadRelatedArticles(category, currentId) {
+async function loadRelatedArticles(currentPost, currentId) {
   const container = document.getElementById('relatedArticlesContainer');
-  if (!container || !category || !db) return;
+  const category = currentPost.category;
+  if (!container || !db) return;
 
   try {
-    const q = query(
-      collection(db, 'posts'),
-      where('status', '==', 'published'),
-      where('category', '==', category),
-      limit(4)
-    );
+    const tags = Array.isArray(currentPost.tags)
+      ? currentPost.tags.filter(tag => typeof tag === 'string' && tag.trim()).slice(0, 10)
+      : [];
+    const queries = [
+      loadRelatedCandidates(query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('category', '==', category || ''),
+        limit(18)
+      )),
+    ];
+    if (isValidAnimeSlug(currentPost.animeSlug)) {
+      queries.push(loadRelatedCandidates(query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('animeSlug', '==', currentPost.animeSlug),
+        limit(12)
+      )));
+    }
+    if (tags.length) {
+      queries.push(loadRelatedCandidates(query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('tags', 'array-contains-any', tags),
+        limit(12)
+      )));
+    }
 
-    const snap = await getDocs(q);
-    const related = snap.docs.filter(d => d.id !== currentId).slice(0, 3);
+    const candidateGroups = await Promise.all(queries);
+    const candidatePosts = new Map();
+    candidateGroups.flat().forEach(item => candidatePosts.set(item.id, item));
+    const currentTags = new Set(tags.map(tag => tag.toLowerCase()));
+    const currentTitleWords = new Set(
+      String(currentPost.title || '').toLowerCase().split(/[^a-z0-9]+/).filter(word => word.length > 3)
+    );
+    const related = [...candidatePosts.values()]
+      .filter(post => post.id !== currentId)
+      .map(post => {
+        const postTags = Array.isArray(post.tags) ? post.tags : [];
+        const matchingTags = postTags.filter(tag => currentTags.has(String(tag).toLowerCase())).length;
+        const sameAnime = currentPost.animeSlug && post.animeSlug === currentPost.animeSlug;
+        const keywordMatch = [...currentTitleWords].some(word =>
+          String(post.title || '').toLowerCase().includes(word)
+        );
+        const score = (sameAnime ? 100 : 0) + matchingTags * 10 +
+          (category && post.category === category ? 5 : 0) + (keywordMatch ? 1 : 0);
+        return { post, score };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map(item => item.post);
 
     if (related.length === 0) {
       const section = document.getElementById('relatedSection');
@@ -421,8 +526,8 @@ async function loadRelatedArticles(category, currentId) {
     }
 
     container.innerHTML = '';
-    related.forEach(d => {
-      container.appendChild(createArticleCard(d.id, d.data()));
+    related.forEach(post => {
+      container.appendChild(createArticleCard(post.id, post));
     });
     const section = document.getElementById('relatedSection');
     if (section) section.style.display = '';
@@ -430,6 +535,16 @@ async function loadRelatedArticles(category, currentId) {
     console.warn("Could not load related articles:", err);
     const section = document.getElementById('relatedSection');
     if (section) section.style.display = 'none';
+  }
+}
+
+async function loadRelatedCandidates(candidateQuery) {
+  try {
+    const snapshot = await getDocs(candidateQuery);
+    return snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
+  } catch (error) {
+    console.warn('A targeted related-article query was unavailable:', error);
+    return [];
   }
 }
 

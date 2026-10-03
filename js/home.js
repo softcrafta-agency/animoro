@@ -301,6 +301,11 @@ async function initLatestArticles() {
   }
 }
 
+function getPostViews(post) {
+  const views = Number(post.views || 0);
+  return Number.isFinite(views) && views > 0 ? views : 0;
+}
+
 function getLatestArticlesSnapshot() {
   if (!latestArticlesPromise) {
     latestArticlesPromise = (async () => {
@@ -365,7 +370,7 @@ async function loadMoreArticles() {
 }
 
 /**
- * Load and render Trending Articles ordered by views DESC
+ * Prefer articles with recent activity, then fill remaining places by lifetime views.
  */
 async function initTrendingArticles() {
   const container = document.getElementById('trendingList');
@@ -381,40 +386,60 @@ async function initTrendingArticles() {
   }
 
   try {
-    let snapshot;
-    let usedFallback = false;
+    let recentDocs = [];
     try {
-      const q = query(
+      const recentQuery = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        orderBy('lastViewedAt', 'desc'),
+        limit(5)
+      );
+      recentDocs = (await getDocs(recentQuery)).docs;
+    } catch (recentQueryError) {
+      console.warn('Recent trending query failed; falling back to lifetime views:', recentQueryError);
+    }
+
+    const recentIds = new Set(recentDocs.map(post => post.id));
+    let lifetimeDocs = [];
+    try {
+      const lifetimeQuery = query(
         collection(db, 'posts'),
         where('status', '==', 'published'),
         orderBy('views', 'desc'),
-        limit(5)
+        limit(10)
       );
-      snapshot = await getDocs(q);
-    } catch (orderErr) {
-      console.warn("Trending posts query with orderBy failed, using status filter:", orderErr);
-      const fallbackQ = query(
+      lifetimeDocs = (await getDocs(lifetimeQuery)).docs;
+    } catch (lifetimeQueryError) {
+      console.warn('Lifetime trending query failed; using a limited published-post fallback:', lifetimeQueryError);
+      lifetimeDocs = (await getDocs(query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        limit(10)
+      ))).docs.sort((left, right) =>
+        getPostViews(right.data()) - getPostViews(left.data())
+      );
+    }
+    const docs = [
+      ...recentDocs,
+      ...lifetimeDocs.filter(post => !recentIds.has(post.id))
+    ].slice(0, 5);
+
+    if (docs.length === 0) {
+      const fallbackSnapshot = await getDocs(query(
         collection(db, 'posts'),
         where('status', '==', 'published'),
         limit(5)
-      );
-      snapshot = await getDocs(fallbackQ);
-      usedFallback = true;
+      ));
+      docs.push(...fallbackSnapshot.docs);
     }
 
-    if (snapshot.empty) {
+    if (docs.length === 0) {
       container.innerHTML = `
         <div class="empty-state" style="padding: 32px 16px;">
           <p class="empty-state-desc">Trending stories will appear as readers discover Animoro.</p>
         </div>
       `;
       return;
-    }
-
-    let docs = [...snapshot.docs];
-    if (usedFallback) {
-      docs.sort((a, b) => (b.data().views || 0) - (a.data().views || 0));
-      docs = docs.slice(0, 5);
     }
 
     container.innerHTML = docs.map((doc, idx) => {

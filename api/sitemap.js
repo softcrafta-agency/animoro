@@ -1,5 +1,5 @@
 import { getAdminServices } from './_lib/firebase-admin.js';
-import { assignPostSlugs, buildSitemap } from './_lib/sitemap.js';
+import { assignAnimeSlugs, assignPostSlugs, buildSitemap } from './_lib/sitemap.js';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_CONTROL = 'public, max-age=300, s-maxage=300';
@@ -10,9 +10,10 @@ let refreshInProgress;
 
 async function loadSitemap() {
   const { firestore } = getAdminServices();
-  const [postsSnapshot, categoriesSnapshot] = await Promise.all([
-    firestore.collection('posts').get(),
+  const [postsSnapshot, categoriesSnapshot, animeSnapshot] = await Promise.all([
+    firestore.collection('posts').where('status', '==', 'published').get(),
     firestore.collection('categories').get(),
+    firestore.collection('anime').where('visibility', '==', 'published').get(),
   ]);
 
   const storedPosts = postsSnapshot.docs.map(document => {
@@ -27,17 +28,29 @@ async function loadSitemap() {
   const posts = assignPostSlugs(storedPosts);
   const missingSlugs = posts.filter(post => post.slug !== post.storedSlug);
 
-  for (let offset = 0; offset < missingSlugs.length; offset += 500) {
+  const storedAnime = animeSnapshot.docs.map(document => ({
+    reference: document.ref,
+    storedSlug: document.data().slug,
+    ...document.data(),
+  }));
+  const anime = assignAnimeSlugs(storedAnime);
+  const missingAnimeSlugs = anime.filter(entry => entry.slug !== entry.storedSlug);
+  const missingSlugUpdates = [
+    ...missingSlugs.map(post => ({ reference: post.reference, slug: post.slug })),
+    ...missingAnimeSlugs.map(entry => ({ reference: entry.reference, slug: entry.slug })),
+  ];
+
+  for (let offset = 0; offset < missingSlugUpdates.length; offset += 500) {
     const batch = firestore.batch();
-    missingSlugs
+    missingSlugUpdates
       .slice(offset, offset + 500)
-      .forEach(post => batch.update(post.reference, { slug: post.slug }));
+      .forEach(entry => batch.update(entry.reference, { slug: entry.slug }));
     await batch.commit();
   }
 
   const categories = categoriesSnapshot.docs.map(document => document.data());
 
-  return buildSitemap(posts, categories);
+  return buildSitemap(posts, categories, anime);
 }
 
 function getSitemap() {

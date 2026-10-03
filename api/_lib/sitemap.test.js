@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assignPostSlugs, buildSitemap } from './sitemap.js';
+import { assignAnimeSlugs, assignPostSlugs, buildSitemap } from './sitemap.js';
 import { normalizeArticleSlug } from '../../js/article-url.js';
 
 test('builds a sitemap with public URLs and excludes unpublished posts', () => {
@@ -39,7 +39,8 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   assert.match(xml, /https:\/\/www\.animoro\.in\/blogs\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/about\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/contact\.html/);
-  assert.match(xml, /https:\/\/www\.animoro\.in\/search\.html/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/anime-calendar\.html/);
+  assert.doesNotMatch(xml, /search\.html/);
   assert.match(xml, /category\.html\?category=Anime%20%26%20Manga/);
   assert.match(xml, /category\.html\?category=Unused%20Category/);
   assert.match(xml, /blog\.html\/first-post/);
@@ -47,7 +48,7 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   assert.match(xml, /<lastmod>2026-10-01<\/lastmod>/);
   assert.match(xml, /<lastmod>2026-09-30<\/lastmod>/);
   assert.doesNotMatch(xml, /draft-1|not-public|category=Private/);
-  assert.equal((xml.match(/<loc>/g) || []).length, 10);
+  assert.equal((xml.match(/<loc>/g) || []).length, 11);
 });
 
 test('escapes XML characters in public URLs and omits invalid lastmod values', () => {
@@ -67,7 +68,7 @@ test('escapes XML characters in public URLs and omits invalid lastmod values', (
   assert.match(xml, /category=Drama%20%26%20%3CReviews%3E/);
   assert.doesNotMatch(xml, /<lastmod>/);
   assert.doesNotMatch(xml, /<loc>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
-  assert.equal((xml.match(/<loc>/g) || []).length, 7);
+  assert.equal((xml.match(/<loc>/g) || []).length, 8);
 });
 
 test('deduplicates category and URL entries', () => {
@@ -114,4 +115,17 @@ test('normalizes article titles into URL-safe slugs', () => {
     'kagurabachi-anime-release-date-story-characters-powers-everything-you-need-to-know'
   );
   assert.equal(normalizeArticleSlug(' --Naruto   News-- '), 'naruto-news');
+});
+
+test('adds only published anime to the sitemap using slug URLs', () => {
+  const anime = assignAnimeSlugs([
+    { id: 'anime-1', title: 'Kagurabachi', visibility: 'published' },
+    { id: 'anime-2', title: 'Kagurabachi', visibility: 'published' },
+    { id: 'draft-id', title: 'Private Anime', visibility: 'draft' },
+  ]);
+  const xml = buildSitemap([], [], anime);
+
+  assert.match(xml, /anime\.html\/kagurabachi/);
+  assert.match(xml, /anime\.html\/kagurabachi-2/);
+  assert.doesNotMatch(xml, /draft-id|private-anime|search\.html/);
 });

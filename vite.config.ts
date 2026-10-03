@@ -18,6 +18,8 @@ export default defineConfig(() => {
           notFound: path.resolve(__dirname, '404.html'),
           blogs: path.resolve(__dirname, 'blogs.html'),
           blog: path.resolve(__dirname, 'blog.html'),
+          anime: path.resolve(__dirname, 'anime.html'),
+          'anime-calendar': path.resolve(__dirname, 'anime-calendar.html'),
           category: path.resolve(__dirname, 'category.html'),
           search: path.resolve(__dirname, 'search.html'),
           about: path.resolve(__dirname, 'about.html'),

@@ -11,6 +11,7 @@ import { requireAdminAuth, logoutAdmin } from './auth.js';
 import { loadAdminPosts, setupPostsTableControls } from './admin-posts.js';
 import { renderPerformanceChart } from './analytics.js';
 import { formatDate, formatViews } from './ui.js';
+import { setupAnimeManager } from './admin-anime.js';
 
 let currentAdmin = null;
 
@@ -21,6 +22,7 @@ async function initAdminDashboard() {
     setupTabs();
     setupPostsTableControls();
     setupCategoryManager();
+    setupAnimeManager();
     setupFirebaseSettings();
 
     const logoutBtn = document.getElementById('adminLogoutBtn');
@@ -58,6 +60,7 @@ function setupTabs() {
       const titles = {
         overview: 'Dashboard Overview',
         posts: 'Articles Management',
+        anime: 'Anime Database',
         categories: 'Categories Manager',
         slider: 'Featured Slider Manager',
         contacts: 'Contact Inquiries',
@@ -343,9 +346,28 @@ service cloud.firestore {
       allow update: if isSuperOrDocAdmin() ||
                        (isSignedIn() && resource.data.authorId == request.auth.uid) ||
                        (resource.data.status == 'published' &&
-                        incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
-                        incoming().views == existing().views + 1);
+                        incoming().diff(existing()).affectedKeys().hasOnly(['views', 'lastViewedAt']) &&
+                        incoming().views is number &&
+                        incoming().views >= 0 &&
+                        incoming().views == existing().views + 1 &&
+                        incoming().lastViewedAt is timestamp);
       allow delete: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    match /posts/{postId}/viewers/{visitorId} {
+      allow get: if true;
+      allow create: if request.resource.data.viewedAt is timestamp &&
+                       request.resource.data.keys().hasOnly(['viewedAt']);
+      allow update: if resource.data.viewedAt is timestamp &&
+                       request.time > resource.data.viewedAt + duration.value(1, 'd') &&
+                       request.resource.data.viewedAt is timestamp &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
+      allow delete: if isSuperOrDocAdmin();
+    }
+
+    match /anime/{animeId} {
+      allow get, list: if resource.data.visibility == 'published' || isSuperOrDocAdmin();
+      allow create, update, delete: if isSuperOrDocAdmin();
     }
 
     // Categories Collection
