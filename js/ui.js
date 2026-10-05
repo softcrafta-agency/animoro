@@ -1,5 +1,7 @@
 import { getArticlePath } from './article-url.js';
 import { getAnimePath } from './anime-url.js';
+import { attachMyListToggle } from './my-list.js';
+import { getUpcomingAnimePath } from './upcoming-url.js';
 
 export function formatDate(timestamp) {
   if (!timestamp) return 'Recent';
@@ -83,7 +85,80 @@ export function createAnimeCard(anime) {
     anime.releaseYear,
     anime.type,
   ].filter(Boolean).join(' · ');
-  body.append(title, details);
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const toggler = document.createElement('button');
+  toggler.type = 'button';
+  toggler.className = 'btn-outline';
+  toggler.style.padding = '8px 12px';
+  toggler.style.fontSize = '0.8rem';
+  toggler.style.width = '100%';
+  toggler.style.justifyContent = 'center';
+  toggler.style.marginTop = '12px';
+  toggler.style.borderRadius = '999px';
+  attachMyListToggle(toggler, { ...anime, kind: 'anime' });
+  footer.appendChild(toggler);
+
+  body.append(title, details, footer);
+  card.append(imageLink, body);
+  return card;
+}
+
+export function createUpcomingAnimeCard(item) {
+  const card = document.createElement('article');
+  card.className = 'article-card';
+
+  const imageLink = document.createElement('a');
+  imageLink.className = 'card-img-wrap';
+  imageLink.href = getUpcomingAnimePath(item);
+  const image = document.createElement('img');
+  image.className = 'card-img';
+  image.src = item.poster || item.coverImage || '/favicon.svg';
+  image.alt = `${item.title} poster`;
+  image.width = 800;
+  image.height = 450;
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  imageLink.appendChild(image);
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  const meta = document.createElement('div');
+  meta.className = 'card-meta';
+  meta.innerHTML = `<span>${item.releaseDate || 'TBA'}</span><span>${item.season || 'TBA'}</span>`;
+
+  const title = document.createElement('h3');
+  title.className = 'card-title';
+  const titleLink = document.createElement('a');
+  titleLink.href = getUpcomingAnimePath(item);
+  titleLink.textContent = item.title || 'Untitled upcoming anime';
+  title.appendChild(titleLink);
+
+  const details = document.createElement('p');
+  details.className = 'card-excerpt';
+  details.textContent = [
+    ...(Array.isArray(item.genres) ? item.genres : []),
+    item.type,
+    item.releaseStatus,
+  ].filter(Boolean).join(' · ');
+
+  const footer = document.createElement('div');
+  footer.className = 'card-footer';
+  const toggler = document.createElement('button');
+  toggler.type = 'button';
+  toggler.className = 'btn-outline';
+  toggler.style.padding = '8px 12px';
+  toggler.style.fontSize = '0.8rem';
+  toggler.style.width = '100%';
+  toggler.style.justifyContent = 'center';
+  toggler.style.marginTop = '12px';
+  toggler.style.borderRadius = '999px';
+  attachMyListToggle(toggler, { ...item, kind: 'upcoming' });
+  footer.appendChild(toggler);
+
+  body.append(meta, title, details, footer);
   card.append(imageLink, body);
   return card;
 }
@@ -96,6 +171,8 @@ export function setupMobileNav() {
 
   if (drawer) {
     addDrawerLink(drawer, '/anime.html', 'Anime Database');
+    addDrawerLink(drawer, '/upcoming-anime.html', 'Upcoming Anime');
+    addDrawerLink(drawer, '/my-list.html', 'My List');
     addDrawerLink(drawer, '/anime-calendar.html', 'Release Calendar');
   }
 
@@ -111,11 +188,11 @@ export function setupMobileNav() {
       <a href="/search.html" data-mobile-path="/search.html" aria-label="Search">
         <span aria-hidden="true">⌕</span><small>Search</small>
       </a>
-      <a href="/#trending" data-mobile-path="/#trending" aria-label="Trending articles">
-        <span aria-hidden="true">↗</span><small>Trending</small>
+      <a href="/upcoming-anime.html" data-mobile-path="/upcoming-anime.html" aria-label="Upcoming anime">
+        <span aria-hidden="true">✦</span><small>Upcoming</small>
       </a>
-      <a href="/anime.html" data-mobile-path="/anime.html" aria-label="Anime database">
-        <span aria-hidden="true">▤</span><small>Anime</small>
+      <a href="/my-list.html" data-mobile-path="/my-list.html" aria-label="My list">
+        <span aria-hidden="true">♥</span><small>My List</small>
       </a>
       <button type="button" id="mobileMoreNavButton" aria-label="Open more navigation" aria-haspopup="true" aria-expanded="false">
         <span aria-hidden="true">☰</span><small>More</small>

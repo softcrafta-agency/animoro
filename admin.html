@@ -6,8 +6,8 @@
   <title>Admin Dashboard — Animoro</title>
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#080a0f" />
-  <link rel="icon" type="image/png" href="/logo.png" />
-  <link rel="apple-touch-icon" href="/logo.png" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -40,6 +40,11 @@
       <div class="admin-nav-item" data-tab="anime">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
         Anime Database
+      </div>
+
+      <div class="admin-nav-item" data-tab="upcoming">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M12 2v20M2 12h20"></path></svg>
+        Upcoming Anime
       </div>
 
       <a href="admin-post-editor.html" class="admin-nav-item" style="text-decoration: none;">
@@ -285,6 +290,55 @@
           <div class="data-table-container">
             <div class="table-toolbar"><h3 style="font-family:var(--font-display);font-size:1.1rem;">Anime Entries</h3></div>
             <div class="table-responsive"><table class="admin-table"><thead><tr><th>Title</th><th>Slug</th><th>Publication</th><th>Release</th><th>Actions</th></tr></thead><tbody id="animeAdminTableBody"><tr><td colspan="5">Loading anime entries...</td></tr></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-tab-pane" id="tab-upcoming" style="display: none;">
+        <div class="anime-admin-layout">
+          <div class="editor-card">
+            <h3 style="font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 16px;" id="upcomingFormHeading">Add Upcoming Anime</h3>
+            <div id="upcomingManagerFeedback" class="form-feedback" role="status"></div>
+            <form id="upcomingManagerForm">
+              <input type="hidden" id="upcomingDocumentId" />
+              <div class="form-group"><label class="form-label" for="upcomingTitle">Anime Title</label><input class="form-input" id="upcomingTitle" required /></div>
+              <div class="form-group"><label class="form-label" for="upcomingJapaneseTitle">Japanese Title</label><input class="form-input" id="upcomingJapaneseTitle" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingSlug">Anime Slug</label><input class="form-input" id="upcomingSlug" required /></div>
+              <div class="form-group"><label class="form-label" for="upcomingPoster">Poster Image URL</label><input class="form-input" id="upcomingPoster" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingShortDescription">Short Description</label><textarea class="form-textarea" id="upcomingShortDescription" maxlength="400"></textarea></div>
+              <div class="form-group"><label class="form-label" for="upcomingDescription">Full Description</label><textarea class="form-textarea" id="upcomingDescription" maxlength="8000"></textarea></div>
+              <div class="form-group"><label class="form-label" for="upcomingReleaseDate">Release Date</label><input class="form-input" id="upcomingReleaseDate" type="date" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingReleaseYear">Release Year</label><input class="form-input" id="upcomingReleaseYear" type="number" min="2025" max="2100" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingSeason">Season</label><select class="form-select" id="upcomingSeason"><option value="TBA">TBA</option><option value="Winter">Winter</option><option value="Spring">Spring</option><option value="Summer">Summer</option><option value="Fall">Fall</option></select></div>
+              <div class="form-group"><label class="form-label" for="upcomingReleaseStatus">Release Status</label><select class="form-select" id="upcomingReleaseStatus"><option value="TBA">TBA</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Delayed">Delayed</option></select></div>
+              <div class="form-group"><label class="form-label" for="upcomingType">Type</label><select class="form-select" id="upcomingType"><option value="TV">TV</option><option value="Movie">Movie</option><option value="OVA">OVA</option><option value="ONA">ONA</option><option value="Special">Special</option></select></div>
+              <div class="form-group"><label class="form-label" for="upcomingGenres">Genres</label><input class="form-input" id="upcomingGenres" placeholder="Action, Fantasy" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingStudio">Studio</label><input class="form-input" id="upcomingStudio" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingSource">Source</label><select class="form-select" id="upcomingSource"><option value="Manga">Manga</option><option value="Light Novel">Light Novel</option><option value="Original">Original</option><option value="Game">Game</option><option value="Web Manga">Web Manga</option><option value="Other">Other</option></select></div>
+              <div class="form-group"><label class="form-label" for="upcomingEpisodes">Episodes</label><input class="form-input" id="upcomingEpisodes" placeholder="TBA" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingDuration">Duration</label><input class="form-input" id="upcomingDuration" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingAgeRating">Age Rating</label><input class="form-input" id="upcomingAgeRating" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingTrailerUrl">Trailer URL</label><input class="form-input" id="upcomingTrailerUrl" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingOfficialUrl">Official Website</label><input class="form-input" id="upcomingOfficialUrl" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingMalUrl">MyAnimeList URL</label><input class="form-input" id="upcomingMalUrl" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingAnilistUrl">AniList URL</label><input class="form-input" id="upcomingAnilistUrl" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingCrunchyrollUrl">Crunchyroll URL</label><input class="form-input" id="upcomingCrunchyrollUrl" type="url" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingFeatured">Featured Upcoming Anime</label><input type="checkbox" id="upcomingFeatured" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingStatus">Status</label><select class="form-select" id="upcomingStatus"><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;"><button type="submit" class="btn-cta" id="saveUpcomingButton">Save Upcoming Anime</button><button type="button" class="action-btn-sm" id="cancelUpcomingEditButton" hidden>Cancel Edit</button></div>
+            </form>
+          </div>
+          <div class="data-table-container">
+            <div class="table-toolbar">
+              <h3 style="font-family:var(--font-display);font-size:1.1rem;">Upcoming Anime</h3>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <input type="text" id="upcomingSearchInput" class="table-search-input" placeholder="Search upcoming anime..." />
+                <select id="upcomingStatusFilter" class="form-select"><option value="all">All Status</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select>
+                <select id="upcomingReleaseStatusFilter" class="form-select"><option value="all">All Release Status</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Delayed">Delayed</option><option value="TBA">TBA</option></select>
+                <select id="upcomingSortFilter" class="form-select"><option value="release-date">Nearest release date</option><option value="recently-added">Recently Added</option><option value="recently-updated">Recently Updated</option><option value="az">A–Z</option></select>
+              </div>
+            </div>
+            <div class="table-responsive"><table class="admin-table"><thead><tr><th>Poster</th><th>Anime Title</th><th>Release Date</th><th>Season</th><th>Type</th><th>Release Status</th><th>Status</th><th>Featured</th><th>Last Updated</th><th>Actions</th></tr></thead><tbody id="upcomingAdminTableBody"><tr><td colspan="10">Loading upcoming anime...</td></tr></tbody></table></div>
           </div>
         </div>
       </section>

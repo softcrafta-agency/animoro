@@ -10,6 +10,7 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { getArticlePath } from './article-url.js';
 import { getAnimeCanonicalUrl, getAnimePath, normalizeAnimeSlug } from './anime-url.js';
 import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
+import { attachMyListToggle } from './my-list.js';
 
 const PAGE_SIZE = 24;
 const ARTICLE_SAMPLE_SIZE = 36;
@@ -177,6 +178,20 @@ function renderAnimeDetails(anime) {
   if (alternatives.length) appendText(information, 'Alternative titles', alternatives.join(', '));
   if (anime.synopsis) appendText(information, 'Synopsis', anime.synopsis);
   if (arrayOfStrings(anime.genres).length) appendText(information, 'Genres', arrayOfStrings(anime.genres).join(' · '));
+
+  const buttonRow = document.createElement('div');
+  buttonRow.style.display = 'flex';
+  buttonRow.style.flexWrap = 'wrap';
+  buttonRow.style.gap = '12px';
+  buttonRow.style.marginBottom = '16px';
+  const myListButton = document.createElement('button');
+  myListButton.type = 'button';
+  myListButton.className = 'btn-outline';
+  myListButton.style.padding = '10px 16px';
+  myListButton.style.borderRadius = '999px';
+  attachMyListToggle(myListButton, { ...anime, kind: 'anime' });
+  buttonRow.appendChild(myListButton);
+  information.appendChild(buttonRow);
 
   const fields = [
     ['Type', anime.type],

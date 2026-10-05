@@ -12,6 +12,7 @@ import { loadAdminPosts, setupPostsTableControls } from './admin-posts.js';
 import { renderPerformanceChart } from './analytics.js';
 import { formatDate, formatViews } from './ui.js';
 import { setupAnimeManager } from './admin-anime.js';
+import { setupUpcomingManager } from './admin-upcoming.js';
 
 let currentAdmin = null;
 
@@ -24,6 +25,7 @@ async function initAdminDashboard() {
     setupPostsTableControls();
     setupCategoryManager();
     setupAnimeManager();
+    setupUpcomingManager();
     setupFirebaseSettings();
 
     const logoutBtn = document.getElementById('adminLogoutBtn');
@@ -62,6 +64,7 @@ function setupTabs() {
         overview: 'Dashboard Overview',
         posts: 'Articles Management',
         anime: 'Anime Database',
+        upcoming: 'Upcoming Anime',
         categories: 'Categories Manager',
         slider: 'Featured Slider Manager',
         contacts: 'Contact Inquiries',

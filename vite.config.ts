@@ -19,6 +19,8 @@ export default defineConfig(() => {
           blogs: path.resolve(__dirname, 'blogs.html'),
           blog: path.resolve(__dirname, 'blog.html'),
           anime: path.resolve(__dirname, 'anime.html'),
+          'upcoming-anime': path.resolve(__dirname, 'upcoming-anime.html'),
+          'my-list': path.resolve(__dirname, 'my-list.html'),
           'anime-calendar': path.resolve(__dirname, 'anime-calendar.html'),
           category: path.resolve(__dirname, 'category.html'),
           search: path.resolve(__dirname, 'search.html'),
