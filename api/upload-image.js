@@ -174,8 +174,8 @@ export default async function handler(req, res) {
     }
 
     const uploadType = payload.type || 'article';
-    if (!['cover', 'article'].includes(uploadType)) {
-      return respond(res, 400, { message: 'Image type must be cover or article.' });
+    if (!['cover', 'article', 'upcoming'].includes(uploadType)) {
+      return respond(res, 400, { message: 'Image type must be cover, article, or upcoming.' });
     }
 
     const bucketName = process.env.R2_BUCKET_NAME;
@@ -184,8 +184,17 @@ export default async function handler(req, res) {
       return respond(res, 500, { message: 'Image uploads are not configured on the server.' });
     }
 
-    const folder = uploadType === 'cover' ? 'covers' : 'articles';
-    const key = `${folder}/${randomUUID()}.${imageType.extension}`;
+    let key;
+    if (uploadType === 'upcoming') {
+      const slug = typeof payload.slug === 'string' ? payload.slug : '';
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 200) {
+        return respond(res, 400, { message: 'A valid upcoming anime slug is required.' });
+      }
+      key = `upcoming-anime/${slug}/${randomUUID()}.${imageType.extension}`;
+    } else {
+      const folder = uploadType === 'cover' ? 'covers' : 'articles';
+      key = `${folder}/${randomUUID()}.${imageType.extension}`;
+    }
 
     try {
       await getR2Client().send(new PutObjectCommand({

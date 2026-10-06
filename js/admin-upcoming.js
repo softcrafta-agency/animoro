@@ -10,15 +10,21 @@ import {
   where
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
+import { verifyAdminStatus } from './auth.js';
+import { auth } from './auth-init.js';
+import { uploadImageToR2 } from './r2-upload.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 
 let upcomingSlugManuallyEdited = false;
+let upcomingPosterPreviewUrl = '';
 
 export function setupUpcomingManager() {
   const form = document.getElementById('upcomingManagerForm');
   if (!form) return;
 
   form.addEventListener('submit', saveUpcomingAnime);
+
+  document.getElementById('upcomingPosterFile')?.addEventListener('change', showPosterPreview);
 
   const titleField = document.getElementById('upcomingTitle');
   titleField?.addEventListener('input', (event) => {
@@ -42,6 +48,9 @@ export function setupUpcomingManager() {
 
   const releaseStatusFilter = document.getElementById('upcomingReleaseStatusFilter');
   releaseStatusFilter?.addEventListener('change', renderUpcomingRows);
+
+  document.getElementById('upcomingYearFilter')?.addEventListener('change', renderUpcomingRows);
+  document.getElementById('upcomingSeasonFilter')?.addEventListener('change', renderUpcomingRows);
 
   const sortFilter = document.getElementById('upcomingSortFilter');
   sortFilter?.addEventListener('change', renderUpcomingRows);
@@ -73,6 +82,8 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
   const searchValue = (document.getElementById('upcomingSearchInput')?.value || '').trim().toLowerCase();
   const statusFilter = document.getElementById('upcomingStatusFilter')?.value || 'all';
   const releaseStatusFilter = document.getElementById('upcomingReleaseStatusFilter')?.value || 'all';
+  const yearFilter = document.getElementById('upcomingYearFilter')?.value || 'all';
+  const seasonFilter = document.getElementById('upcomingSeasonFilter')?.value || 'all';
   const sortFilter = document.getElementById('upcomingSortFilter')?.value || 'release-date';
 
   let filtered = [...entries];
@@ -81,23 +92,34 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
   }
   if (statusFilter !== 'all') filtered = filtered.filter(item => (item.status || 'draft') === statusFilter);
   if (releaseStatusFilter !== 'all') filtered = filtered.filter(item => (item.releaseStatus || 'TBA') === releaseStatusFilter);
+  if (yearFilter === 'other') {
+    filtered = filtered.filter(item => !['2026', '2027'].includes(String(item.releaseYear || '')));
+  } else if (yearFilter !== 'all') {
+    filtered = filtered.filter(item => String(item.releaseYear || '') === yearFilter);
+  }
+  if (seasonFilter !== 'all') {
+    filtered = filtered.filter(item => (item.season || 'TBA') === seasonFilter);
+  }
 
   filtered.sort((a, b) => {
     if (sortFilter === 'az') return (a.title || '').localeCompare(b.title || '');
     if (sortFilter === 'recently-updated') return new Date(b.updatedAt?.toDate?.() || b.updatedAt || 0).getTime() - new Date(a.updatedAt?.toDate?.() || a.updatedAt || 0).getTime();
     if (sortFilter === 'recently-added') return new Date(b.createdAt?.toDate?.() || b.createdAt || 0).getTime() - new Date(a.createdAt?.toDate?.() || a.createdAt || 0).getTime();
-    const aDate = a.releaseDate ? new Date(a.releaseDate).getTime() : Number.MAX_SAFE_INTEGER;
-    const bDate = b.releaseDate ? new Date(b.releaseDate).getTime() : Number.MAX_SAFE_INTEGER;
-    return aDate - bDate;
+    return getReleaseSortValue(a.releaseDate) - getReleaseSortValue(b.releaseDate);
   });
 
   tbody.replaceChildren();
   if (!filtered.length) {
     const row = tbody.insertRow();
     const cell = row.insertCell();
-    cell.colSpan = 9;
+    cell.colSpan = 10;
     cell.textContent = emptyMessage;
     return;
+  }
+
+  function getReleaseSortValue(value) {
+    const timestamp = value ? new Date(value).getTime() : Number.NaN;
+    return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
   }
 
   filtered.forEach(item => {
@@ -113,7 +135,15 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
     posterCell.appendChild(poster);
 
     const titleCell = row.insertCell();
-    titleCell.innerHTML = `<div style="font-weight:700; color: var(--text-primary);">${item.title || 'Untitled'}</div><div style="font-size: .75rem; color: var(--text-muted);">${item.slug || ''}</div>`;
+    const title = document.createElement('div');
+    title.style.fontWeight = '700';
+    title.style.color = 'var(--text-primary)';
+    title.textContent = item.title || 'Untitled';
+    const slug = document.createElement('div');
+    slug.style.fontSize = '.75rem';
+    slug.style.color = 'var(--text-muted)';
+    slug.textContent = item.slug || '';
+    titleCell.append(title, slug);
 
     const dateCell = row.insertCell();
     dateCell.textContent = item.releaseDate || 'TBA';
@@ -128,7 +158,10 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
     releaseStatusCell.textContent = item.releaseStatus || 'TBA';
 
     const publicStatusCell = row.insertCell();
-    publicStatusCell.innerHTML = `<span class="status-pill ${item.status === 'published' ? 'published' : item.status === 'archived' ? 'draft' : 'draft'}">${item.status || 'draft'}</span>`;
+    const status = document.createElement('span');
+    status.className = `status-pill ${item.status === 'published' ? 'published' : 'draft'}`;
+    status.textContent = item.status || 'draft';
+    publicStatusCell.appendChild(status);
 
     const featuredCell = row.insertCell();
     featuredCell.textContent = item.featured ? 'On' : 'Off';
@@ -153,7 +186,10 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
     previewButton.type = 'button';
     previewButton.className = 'action-btn-sm';
     previewButton.textContent = 'Preview';
-    previewButton.addEventListener('click', () => window.open(`/upcoming-anime.html/${encodeURIComponent(item.slug || normalizeAnimeSlug(item.title))}`, '_blank'));
+    previewButton.addEventListener('click', () => window.open(
+      `/upcoming-anime.html/${encodeURIComponent(item.slug || normalizeAnimeSlug(item.title))}?preview=1`,
+      '_blank'
+    ));
 
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
@@ -167,11 +203,20 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
 
 async function saveUpcomingAnime(event) {
   event.preventDefault();
-  const form = event.currentTarget;
   const feedback = document.getElementById('upcomingManagerFeedback');
   const submitButton = document.getElementById('saveUpcomingButton');
   if (!db || !isConfigured) {
     showUpcomingFeedback(feedback, 'Firebase is not configured.', 'error');
+    return;
+  }
+
+  const user = auth?.currentUser;
+  if (!user) {
+    showUpcomingFeedback(feedback, 'You must be logged in as an admin to add Upcoming Anime.', 'error');
+    return;
+  }
+  if (!await verifyAdminStatus(user)) {
+    showUpcomingFeedback(feedback, 'Admin permission required.', 'error');
     return;
   }
 
@@ -192,11 +237,20 @@ async function saveUpcomingAnime(event) {
       return;
     }
 
+    const posterFile = document.getElementById('upcomingPosterFile')?.files?.[0];
+    const poster = posterFile
+      ? await uploadImageToR2(posterFile, {
+        kind: 'upcoming',
+        fileName: posterFile.name,
+        slug,
+      })
+      : document.getElementById('upcomingPoster').value.trim();
+
     const payload = {
       title,
       japaneseTitle: document.getElementById('upcomingJapaneseTitle').value.trim(),
       slug,
-      poster: document.getElementById('upcomingPoster').value.trim(),
+      poster,
       shortDescription: document.getElementById('upcomingShortDescription').value.trim(),
       description: document.getElementById('upcomingDescription').value.trim(),
       releaseDate: document.getElementById('upcomingReleaseDate').value || null,
@@ -232,11 +286,36 @@ async function saveUpcomingAnime(event) {
     resetUpcomingForm();
     await loadUpcomingEntries();
   } catch (error) {
-    handleFirestoreError(error, 'create', 'upcomingAnime');
-    showUpcomingFeedback(feedback, `Could not save upcoming anime: ${error.message}`, 'error');
+    handleFirestoreError(
+      error,
+      document.getElementById('upcomingDocumentId').value ? 'update' : 'create',
+      'upcomingAnime'
+    );
+    const isPermissionError = error?.code === 'permission-denied' ||
+      /missing or insufficient permissions/i.test(error?.message || '');
+    const message = isPermissionError
+      ? "You don't have permission to save Upcoming Anime. Please make sure you are logged in with an authorized admin account."
+      : `Could not save upcoming anime: ${error?.message || String(error)}`;
+    showUpcomingFeedback(feedback, message, 'error');
   } finally {
     submitButton.disabled = false;
   }
+}
+
+function showPosterPreview(event) {
+  const file = event.currentTarget.files?.[0];
+  const preview = document.getElementById('upcomingPosterPreview');
+  if (!preview) return;
+  if (upcomingPosterPreviewUrl) URL.revokeObjectURL(upcomingPosterPreviewUrl);
+  if (!file) {
+    upcomingPosterPreviewUrl = '';
+    preview.hidden = true;
+    preview.removeAttribute('src');
+    return;
+  }
+  upcomingPosterPreviewUrl = URL.createObjectURL(file);
+  preview.src = upcomingPosterPreviewUrl;
+  preview.hidden = false;
 }
 
 function populateUpcomingForm(item) {
@@ -279,6 +358,11 @@ function populateUpcomingForm(item) {
   const featuredCheckbox = document.getElementById('upcomingFeatured');
   if (featuredCheckbox) featuredCheckbox.checked = Boolean(item.featured);
 
+  const posterPreview = document.getElementById('upcomingPosterPreview');
+  if (posterPreview && item.poster) {
+    posterPreview.src = item.poster;
+    posterPreview.hidden = false;
+  }
   document.getElementById('cancelUpcomingEditButton').hidden = false;
   upcomingSlugManuallyEdited = false;
   document.getElementById('upcomingFormHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -286,12 +370,24 @@ function populateUpcomingForm(item) {
 
 async function toggleUpcomingPublish(item) {
   if (!db || !isConfigured) return;
-  const nextStatus = item.status === 'published' ? 'draft' : 'published';
-  await updateDoc(doc(db, 'upcomingAnime', item.id), {
-    status: nextStatus,
-    updatedAt: serverTimestamp()
-  });
-  await loadUpcomingEntries();
+  try {
+    const user = auth?.currentUser;
+    if (!user) throw new Error('You must be logged in as an admin to add Upcoming Anime.');
+    if (!await verifyAdminStatus(user)) throw new Error('Admin permission required.');
+    const nextStatus = item.status === 'published' ? 'draft' : 'published';
+    await updateDoc(doc(db, 'upcomingAnime', item.id), {
+      status: nextStatus,
+      updatedAt: serverTimestamp()
+    });
+    await loadUpcomingEntries();
+  } catch (error) {
+    handleFirestoreError(error, 'update', `upcomingAnime/${item.id}`);
+    showUpcomingFeedback(
+      document.getElementById('upcomingManagerFeedback'),
+      `Could not update publication status: ${error?.message || String(error)}`,
+      'error'
+    );
+  }
 }
 
 async function deleteUpcomingEntry(item) {
@@ -309,6 +405,13 @@ async function deleteUpcomingEntry(item) {
 function resetUpcomingForm() {
   const form = document.getElementById('upcomingManagerForm');
   if (form) form.reset();
+  const preview = document.getElementById('upcomingPosterPreview');
+  if (preview) {
+    if (upcomingPosterPreviewUrl) URL.revokeObjectURL(upcomingPosterPreviewUrl);
+    upcomingPosterPreviewUrl = '';
+    preview.hidden = true;
+    preview.removeAttribute('src');
+  }
   document.getElementById('upcomingDocumentId').value = '';
   document.getElementById('upcomingFormHeading').textContent = 'Add Upcoming Anime';
   document.getElementById('cancelUpcomingEditButton').hidden = true;

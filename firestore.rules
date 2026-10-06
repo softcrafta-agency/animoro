@@ -19,7 +19,10 @@ service cloud.firestore {
     }
 
     function isSuperOrDocAdmin() {
-      return isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      return isAdmin() ||
+        (isSignedIn() &&
+         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin');
     }
 
     function incoming() {
@@ -83,6 +86,11 @@ service cloud.firestore {
       allow create, update, delete: if isSuperOrDocAdmin();
     }
 
+    match /upcomingAnime/{animeId} {
+      allow get, list: if resource.data.status == 'published' || isSuperOrDocAdmin();
+      allow create, update, delete: if isSuperOrDocAdmin();
+    }
+
     // Article Image Assets Collection
     match /imageAssets/{imageId} {
       allow get, list: if isSuperOrDocAdmin();
@@ -108,12 +116,7 @@ service cloud.firestore {
     match /admins/{adminUid} {
       allow get: if isSignedIn() && (request.auth.uid == adminUid || isSuperOrDocAdmin());
       allow list: if isSuperOrDocAdmin();
-      allow create, update: if isSignedIn() && (
-        request.auth.uid == 'X5WFM4C88cecVqry3wr4luIIVAv1' ||
-        request.auth.uid == adminUid ||
-        isSuperOrDocAdmin()
-
-      );
+      allow create, update: if isSuperOrDocAdmin();
       allow delete: if isSuperOrDocAdmin();
     }
   }

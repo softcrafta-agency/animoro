@@ -30,8 +30,7 @@ Animoro is built on **HTML5, CSS3, Vanilla JavaScript, Firebase Authentication, 
      appId: "1:123456789:web:abcdef"
    };
    ```
-5. Open `/js/firebase-config.js` in this project and replace the placeholder values with your copied configuration.
-   *(Tip: You can also enter them directly in the **Admin Portal &rarr; Firebase Settings** tab!)*
+5. Set the `VITE_FIREBASE_*` values in your frontend environment and rebuild the site.
 
 ---
 
@@ -57,22 +56,42 @@ Animoro is built on **HTML5, CSS3, Vanilla JavaScript, Firebase Authentication, 
 5. Go to the **Rules** tab in Firestore and paste the contents of `firestore.rules` from this repository, then click **Publish**.
 
 ### Admin Access Authorization:
-Animoro enforces strict role-based Firestore security rules:
-- Any user signing in with `softcrafta@gmail.com` is automatically recognized by the security rules and automatically bootstraps their admin document in the `admins` collection upon sign-in.
-- For any other administrator email:
+Animoro verifies administrators using an `admins/{uid}` Firestore document whose `role` is `admin`.
+- Create the authorized administrator's document before first login:
   1. In the **Authentication &rarr; Users** tab, copy the user's **User UID**.
   2. In the **Firestore Database &rarr; Data** tab, click **Start collection** (or add to existing `admins` collection).
   3. Set Collection ID to `admins`.
   4. Set Document ID to the user's **User UID**.
   5. Add a field: Field `role` &rarr; Type `string` &rarr; Value `admin`.
   6. Click **Save**.
+- The existing super-admin UID/email is additionally recognized by Firestore rules. Normal users cannot create their own admin documents.
+
+Deploy rules explicitly after editing them:
+
+```sh
+npx firebase-tools deploy --only firestore:rules --project YOUR_FIREBASE_PROJECT_ID
+```
 
 ### Security Rules Highlights:
 - **Public access:** Anyone can read published articles, view categories, and submit contact inquiries.
 - **Private Drafts:** Draft articles are never visible to the public — only authenticated admins can see or edit them.
 - **Admin protection:** Only authenticated administrators can create, edit, publish, or delete posts.
+- **Upcoming anime:** Published entries in the existing `upcomingAnime` collection are public-read; all writes require the verified admin role.
 - **View counter:** Public visitors can atomically increment `views` on published articles (+1).
-- **Direct Image URLs:** Article cover images use direct URLs (PNG, JPG, WebP). No Firebase Storage required.
+- **Image uploads:** Article covers and upcoming anime posters are uploaded through the authenticated `/api/upload-image` endpoint to Cloudflare R2. Firestore stores only the public image URL.
+- **My List:** Public users have no regular Firebase account in this project, so their unified normal/upcoming anime list persists locally in `animoro_my_list`.
+
+### Cloudflare R2 image uploads
+Configure these as server-side Vercel environment variables; do not expose them in browser code:
+
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET_NAME`
+- `R2_PUBLIC_URL`
+- `FIREBASE_SERVICE_ACCOUNT_JSON` (used by the API to verify Firebase ID tokens and administrator roles)
+
+Upcoming posters are saved under `upcoming-anime/{slug}/{generated-filename}`. Deploy the Vercel API after changing `api/upload-image.js`.
 
 ---
 

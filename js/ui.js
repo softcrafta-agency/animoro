@@ -84,7 +84,16 @@ export function createAnimeCard(anime) {
     ...(Array.isArray(anime.genres) ? anime.genres : []),
     anime.releaseYear,
     anime.type,
+    anime.status,
+    anime.rating !== undefined && anime.rating !== '' ? `★ ${anime.rating}` : '',
   ].filter(Boolean).join(' · ');
+  const japaneseTitle = anime.japaneseTitle
+    ? document.createElement('p')
+    : null;
+  if (japaneseTitle) {
+    japaneseTitle.className = 'card-excerpt';
+    japaneseTitle.textContent = anime.japaneseTitle;
+  }
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -100,7 +109,7 @@ export function createAnimeCard(anime) {
   attachMyListToggle(toggler, { ...anime, kind: 'anime' });
   footer.appendChild(toggler);
 
-  body.append(title, details, footer);
+  body.append(title, ...(japaneseTitle ? [japaneseTitle] : []), details, footer);
   card.append(imageLink, body);
   return card;
 }
@@ -127,7 +136,11 @@ export function createUpcomingAnimeCard(item) {
 
   const meta = document.createElement('div');
   meta.className = 'card-meta';
-  meta.innerHTML = `<span>${item.releaseDate || 'TBA'}</span><span>${item.season || 'TBA'}</span>`;
+  const releaseDate = document.createElement('span');
+  releaseDate.textContent = item.releaseDate || 'TBA';
+  const season = document.createElement('span');
+  season.textContent = [item.season || 'TBA', item.releaseYear].filter(Boolean).join(' ');
+  meta.append(releaseDate, season);
 
   const title = document.createElement('h3');
   title.className = 'card-title';
@@ -141,8 +154,15 @@ export function createUpcomingAnimeCard(item) {
   details.textContent = [
     ...(Array.isArray(item.genres) ? item.genres : []),
     item.type,
-    item.releaseStatus,
+    item.releaseStatus || item.status,
   ].filter(Boolean).join(' · ');
+  const japaneseTitle = item.japaneseTitle
+    ? document.createElement('p')
+    : null;
+  if (japaneseTitle) {
+    japaneseTitle.className = 'card-excerpt';
+    japaneseTitle.textContent = item.japaneseTitle;
+  }
 
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -158,7 +178,7 @@ export function createUpcomingAnimeCard(item) {
   attachMyListToggle(toggler, { ...item, kind: 'upcoming' });
   footer.appendChild(toggler);
 
-  body.append(meta, title, details, footer);
+  body.append(meta, title, ...(japaneseTitle ? [japaneseTitle] : []), details, footer);
   card.append(imageLink, body);
   return card;
 }

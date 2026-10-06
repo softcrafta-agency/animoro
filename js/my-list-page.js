@@ -25,10 +25,12 @@ function renderMyListPage() {
     const button = card.querySelector('.btn-outline');
     if (button) {
       attachMyListToggle(button, record);
+      button.textContent = 'Remove from My List';
     }
     fragment.appendChild(card);
   });
   container.replaceChildren(fragment);
 }
 
+document.addEventListener('animoro-my-list-change', renderMyListPage);
 document.addEventListener('DOMContentLoaded', renderMyListPage);

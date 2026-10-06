@@ -14,6 +14,22 @@
       {
         "source": "/anime.html/**",
         "destination": "/anime.html"
+      },
+      {
+        "source": "/upcoming-anime",
+        "destination": "/upcoming-anime.html"
+      },
+      {
+        "source": "/upcoming-anime.html/**",
+        "destination": "/upcoming-anime.html"
+      },
+      {
+        "source": "/upcoming-anime/**",
+        "destination": "/upcoming-anime.html"
+      },
+      {
+        "source": "/my-list",
+        "destination": "/my-list.html"
       }
     ]
   },

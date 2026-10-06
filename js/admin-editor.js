@@ -14,6 +14,7 @@ import {
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { requireAdminAuth, verifyAdminStatus } from './auth.js';
 import { auth } from './auth-init.js';
+import { uploadImageToR2 } from './r2-upload.js';
 import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 
@@ -592,63 +593,6 @@ async function compressArticleImage(file, altText) {
   }
 
   throw new Error('Compression failed. Please try a different image.');
-}
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || '');
-      const separator = dataUrl.indexOf(',');
-      if (separator < 0) {
-        reject(new Error('Could not prepare the image for upload.'));
-        return;
-      }
-      resolve(dataUrl.slice(separator + 1));
-    };
-    reader.onerror = () => reject(new Error('Could not prepare the image for upload.'));
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function uploadImageToR2(blob, { kind, fileName }) {
-  const user = auth?.currentUser;
-  if (!user) {
-    throw new Error('You must be signed in as an admin to upload images.');
-  }
-
-  const idToken = await user.getIdToken();
-  const data = await blobToBase64(blob);
-  const response = await fetch('/api/upload-image', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      fileName: fileName || 'article-image.webp',
-      contentType: blob.type || 'image/webp',
-      data,
-      type: kind === 'covers' ? 'cover' : 'article',
-    }),
-  });
-
-  let result = {};
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error('Image upload service returned an unexpected server response.');
-  }
-
-  if (!response.ok || result.success !== true || !result.url) {
-    throw new Error(result.message || result.error || 'Image upload failed. Please try again.');
-  }
-
-  if (!isValidCoverValue(result.url) || !/^https:\/\//i.test(result.url)) {
-    throw new Error('The image upload service returned an invalid image URL.');
-  }
-
-  return result.url;
 }
 
 /**
