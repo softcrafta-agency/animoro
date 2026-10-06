@@ -305,11 +305,18 @@
               <div class="form-group"><label class="form-label" for="upcomingJapaneseTitle">Japanese Title</label><input class="form-input" id="upcomingJapaneseTitle" /></div>
               <div class="form-group"><label class="form-label" for="upcomingSlug">Anime Slug</label><input class="form-input" id="upcomingSlug" required /></div>
               <div class="form-group">
-                <label class="form-label" for="upcomingPosterFile">Poster Image</label>
-                <input class="form-input" id="upcomingPosterFile" type="file" accept="image/webp,image/jpeg,image/png" />
-                <img id="upcomingPosterPreview" alt="Upcoming anime poster preview" hidden style="display:block;max-width:180px;max-height:260px;object-fit:contain;margin-top:12px;border-radius:8px;" />
-                <label class="form-label" for="upcomingPoster" style="margin-top:12px;">Or use an existing image URL</label>
-                <input class="form-input" id="upcomingPoster" type="url" />
+                <span class="form-label">Poster Image</span>
+                <input id="upcomingPosterFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                <div class="upcoming-poster-dropzone" id="upcomingPosterDropzone">
+                  <div class="cover-upload-title">Drag &amp; Drop Poster Image</div>
+                  <div class="upcoming-poster-dropzone-or">or</div>
+                  <button class="btn-outline" id="chooseUpcomingPosterButton" type="button">Choose Image</button>
+                  <div class="cover-upload-format">JPG, PNG, WebP</div>
+                  <div class="upcoming-poster-preview-wrap" id="upcomingPosterPreviewWrap" hidden>
+                    <img id="upcomingPosterPreview" alt="Upcoming anime poster preview" />
+                    <span id="upcomingPosterFileName"></span>
+                  </div>
+                </div>
               </div>
               <div class="form-group"><label class="form-label" for="upcomingShortDescription">Short Description</label><textarea class="form-textarea" id="upcomingShortDescription" maxlength="400"></textarea></div>
               <div class="form-group"><label class="form-label" for="upcomingDescription">Full Description</label><textarea class="form-textarea" id="upcomingDescription" maxlength="8000"></textarea></div>

@@ -17,6 +17,8 @@ import { normalizeAnimeSlug } from './anime-url.js';
 
 let upcomingSlugManuallyEdited = false;
 let upcomingPosterPreviewUrl = '';
+let selectedUpcomingPoster = null;
+let currentUpcomingPosterUrl = '';
 
 export function setupUpcomingManager() {
   const form = document.getElementById('upcomingManagerForm');
@@ -24,7 +26,25 @@ export function setupUpcomingManager() {
 
   form.addEventListener('submit', saveUpcomingAnime);
 
-  document.getElementById('upcomingPosterFile')?.addEventListener('change', showPosterPreview);
+  const posterInput = document.getElementById('upcomingPosterFile');
+  const posterDropzone = document.getElementById('upcomingPosterDropzone');
+  document.getElementById('chooseUpcomingPosterButton')?.addEventListener('click', () => posterInput?.click());
+  posterInput?.addEventListener('change', event => {
+    setPosterFile(event.currentTarget.files?.[0]);
+    event.currentTarget.value = '';
+  });
+  posterDropzone?.addEventListener('dragover', event => {
+    event.preventDefault();
+    posterDropzone.classList.add('dragover');
+  });
+  posterDropzone?.addEventListener('dragleave', event => {
+    if (!posterDropzone.contains(event.relatedTarget)) posterDropzone.classList.remove('dragover');
+  });
+  posterDropzone?.addEventListener('drop', event => {
+    event.preventDefault();
+    posterDropzone.classList.remove('dragover');
+    setPosterFile(event.dataTransfer?.files?.[0]);
+  });
 
   const titleField = document.getElementById('upcomingTitle');
   titleField?.addEventListener('input', (event) => {
@@ -237,14 +257,13 @@ async function saveUpcomingAnime(event) {
       return;
     }
 
-    const posterFile = document.getElementById('upcomingPosterFile')?.files?.[0];
-    const poster = posterFile
-      ? await uploadImageToR2(posterFile, {
+    const poster = selectedUpcomingPoster
+      ? await uploadImageToR2(selectedUpcomingPoster, {
         kind: 'upcoming',
-        fileName: posterFile.name,
+        fileName: selectedUpcomingPoster.name,
         slug,
       })
-      : document.getElementById('upcomingPoster').value.trim();
+      : currentUpcomingPosterUrl;
 
     const payload = {
       title,
@@ -302,30 +321,40 @@ async function saveUpcomingAnime(event) {
   }
 }
 
-function showPosterPreview(event) {
-  const file = event.currentTarget.files?.[0];
-  const preview = document.getElementById('upcomingPosterPreview');
-  if (!preview) return;
-  if (upcomingPosterPreviewUrl) URL.revokeObjectURL(upcomingPosterPreviewUrl);
-  if (!file) {
-    upcomingPosterPreviewUrl = '';
-    preview.hidden = true;
-    preview.removeAttribute('src');
+function setPosterFile(file) {
+  if (!file) return;
+  const feedback = document.getElementById('upcomingManagerFeedback');
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    showUpcomingFeedback(feedback, 'Choose a JPG, PNG, or WebP image.', 'error');
     return;
   }
+  if (file.size > 3 * 1024 * 1024) {
+    showUpcomingFeedback(feedback, 'Poster images must be 3 MB or smaller.', 'error');
+    return;
+  }
+
+  const preview = document.getElementById('upcomingPosterPreview');
+  const previewWrap = document.getElementById('upcomingPosterPreviewWrap');
+  const fileName = document.getElementById('upcomingPosterFileName');
+  if (!preview || !previewWrap || !fileName) return;
+  if (upcomingPosterPreviewUrl) URL.revokeObjectURL(upcomingPosterPreviewUrl);
+  selectedUpcomingPoster = file;
   upcomingPosterPreviewUrl = URL.createObjectURL(file);
   preview.src = upcomingPosterPreviewUrl;
-  preview.hidden = false;
+  fileName.textContent = file.name;
+  previewWrap.hidden = false;
+  showUpcomingFeedback(feedback, '', '');
 }
 
 function populateUpcomingForm(item) {
+  if (upcomingPosterPreviewUrl) URL.revokeObjectURL(upcomingPosterPreviewUrl);
+  upcomingPosterPreviewUrl = '';
   document.getElementById('upcomingFormHeading').textContent = 'Edit Upcoming Anime';
   document.getElementById('upcomingDocumentId').value = item.id;
   const fields = [
     ['upcomingTitle', item.title],
     ['upcomingJapaneseTitle', item.japaneseTitle],
     ['upcomingSlug', item.slug],
-    ['upcomingPoster', item.poster],
     ['upcomingShortDescription', item.shortDescription],
     ['upcomingDescription', item.description],
     ['upcomingReleaseDate', item.releaseDate],
@@ -359,9 +388,16 @@ function populateUpcomingForm(item) {
   if (featuredCheckbox) featuredCheckbox.checked = Boolean(item.featured);
 
   const posterPreview = document.getElementById('upcomingPosterPreview');
+  const posterPreviewWrap = document.getElementById('upcomingPosterPreviewWrap');
+  const posterFileName = document.getElementById('upcomingPosterFileName');
+  currentUpcomingPosterUrl = item.poster || '';
+  selectedUpcomingPoster = null;
+  if (posterPreview) posterPreview.removeAttribute('src');
+  if (posterPreviewWrap) posterPreviewWrap.hidden = !item.poster;
   if (posterPreview && item.poster) {
     posterPreview.src = item.poster;
-    posterPreview.hidden = false;
+    if (posterPreviewWrap) posterPreviewWrap.hidden = false;
+    if (posterFileName) posterFileName.textContent = 'Current poster';
   }
   document.getElementById('cancelUpcomingEditButton').hidden = false;
   upcomingSlugManuallyEdited = false;
@@ -406,12 +442,13 @@ function resetUpcomingForm() {
   const form = document.getElementById('upcomingManagerForm');
   if (form) form.reset();
   const preview = document.getElementById('upcomingPosterPreview');
-  if (preview) {
-    if (upcomingPosterPreviewUrl) URL.revokeObjectURL(upcomingPosterPreviewUrl);
-    upcomingPosterPreviewUrl = '';
-    preview.hidden = true;
-    preview.removeAttribute('src');
-  }
+  const previewWrap = document.getElementById('upcomingPosterPreviewWrap');
+  if (upcomingPosterPreviewUrl) URL.revokeObjectURL(upcomingPosterPreviewUrl);
+  upcomingPosterPreviewUrl = '';
+  selectedUpcomingPoster = null;
+  currentUpcomingPosterUrl = '';
+  if (preview) preview.removeAttribute('src');
+  if (previewWrap) previewWrap.hidden = true;
   document.getElementById('upcomingDocumentId').value = '';
   document.getElementById('upcomingFormHeading').textContent = 'Add Upcoming Anime';
   document.getElementById('cancelUpcomingEditButton').hidden = true;
