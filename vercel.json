@@ -1,32 +1,39 @@
 {
-  "rewrites": [
-    {
-      "source": "/blog.html/:slug*",
-      "destination": "/blog.html"
-    },
-    {
-      "source": "/anime.html/:slug*",
-      "destination": "/anime.html"
-    },
-    {
-      "source": "/upcoming-anime",
-      "destination": "/upcoming-anime.html"
-    },
-    {
-      "source": "/upcoming-anime.html/:slug*",
-      "destination": "/upcoming-anime.html"
-    },
-    {
-      "source": "/upcoming-anime/:slug*",
-      "destination": "/upcoming-anime.html"
-    },
-    {
-      "source": "/my-list",
-      "destination": "/my-list.html"
-    },
-    {
-      "source": "/sitemap.xml",
-      "destination": "/api/sitemap"
-    }
-  ]
+    "rewrites":  [
+                     {
+                         "source":  "/blog.html/:slug*",
+                         "destination":  "/blog.html"
+                     },
+                     {
+                         "source":  "/anime.html/:slug*",
+                         "destination":  "/anime.html"
+                     },
+                     {
+                         "source":  "/upcoming-anime",
+                         "destination":  "/upcoming-anime.html"
+                     },
+                     {
+                         "source":  "/upcoming-anime.html/:slug*",
+                         "destination":  "/upcoming-anime.html"
+                     },
+                     {
+                         "source":  "/upcoming-anime/:slug*",
+                         "destination":  "/upcoming-anime.html"
+                     },
+                     {
+                         "source":  "/my-list",
+                         "destination":  "/my-list.html"
+                     },
+                     {
+                         "source":  "/sitemap.xml",
+                         "destination":  "/api/sitemap"
+                     }
+                 ],
+    "redirects":  [
+                      {
+                          "source":  "/index.html",
+                          "destination":  "/",
+                          "statusCode":  308
+                      }
+                  ]
 }
