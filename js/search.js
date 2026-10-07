@@ -24,6 +24,27 @@ let searchSuggestions = [];
 let activeSuggestionIndex = -1;
 const PAGE_SIZE = 50;
 
+function ensureMetaTag(attribute, name, value) {
+  const selector = `meta[${attribute}="${name}"]`;
+  let tag = document.head.querySelector(selector);
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute(attribute, name);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', value);
+}
+
+function ensureCanonical(url) {
+  let canonical = document.head.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.appendChild(canonical);
+  }
+  canonical.href = url;
+}
+
 function initSearchPage() {
   setupMobileNav();
 
@@ -34,6 +55,15 @@ function initSearchPage() {
 
   const params = new URLSearchParams(window.location.search);
   const initialQuery = params.get('q') || '';
+  const canonicalUrl = new URL('/search.html', 'https://www.animoro.in').toString();
+
+  document.title = 'Search Anime Articles — Animoro';
+  ensureMetaTag('name', 'description', 'Search Animoro for anime article titles, categories, authors, and topic coverage across the latest guides and reviews.');
+  ensureMetaTag('name', 'robots', 'noindex, nofollow');
+  ensureMetaTag('property', 'og:title', 'Search Anime Articles — Animoro');
+  ensureMetaTag('property', 'og:description', 'Search Animoro for anime article titles, categories, authors, and topic coverage across the latest guides and reviews.');
+  ensureMetaTag('property', 'og:url', canonicalUrl);
+  ensureCanonical(canonicalUrl);
 
   if (searchInput) {
     searchInput.value = initialQuery;

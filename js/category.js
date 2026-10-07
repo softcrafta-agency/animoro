@@ -23,6 +23,27 @@ const PAGE_SIZE = 9;
 let lastCategoryDoc = null;
 let isLoadingCategory = false;
 
+function ensureMetaTag(attribute, name, value) {
+  const selector = `meta[${attribute}="${name}"]`;
+  let tag = document.head.querySelector(selector);
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute(attribute, name);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', value);
+}
+
+function ensureCanonical(url) {
+  let canonical = document.head.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.rel = 'canonical';
+    document.head.appendChild(canonical);
+  }
+  canonical.href = url;
+}
+
 async function initCategoryPage() {
   setupMobileNav();
 
@@ -32,11 +53,21 @@ async function initCategoryPage() {
   const titleEl = document.getElementById('categoryTitle');
   const descEl = document.getElementById('categoryDescription');
   const container = document.getElementById('categoryArticlesContainer');
+  const categoryDescription = CATEGORY_DESCRIPTIONS[categoryName] || `Explore all editorial coverage, analysis, and stories in ${categoryName}.`;
+  const canonicalUrl = new URL(`/category.html?category=${encodeURIComponent(categoryName)}`, 'https://www.animoro.in').toString();
 
   if (titleEl) titleEl.textContent = categoryName;
-  if (descEl) descEl.textContent = CATEGORY_DESCRIPTIONS[categoryName] || `Explore all editorial coverage, analysis, and stories in ${categoryName}.`;
+  if (descEl) descEl.textContent = categoryDescription;
 
   document.title = `${categoryName} — Animoro`;
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) metaDescription.setAttribute('content', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
+  ensureMetaTag('name', 'robots', 'index, follow');
+  ensureMetaTag('property', 'og:title', `${categoryName} — Animoro`);
+  ensureMetaTag('property', 'og:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
+  ensureMetaTag('property', 'og:url', canonicalUrl);
+  ensureMetaTag('property', 'og:image', 'https://www.animoro.in/logo.png');
+  ensureCanonical(canonicalUrl);
 
   if (!container) return;
 
