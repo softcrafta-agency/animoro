@@ -10,8 +10,27 @@ const ARTICLE_CACHE_CONTROL = 'public, max-age=0, s-maxage=60, must-revalidate';
 
 function getRequestedSlug(request) {
   if (typeof request.query?.slug === 'string') return request.query.slug;
-  const requestUrl = new URL(request.url, 'https://www.animoro.in');
+  const requestUrl = new URL(request.url || '/', 'https://www.animoro.in');
   return requestUrl.searchParams.get('slug') || '';
+}
+
+function getRequestId(request) {
+  const headers = request.headers || {};
+  const requestId = headers['x-vercel-id'] || headers['x-request-id'];
+  return typeof requestId === 'string' && requestId.length <= 200
+    ? requestId.replace(/[\r\n]/g, '')
+    : undefined;
+}
+
+function logArticleFailure(logger, error, stage, requestId) {
+  logger.error('Article request failed.', JSON.stringify({
+    stage,
+    requestId,
+    errorName: error?.name || 'Error',
+    errorCode: typeof error?.code === 'string' || typeof error?.code === 'number'
+      ? error.code
+      : undefined,
+  }));
 }
 
 function sendHtml(response, statusCode, html, cacheControl = 'no-store') {
@@ -70,6 +89,7 @@ async function hasPublishedAnimeProfile(firestore, post) {
 export function createArticleHandler({
   getServices = getAdminServices,
   loadTemplate = () => readFile(ARTICLE_TEMPLATE_PATH, 'utf8'),
+  logger = console,
 } = {}) {
   return async function articleHandler(request, response) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -77,21 +97,28 @@ export function createArticleHandler({
       return sendHtml(response, 405, getErrorDocument(404, 'This request method is not supported.'));
     }
 
-    const slug = getRequestedSlug(request);
-    if (!isValidArticleSlug(slug)) {
-      const html = getErrorDocument(404, 'The article you requested could not be found.');
-      return sendHtml(response, 404, request.method === 'HEAD' ? '' : html);
-    }
-
+    let stage = 'read_request';
+    const requestId = getRequestId(request);
     try {
+      const slug = getRequestedSlug(request);
+      if (!isValidArticleSlug(slug)) {
+        const html = getErrorDocument(404, 'The article you requested could not be found.');
+        return sendHtml(response, 404, request.method === 'HEAD' ? '' : html);
+      }
+
+      stage = 'initialize_firebase';
       const { firestore } = getServices();
+      stage = 'query_article';
       const snapshot = await firestore.collection('posts')
         .where('slug', '==', slug)
         .where('status', '==', 'published')
         .limit(1)
         .get();
+      if (!Array.isArray(snapshot?.docs)) {
+        throw new TypeError('Firestore returned an invalid article query result.');
+      }
       const articleDocument = snapshot.docs.find(document =>
-        document.data().status === 'published' &&
+        document?.data()?.status === 'published' &&
         document.data().slug === slug
       );
       if (!articleDocument) {
@@ -105,7 +132,12 @@ export function createArticleHandler({
         post.animeTitle = '';
       }
       const relatedPosts = await loadRelatedPosts(firestore, post, articleDocument.id);
+      stage = 'load_template';
       const template = await loadTemplate();
+      if (typeof template !== 'string' || !template) {
+        throw new TypeError('Article template is empty or invalid.');
+      }
+      stage = 'render_article';
       const html = renderArticleDocument(template, post, relatedPosts);
       return sendHtml(
         response,
@@ -114,7 +146,7 @@ export function createArticleHandler({
         ARTICLE_CACHE_CONTROL
       );
     } catch (error) {
-      console.error('Failed to render a published article.', error);
+      logArticleFailure(logger, error, stage, requestId);
       const html = getErrorDocument(503, 'Please try again shortly.');
       return sendHtml(response, 503, request.method === 'HEAD' ? '' : html);
     }
