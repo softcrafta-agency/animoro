@@ -27,6 +27,7 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /Editor One/);
   assert.match(html, /https:\/\/images\.example\.test\/cover\.webp/);
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\.html\/great-anime-story"/);
+  assert.match(html, /"url":"https:\/\/www\.animoro\.in\/logo\.png"/);
   assert.match(html, /<meta property="og:title" content="A &lt;Great&gt; Anime Story"/);
   assert.match(html, /"@type":"BlogPosting"/);
   assert.match(html, /"@type":"BreadcrumbList"/);

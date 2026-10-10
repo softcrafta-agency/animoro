@@ -1217,9 +1217,27 @@ async function handlePostSubmit(e) {
 
   submitBtn.textContent = editingPostId ? "Saving changes..." : "Publishing article...";
 
-  if (selectedCover.mode === 'upload') {
+  const migrateEmbeddedCover = selectedCover.mode === 'existing' &&
+    selectedCover.coverImage.startsWith('data:image/');
+  if (selectedCover.mode === 'upload' || migrateEmbeddedCover) {
     try {
-      selectedCover.coverImage = await uploadImageToR2(selectedCover.blob, {
+      const coverBlob = selectedCover.mode === 'upload'
+        ? selectedCover.blob
+        : await (async () => {
+          if (!/^data:image\/(?:webp|jpeg|png);base64,/i.test(selectedCover.coverImage)) {
+            throw new Error('This embedded cover format is not supported. Replace it with a WebP, JPEG, or PNG image before saving.');
+          }
+          const response = await fetch(selectedCover.coverImage);
+          if (!response.ok) throw new Error('Could not read the existing embedded cover image.');
+          return response.blob();
+        })();
+      if (migrateEmbeddedCover) {
+        selectedCover.coverImageType = coverBlob.type;
+        selectedCover.coverImageSize = coverBlob.size;
+        selectedCover.coverImageName = selectedCover.coverImageName || `${slug}-cover.webp`;
+        selectedCover.mode = 'upload';
+      }
+      selectedCover.coverImage = await uploadImageToR2(coverBlob, {
         kind: 'covers',
         fileName: selectedCover.coverImageName,
       });

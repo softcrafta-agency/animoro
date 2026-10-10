@@ -6,19 +6,23 @@
   <title>Admin Dashboard — Animoro</title>
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#080a0f" />
-  <link rel="icon" type="image/png" href="/assets/favicon-ccZHVhyh.png" />
-  <link rel="apple-touch-icon" href="/assets/favicon-ccZHVhyh.png" />
+  <link rel="icon" type="image/png" href="/assets/favicon-small-CgBFTsN3.png" />
+  <link rel="apple-touch-icon" href="/assets/favicon-small-CgBFTsN3.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-CO4dw02p.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/style-DSYVmVy8.js">
-  <link rel="modulepreload" crossorigin href="/assets/firebase-init-D6gjjzsT.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-t-GJYb2S.js">
-  <link rel="modulepreload" crossorigin href="/assets/anime-url-RVaBCVlS.js">
-  <link rel="modulepreload" crossorigin href="/assets/ui-BdF299_I.js">
-  <link rel="stylesheet" crossorigin href="/assets/style-DLgTRf1n.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-QzZJ842M.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+
+  <script type="module" crossorigin src="/assets/admin-Dd1c9I1Q.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-CW4kVq1C.js">
+  <link rel="modulepreload" crossorigin href="/assets/index.esm-DYG7j1t_.js">
+  <link rel="modulepreload" crossorigin href="/assets/firebase-init-DDjfCsKu.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-D59JkcR5.js">
+  <link rel="modulepreload" crossorigin href="/assets/anime-url-Bwj29Ekj.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-COwcLs4j.js">
+  <link rel="modulepreload" crossorigin href="/assets/r2-upload-C709QJiS.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-Db8mJnEV.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-C76V9HQo.css">
 </head>
 <body class="admin-body">
 
@@ -26,7 +30,7 @@
   <aside class="admin-sidebar" id="adminSidebar">
     <div class="admin-sidebar-header">
       <a href="/" class="brand-logo">
-        <img class="brand-logo-image" src="/assets/logo-Cj9HVmHR.png" alt="" />
+        <img class="brand-logo-image" src="/logo-small.webp" alt="" />
         <span class="brand-logo-text" style="font-size: 1.3rem;">ANIMORO</span>
         <span class="brand-badge">ADMIN</span>
       </a>
@@ -310,10 +314,23 @@
               <div class="form-group"><label class="form-label" for="upcomingTitle">Anime Title</label><input class="form-input" id="upcomingTitle" required /></div>
               <div class="form-group"><label class="form-label" for="upcomingJapaneseTitle">Japanese Title</label><input class="form-input" id="upcomingJapaneseTitle" /></div>
               <div class="form-group"><label class="form-label" for="upcomingSlug">Anime Slug</label><input class="form-input" id="upcomingSlug" required /></div>
-              <div class="form-group"><label class="form-label" for="upcomingPoster">Poster Image URL</label><input class="form-input" id="upcomingPoster" type="url" /></div>
+              <div class="form-group">
+                <span class="form-label">Poster Image</span>
+                <input id="upcomingPosterFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+                <div class="upcoming-poster-dropzone" id="upcomingPosterDropzone">
+                  <div class="cover-upload-title">Drag &amp; Drop Poster Image</div>
+                  <div class="upcoming-poster-dropzone-or">or</div>
+                  <button class="btn-outline" id="chooseUpcomingPosterButton" type="button">Choose Image</button>
+                  <div class="cover-upload-format">JPG, PNG, WebP</div>
+                  <div class="upcoming-poster-preview-wrap" id="upcomingPosterPreviewWrap" hidden>
+                    <img id="upcomingPosterPreview" alt="Upcoming anime poster preview" />
+                    <span id="upcomingPosterFileName"></span>
+                  </div>
+                </div>
+              </div>
               <div class="form-group"><label class="form-label" for="upcomingShortDescription">Short Description</label><textarea class="form-textarea" id="upcomingShortDescription" maxlength="400"></textarea></div>
               <div class="form-group"><label class="form-label" for="upcomingDescription">Full Description</label><textarea class="form-textarea" id="upcomingDescription" maxlength="8000"></textarea></div>
-              <div class="form-group"><label class="form-label" for="upcomingReleaseDate">Release Date</label><input class="form-input" id="upcomingReleaseDate" type="date" /></div>
+              <div class="form-group"><label class="form-label" for="upcomingReleaseDate">Release Date</label><input class="form-input" id="upcomingReleaseDate" placeholder="YYYY-MM-DD, Month YYYY, or TBA" /></div>
               <div class="form-group"><label class="form-label" for="upcomingReleaseYear">Release Year</label><input class="form-input" id="upcomingReleaseYear" type="number" min="2025" max="2100" /></div>
               <div class="form-group"><label class="form-label" for="upcomingSeason">Season</label><select class="form-select" id="upcomingSeason"><option value="TBA">TBA</option><option value="Winter">Winter</option><option value="Spring">Spring</option><option value="Summer">Summer</option><option value="Fall">Fall</option></select></div>
               <div class="form-group"><label class="form-label" for="upcomingReleaseStatus">Release Status</label><select class="form-select" id="upcomingReleaseStatus"><option value="TBA">TBA</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Delayed">Delayed</option></select></div>
@@ -341,6 +358,8 @@
                 <input type="text" id="upcomingSearchInput" class="table-search-input" placeholder="Search upcoming anime..." />
                 <select id="upcomingStatusFilter" class="form-select"><option value="all">All Status</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select>
                 <select id="upcomingReleaseStatusFilter" class="form-select"><option value="all">All Release Status</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Delayed">Delayed</option><option value="TBA">TBA</option></select>
+                <select id="upcomingYearFilter" class="form-select"><option value="all">All Years</option><option value="2026">2026</option><option value="2027">2027</option><option value="other">Other</option></select>
+                <select id="upcomingSeasonFilter" class="form-select"><option value="all">All Seasons</option><option value="Winter">Winter</option><option value="Spring">Spring</option><option value="Summer">Summer</option><option value="Fall">Fall</option><option value="TBA">TBA</option></select>
                 <select id="upcomingSortFilter" class="form-select"><option value="release-date">Nearest release date</option><option value="recently-added">Recently Added</option><option value="recently-updated">Recently Updated</option><option value="az">A–Z</option></select>
               </div>
             </div>
@@ -505,6 +524,7 @@
       </div>
     </div>
   </div>
-
+
+
 </body>
 </html>

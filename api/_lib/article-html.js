@@ -329,8 +329,7 @@ export function renderArticleDocument(template, article, relatedPosts = []) {
     throw new Error('Cannot render a public article without a valid stored slug.');
   }
   const canonicalUrl = new URL(getArticlePath(post), `${SITE_ORIGIN}/`).toString();
-  const logoPath = /<img[^>]+class="brand-logo-image"[^>]+src="([^"]+)"/.exec(template)?.[1] || '/logo.png';
-  const publisherLogoUrl = new URL(logoPath, `${SITE_ORIGIN}/`).toString();
+  const publisherLogoUrl = new URL('/logo.png', `${SITE_ORIGIN}/`).toString();
   const metadata = getArticleMetadata(post, canonicalUrl, publisherLogoUrl);
   const renderedRelated = renderRelatedArticles(relatedPosts, id);
 

@@ -1,13 +1,3 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  getDocs, 
-  startAfter 
-} from 'firebase/firestore';
-import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { createArticleCard, formatDate, setupMobileNav } from './ui.js';
 import { getArticlePath } from './article-url.js';
 
@@ -19,7 +9,52 @@ let slideInterval = null;
 let lastArticleDoc = null;
 let isLoadingMore = false;
 let latestArticlesPromise = null;
+let featuredFeedPromise = null;
+let firestoreDependenciesPromise = null;
 const ARTICLES_PER_PAGE = 6;
+const AUTO_SLIDE_INTERVAL_MS = 5000;
+const INITIAL_AUTO_SLIDE_DELAY_MS = 30000;
+const FALLBACK_COVER_IMAGE = 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1600&q=80';
+
+function getFirestoreDependencies() {
+  if (!firestoreDependenciesPromise) {
+    firestoreDependenciesPromise = Promise.all([
+      import('firebase/firestore'),
+      import('./firebase-init.js'),
+    ]).then(([firestore, firebase]) => ({
+      ...firebase,
+      collection: firestore.collection,
+      getDocs: firestore.getDocs,
+      limit: firestore.limit,
+      orderBy: firestore.orderBy,
+      query: firestore.query,
+      startAfter: firestore.startAfter,
+      where: firestore.where,
+    }));
+  }
+  return firestoreDependenciesPromise;
+}
+
+function getFeaturedFeed() {
+  if (!featuredFeedPromise) {
+    featuredFeedPromise = fetch('/api/featured', { cache: 'no-cache' })
+      .then(async response => {
+        if (!response.ok) {
+          throw new Error(`Featured feed returned HTTP ${response.status}.`);
+        }
+        const feed = await response.json();
+        if (!Array.isArray(feed.featured) || !Array.isArray(feed.latest)) {
+          throw new Error('Featured feed returned an invalid response.');
+        }
+        return feed;
+      })
+      .catch(error => {
+        console.warn('Could not load the optimized featured feed; using Firestore directly.', error);
+        return null;
+      });
+  }
+  return featuredFeedPromise;
+}
 
 /**
  * Load and render Hero Slider from Firestore
@@ -28,36 +63,47 @@ async function initHeroSlider() {
   const container = document.getElementById('heroSliderContainer');
   if (!container) return;
 
-  if (!isConfigured || !db) {
-    renderSliderEmptyState(container, "Configure Firebase in Settings to load featured stories from your database.");
-    return;
-  }
-
   try {
-    const q = query(
-      collection(db, 'posts'),
-      where('status', '==', 'published'),
-      where('featured', '==', true),
-      limit(5)
-    );
-
-    let snapshot = await getDocs(q);
+    const featuredFeed = await getFeaturedFeed();
     let isFallbackToLatest = false;
-    if (snapshot.empty) {
-      const latestResult = await getLatestArticlesSnapshot();
-      snapshot = latestResult.snapshot;
-      isFallbackToLatest = true;
+    let deferredSection = '';
+    if (featuredFeed) {
+      featuredSlides = featuredFeed.featured.length
+        ? featuredFeed.featured
+        : featuredFeed.latest;
+      isFallbackToLatest = featuredFeed.featured.length === 0;
+      deferredSection = featuredFeed.deferredSection;
+    } else {
+      const { collection, db, getDocs, isConfigured, limit, query, where } =
+        await getFirestoreDependencies();
+      if (!isConfigured || !db) {
+        renderSliderEmptyState(container, "Configure Firebase in Settings to load featured stories from your database.");
+        return;
+      }
+
+      const q = query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('featured', '==', true),
+        limit(5)
+      );
+
+      let snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        const latestResult = await getLatestArticlesSnapshot();
+        snapshot = latestResult.snapshot;
+        isFallbackToLatest = true;
+      }
+      featuredSlides = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
     }
 
-    if (snapshot.empty) {
+    if (featuredSlides.length === 0) {
       renderSliderEmptyState(container, "No featured anime stories yet. Mark published articles as featured in the Admin panel.");
       return;
     }
-
-    featuredSlides = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
 
     // Sort by featuredOrder if present, or by publishedAt/createdAt if fallback
     if (!isFallbackToLatest) {
@@ -70,11 +116,22 @@ async function initHeroSlider() {
       });
     }
 
+    if (featuredFeed?.imagesDeferred) {
+      featuredSlides = featuredSlides.map((post, index) => ({
+        ...post,
+        coverImageDeferred: index > 0,
+      }));
+    }
+
     renderSlides(container, featuredSlides);
     setupSliderControls(container);
-    startAutoSlide();
+    if (featuredFeed?.imagesDeferred) {
+      loadDeferredSlideImagesWhenHeroReady(container, deferredSection);
+    } else {
+      startAutoSlide(INITIAL_AUTO_SLIDE_DELAY_MS);
+    }
   } catch (error) {
-    handleFirestoreError(error, 'list', 'posts');
+    console.error('Featured story loading failed:', error);
     renderSliderEmptyState(container, "Unable to load featured stories. Please verify your Firestore connection.");
   }
 }
@@ -96,9 +153,12 @@ function renderSliderEmptyState(container, message) {
 function renderSlides(container, slides) {
   const trackHtml = slides.map((post, idx) => {
     const articlePath = getArticlePath(post);
+    const coverImage = post.coverImageDeferred
+      ? ''
+      : post.coverImage || FALLBACK_COVER_IMAGE;
     return `
     <div class="slider-slide ${idx === 0 ? 'active' : ''}" data-index="${idx}">
-      <img class="slide-bg" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1600&q=80'}" alt="${post.title}" width="1600" height="900" loading="${idx === 0 ? 'eager' : 'lazy'}" fetchpriority="${idx === 0 ? 'high' : 'auto'}" decoding="async" />
+      <img class="slide-bg" ${coverImage ? `src="${coverImage}"` : ''} alt="${post.title}" width="1600" height="900" loading="${idx === 0 ? 'eager' : 'lazy'}" fetchpriority="${idx === 0 ? 'high' : 'auto'}" decoding="async" />
       <div class="slide-overlay"></div>
       <div class="slide-content">
         <span class="badge-featured">Featured Story</span>
@@ -146,6 +206,65 @@ function renderSlides(container, slides) {
   `;
 }
 
+async function loadDeferredSlideImages(container, section) {
+  const imageProperty = section === 'featured' ? 'featuredImages' : 'latestImages';
+  try {
+    const response = await fetch('/api/featured?images=1', { cache: 'no-cache' });
+    if (!response.ok) {
+      throw new Error(`Featured image feed returned HTTP ${response.status}.`);
+    }
+    const feed = await response.json();
+    const images = feed[imageProperty];
+    if (!Array.isArray(images)) {
+      throw new Error('Featured image feed returned an invalid response.');
+    }
+
+    const coverImages = new Map(images.map(image => [image.id, image.coverImage]));
+    featuredSlides = featuredSlides.map(post => ({
+      ...post,
+      coverImage: post.coverImage || coverImages.get(post.id) || '',
+    }));
+  } catch (error) {
+    console.warn('Could not load all featured images; using the default cover image where needed.', error);
+  }
+
+  featuredSlides.forEach((post, index) => {
+    const image = container.querySelector(`.slider-slide[data-index="${index}"] .slide-bg`);
+    if (image && !image.getAttribute('src')) {
+      image.src = post.coverImage || FALLBACK_COVER_IMAGE;
+    }
+  });
+}
+
+function loadDeferredSlideImagesWhenHeroReady(container, section) {
+  const firstImage = container.querySelector('.slider-slide.active .slide-bg');
+  let started = false;
+  const loadImages = () => {
+    if (started) return;
+    started = true;
+    const hydrate = () => {
+      loadDeferredSlideImages(container, section)
+        .finally(() => startAutoSlide(INITIAL_AUTO_SLIDE_DELAY_MS));
+    };
+
+    if (!firstImage || typeof firstImage.decode !== 'function') {
+      hydrate();
+      return;
+    }
+    firstImage.decode().then(hydrate, error => {
+      console.warn('Could not decode the initial featured image before loading the other slides.', error);
+      hydrate();
+    });
+  };
+
+  if (!firstImage || firstImage.complete) {
+    loadImages();
+  } else {
+    firstImage.addEventListener('load', loadImages, { once: true });
+    firstImage.addEventListener('error', loadImages, { once: true });
+  }
+}
+
 function goToSlide(index) {
   if (!featuredSlides.length) return;
   const slides = document.querySelectorAll('.slider-slide');
@@ -159,15 +278,19 @@ function goToSlide(index) {
   currentSlideIndex = index;
 }
 
-function startAutoSlide() {
+function startAutoSlide(initialDelay = AUTO_SLIDE_INTERVAL_MS) {
   stopAutoSlide();
-  slideInterval = setInterval(() => {
+  slideInterval = window.setTimeout(() => {
     goToSlide(currentSlideIndex + 1);
-  }, 5000);
+    slideInterval = window.setInterval(() => {
+      goToSlide(currentSlideIndex + 1);
+    }, AUTO_SLIDE_INTERVAL_MS);
+  }, initialDelay);
 }
 
 function stopAutoSlide() {
   if (slideInterval) {
+    clearTimeout(slideInterval);
     clearInterval(slideInterval);
     slideInterval = null;
   }
@@ -239,6 +362,8 @@ async function initLatestArticles() {
   const loadMoreBtn = document.getElementById('loadMoreArticlesBtn');
   if (!container) return;
 
+  const { collection, db, getDocs, handleFirestoreError, isConfigured, limit, orderBy, query, where } =
+    await getFirestoreDependencies();
   if (!isConfigured || !db) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -309,6 +434,8 @@ function getPostViews(post) {
 function getLatestArticlesSnapshot() {
   if (!latestArticlesPromise) {
     latestArticlesPromise = (async () => {
+      const { collection, db, getDocs, limit, orderBy, query, where } =
+        await getFirestoreDependencies();
       try {
         const q = query(
           collection(db, 'posts'),
@@ -332,7 +459,12 @@ function getLatestArticlesSnapshot() {
 }
 
 async function loadMoreArticles() {
-  if (!lastArticleDoc || isLoadingMore || !db) return;
+  if (!lastArticleDoc || isLoadingMore) return;
+  const {
+    collection, db, getDocs, handleFirestoreError, isConfigured, limit,
+    orderBy, query, startAfter, where,
+  } = await getFirestoreDependencies();
+  if (!isConfigured || !db) return;
   isLoadingMore = true;
   const loadMoreBtn = document.getElementById('loadMoreArticlesBtn');
   if (loadMoreBtn) loadMoreBtn.textContent = 'Loading...';
@@ -376,6 +508,8 @@ async function initTrendingArticles() {
   const container = document.getElementById('trendingList');
   if (!container) return;
 
+  const { collection, db, getDocs, handleFirestoreError, isConfigured, limit, orderBy, query, where } =
+    await getFirestoreDependencies();
   if (!isConfigured || !db) {
     container.innerHTML = `
       <div class="empty-state" style="padding: 32px 16px;">
@@ -473,9 +607,25 @@ async function initTrendingArticles() {
 // Initialize on page load
 function initHomepage() {
   setupMobileNav();
-  initLatestArticles();
-  initHeroSlider();
-  initTrendingArticles();
+  initHeroSlider().then(() => {
+    let secondaryContentStarted = false;
+    const loadSecondaryContent = () => {
+      if (secondaryContentStarted) return;
+      secondaryContentStarted = true;
+      requestAnimationFrame(() => {
+        initLatestArticles();
+        initTrendingArticles();
+      });
+    };
+    const heroImage = document.querySelector('#heroSliderContainer .slider-slide.active .slide-bg');
+    if (!heroImage || heroImage.complete) {
+      loadSecondaryContent();
+    } else {
+      heroImage.addEventListener('load', loadSecondaryContent, { once: true });
+      heroImage.addEventListener('error', loadSecondaryContent, { once: true });
+    }
+    window.setTimeout(loadSecondaryContent, 1200);
+  });
 }
 
 if (document.getElementById('heroSliderContainer')) {
