@@ -1,18 +1,12 @@
 import { getAdminServices } from './_lib/firebase-admin.js';
 import { assignAnimeSlugs, assignPostSlugs, buildSitemap } from './_lib/sitemap.js';
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_CONTROL = 'public, max-age=300, s-maxage=300';
-
-let cachedSitemap;
-let cacheExpiresAt = 0;
-let refreshInProgress;
+const CACHE_CONTROL = 'no-store';
 
 async function loadSitemap() {
   const { firestore } = getAdminServices();
-  const [postsSnapshot, categoriesSnapshot, animeSnapshot] = await Promise.all([
+  const [postsSnapshot, animeSnapshot] = await Promise.all([
     firestore.collection('posts').where('status', '==', 'published').get(),
-    firestore.collection('categories').get(),
     firestore.collection('anime').where('visibility', '==', 'published').get(),
   ]);
 
@@ -48,29 +42,7 @@ async function loadSitemap() {
     await batch.commit();
   }
 
-  const categories = categoriesSnapshot.docs.map(document => document.data());
-
-  return buildSitemap(posts, categories, anime);
-}
-
-function getSitemap() {
-  if (cachedSitemap && Date.now() < cacheExpiresAt) {
-    return Promise.resolve(cachedSitemap);
-  }
-
-  if (!refreshInProgress) {
-    refreshInProgress = loadSitemap()
-      .then(xml => {
-        cachedSitemap = xml;
-        cacheExpiresAt = Date.now() + CACHE_TTL_MS;
-        return xml;
-      })
-      .finally(() => {
-        refreshInProgress = undefined;
-      });
-  }
-
-  return refreshInProgress;
+  return buildSitemap(posts, [], anime);
 }
 
 export default async function sitemapHandler(request, response) {
@@ -83,7 +55,7 @@ export default async function sitemapHandler(request, response) {
   }
 
   try {
-    const xml = await getSitemap();
+    const xml = await loadSitemap();
     response.setHeader('Content-Type', 'application/xml; charset=utf-8');
     response.setHeader('Cache-Control', CACHE_CONTROL);
     response.setHeader('X-Content-Type-Options', 'nosniff');

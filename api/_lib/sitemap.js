@@ -14,6 +14,7 @@ const STATIC_PATHS = [
   '/',
   '/blogs.html',
   '/anime.html',
+  '/upcoming-anime.html',
   '/anime-calendar.html',
   '/about.html',
   '/contact.html',
@@ -118,17 +119,18 @@ export function buildSitemap(posts, categories, animeEntries = []) {
 
   const publicPosts = assignPostSlugs(posts.filter(post => post.status === 'published'));
   const publicAnime = assignAnimeSlugs(animeEntries.filter(anime => anime.visibility === 'published'));
-  const categoryNames = new Set();
-
-  for (const category of categories) {
-    if (typeof category.name === 'string' && category.name.trim()) {
-      categoryNames.add(category.name.trim());
-    }
-  }
+  const categoryLastModified = new Map();
 
   for (const post of publicPosts) {
     if (typeof post.category === 'string' && post.category.trim()) {
-      categoryNames.add(post.category.trim());
+      const category = post.category.trim();
+      const lastModified = getLastModified(post);
+      if (lastModified &&
+          (!categoryLastModified.has(category) || lastModified > categoryLastModified.get(category))) {
+        categoryLastModified.set(category, lastModified);
+      } else if (!categoryLastModified.has(category)) {
+        categoryLastModified.set(category, null);
+      }
     }
   }
 
@@ -136,8 +138,8 @@ export function buildSitemap(posts, categories, animeEntries = []) {
     if (isValidAnimeSlug(anime.slug)) add(animeUrl(anime.slug), getLastModified(anime));
   }
 
-  for (const name of [...categoryNames].sort((a, b) => a.localeCompare(b))) {
-    add(categoryUrl(name));
+  for (const [name, lastModified] of [...categoryLastModified.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    add(categoryUrl(name), lastModified);
   }
 
   for (const post of publicPosts) {

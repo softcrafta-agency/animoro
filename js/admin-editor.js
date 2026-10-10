@@ -21,6 +21,9 @@ import { normalizeAnimeSlug } from './anime-url.js';
 let currentAdminUser = null;
 let editingPostId = null;
 let originalPostSlug = '';
+let originalPostStatus = 'draft';
+let originalPublishedAt = null;
+let originalCreatedAt = null;
 let slugWasManuallyEdited = false;
 let postTags = [];
 let uploadedCoverUrl = '';
@@ -1042,6 +1045,9 @@ async function loadPostForEditing(postId) {
 
     const post = snap.data();
     originalPostSlug = typeof post.slug === 'string' ? post.slug : '';
+    originalPostStatus = post.status || 'draft';
+    originalPublishedAt = post.publishedAt || null;
+    originalCreatedAt = post.createdAt || null;
     existingCoverData = {
       coverImage: post.coverImage || '',
       coverImageType: post.coverImageType || null,
@@ -1287,7 +1293,13 @@ async function handlePostSubmit(e) {
   const finalDocumentPayload = {
     ...articlePayload,
     ...(editingPostId ? {} : { createdAt: serverTimestamp(), views: 0 }),
-    ...(status === 'published' ? { publishedAt: serverTimestamp() } : { publishedAt: null })
+    ...(status === 'published'
+      ? {
+        publishedAt: editingPostId && originalPostStatus === 'published'
+          ? originalPublishedAt || originalCreatedAt || serverTimestamp()
+          : serverTimestamp()
+      }
+      : { publishedAt: null })
   };
 
   const estimatedSize = estimatePayloadSize({ ...finalDocumentPayload, coverImage: '' });
@@ -1300,9 +1312,6 @@ async function handlePostSubmit(e) {
 
   try {
     if (editingPostId) {
-      if (status === 'published') {
-        finalDocumentPayload.publishedAt = serverTimestamp();
-      }
       await updateDoc(doc(db, 'posts', editingPostId), finalDocumentPayload);
       showFeedback(feedbackEl, "Changes saved successfully.", "success");
     } else {

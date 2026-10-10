@@ -89,6 +89,20 @@ async function shouldSkipPublicViewTracking() {
 async function initBlogPage() {
   setupMobileNav();
 
+  const renderedDataElement = document.getElementById('serverRenderedArticleData');
+  if (renderedDataElement) {
+    try {
+      const renderedData = JSON.parse(renderedDataElement.textContent || '');
+      if (renderedData?.id && renderedData?.canonicalUrl) {
+        await hydrateServerRenderedArticle(renderedData);
+        return;
+      }
+      throw new Error('Server-rendered article data was incomplete.');
+    } catch (error) {
+      console.error('Could not initialize the server-rendered article.', error);
+    }
+  }
+
   const urlParams = new URLSearchParams(window.location.search);
   const articleId = urlParams.get('id');
   const requestedSlug = getRequestedSlug();
@@ -170,6 +184,44 @@ async function initBlogPage() {
   } catch (error) {
     handleFirestoreError(error, requestedSlug ? 'list' : 'get', requestedSlug ? 'posts' : `posts/${articleId}`);
     renderArticleError(mainContainer, "Unable to load article. Please check your network connection.");
+  }
+}
+
+async function hydrateServerRenderedArticle({ id, canonicalUrl }) {
+  const container = document.getElementById('blogArticleContainer');
+  if (!container) return;
+
+  const coverImage = container.querySelector('.article-cover-img');
+  if (coverImage) {
+    coverImage.addEventListener('error', () => {
+      renderCoverImageFallback(coverImage.closest('.article-cover-wrap'));
+    }, { once: true });
+  }
+  container.querySelectorAll('.article-content-container img').forEach(image => {
+    image.loading = 'lazy';
+    image.decoding = 'async';
+  });
+
+  const copyBtn = document.getElementById('copyShareBtn');
+  const copyBtnText = document.getElementById('copyBtnText');
+  if (copyBtn && copyBtnText) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(canonicalUrl);
+        copyBtnText.textContent = 'Copied!';
+        setTimeout(() => { copyBtnText.textContent = 'Copy Link'; }, 2500);
+      } catch {
+        copyBtnText.textContent = 'Link copied';
+      }
+    });
+  }
+
+  if (db) {
+    recordCooldownArticleView(doc(db, 'posts', id), id);
+  }
+  if (!document.getElementById('relatedArticlesContainer')?.childElementCount) {
+    const section = document.getElementById('relatedSection');
+    if (section) section.style.display = 'none';
   }
 }
 

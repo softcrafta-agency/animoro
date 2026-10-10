@@ -37,12 +37,12 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   assert.match(xml, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
   assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/<\/loc>/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/blogs\.html/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/upcoming-anime\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/about\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/contact\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/anime-calendar\.html/);
   assert.doesNotMatch(xml, /search\.html/);
   assert.match(xml, /category\.html\?category=Anime%20%26%20Manga/);
-  assert.match(xml, /category\.html\?category=Unused%20Category/);
   assert.match(xml, /blog\.html\/first-post/);
   assert.match(xml, /blog\.html\/second-post/);
   assert.match(xml, /<lastmod>2026-10-01<\/lastmod>/);
@@ -68,7 +68,7 @@ test('escapes XML characters in public URLs and omits invalid lastmod values', (
   assert.match(xml, /category=Drama%20%26%20%3CReviews%3E/);
   assert.doesNotMatch(xml, /<lastmod>/);
   assert.doesNotMatch(xml, /<loc>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
-  assert.equal((xml.match(/<loc>/g) || []).length, 8);
+  assert.equal((xml.match(/<loc>/g) || []).length, 9);
 });
 
 test('deduplicates category and URL entries', () => {

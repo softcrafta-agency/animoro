@@ -1,8 +1,8 @@
 {
     "rewrites":  [
                      {
-                         "source":  "/blog.html/:slug*",
-                         "destination":  "/blog.html"
+                         "source":  "/blog.html/:slug",
+                         "destination":  "/api/article"
                      },
                      {
                          "source":  "/anime.html/:slug*",
@@ -29,6 +29,11 @@
                          "destination":  "/api/sitemap"
                      }
                  ],
+    "functions":  {
+                      "api/article.js":  {
+                                             "includeFiles":  "dist/blog.html"
+                                         }
+                  },
     "redirects":  [
                       {
                           "source":  "/index.html",
