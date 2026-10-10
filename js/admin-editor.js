@@ -17,6 +17,7 @@ import { auth } from './auth-init.js';
 import { uploadImageToR2 } from './r2-upload.js';
 import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
+import { sanitizeArticleEditorHtml } from './article-content.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -35,6 +36,677 @@ const MAX_COMPRESSED_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_ARTICLE_DOCUMENT_BYTES = 900 * 1024;
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const COVER_MAX_DIMENSION = 1600;
+const ARTICLE_FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36];
+let lastEditorRange = null;
+let editorDialogAction = null;
+let editorAutosaveTimer = null;
+let editorIsDirty = false;
+let editorInitialSnapshot = '';
+let editorSaveInProgress = false;
+
+function getRichEditor() {
+  return document.getElementById('richEditorArea');
+}
+
+function rememberEditorSelection() {
+  const editor = getRichEditor();
+  const selection = window.getSelection();
+  if (!editor || !selection?.rangeCount) return;
+  const range = selection.getRangeAt(0);
+  if (editor.contains(range.commonAncestorContainer)) lastEditorRange = range.cloneRange();
+}
+
+function restoreEditorSelection() {
+  const editor = getRichEditor();
+  if (!editor) return null;
+  editor.focus();
+  const selection = window.getSelection();
+  if (!selection) return null;
+  selection.removeAllRanges();
+  if (lastEditorRange && editor.contains(lastEditorRange.commonAncestorContainer)) {
+    selection.addRange(lastEditorRange.cloneRange());
+  } else {
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection.addRange(range);
+  }
+  rememberEditorSelection();
+  return selection.rangeCount ? selection.getRangeAt(0) : null;
+}
+
+function escapeEditorHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[char]);
+}
+
+function getEditorPlainText() {
+  return getRichEditor()?.innerText || '';
+}
+
+function updateEditorStatistics() {
+  const text = getEditorPlainText().trim();
+  const words = text ? text.split(/\s+/u).length : 0;
+  const characters = getEditorPlainText().length;
+  document.getElementById('editorWordCount').textContent = String(words);
+  document.getElementById('editorCharacterCount').textContent = String(characters);
+  document.getElementById('editorReadingTime').textContent = `${words ? Math.max(1, Math.ceil(words / 200)) : 0} min`;
+}
+
+function setEditorSaveStatus(message, state = 'idle') {
+  const status = document.getElementById('editorSaveStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.state = state;
+}
+
+function getEditorSnapshot() {
+  const values = Array.from(document.querySelectorAll('#postEditorForm input[id], #postEditorForm textarea[id], #postEditorForm select[id]'))
+    .filter(field => field.type !== 'file')
+    .map(field => [field.id, field.type === 'checkbox' ? field.checked : field.value]);
+  return JSON.stringify({
+    values,
+    tags: postTags,
+    content: getRichEditor()?.innerHTML || '',
+  });
+}
+
+function getEditorAutosaveKey() {
+  return `animoro_article_editor_${editingPostId || 'new'}`;
+}
+
+function saveEditorLocally() {
+  if (!editorIsDirty) return;
+  setEditorSaveStatus('Saving draft on this device…', 'saving');
+  try {
+    localStorage.setItem(getEditorAutosaveKey(), JSON.stringify({
+      savedAt: Date.now(),
+      values: Array.from(document.querySelectorAll('#postEditorForm input[id], #postEditorForm textarea[id], #postEditorForm select[id]'))
+        .filter(field => field.type !== 'file')
+        .map(field => [field.id, field.type === 'checkbox' ? field.checked : field.value]),
+      tags: postTags,
+      content: sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || ''),
+    }));
+    const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date());
+    setEditorSaveStatus(`Draft auto-saved locally at ${time}.`, 'saved');
+  } catch (error) {
+    console.error('Article editor local autosave failed:', error);
+    setEditorSaveStatus('Autosave failed. Use Save as Draft to keep your changes.', 'error');
+  }
+}
+
+function scheduleEditorAutosave() {
+  clearTimeout(editorAutosaveTimer);
+  editorAutosaveTimer = setTimeout(saveEditorLocally, 900);
+}
+
+function restoreEditorAutosave() {
+  const key = getEditorAutosaveKey();
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || 'null');
+    if (!saved || !Number.isFinite(saved.savedAt) || Date.now() - saved.savedAt > 7 * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(key);
+      return;
+    }
+    const differs = saved.content !== (getRichEditor()?.innerHTML || '') ||
+      JSON.stringify(saved.values || []) !== JSON.stringify(JSON.parse(getEditorSnapshot()).values);
+    if (!differs || !confirm('A newer locally auto-saved draft is available. Restore it?')) return;
+
+    (saved.values || []).forEach(([id, value]) => {
+      const field = document.getElementById(id);
+      if (!field || field.type === 'file') return;
+      if (field.type === 'checkbox') field.checked = Boolean(value);
+      else field.value = value;
+    });
+    if (Array.isArray(saved.tags)) {
+      postTags = saved.tags.filter(tag => typeof tag === 'string');
+      renderTagChips();
+    }
+    getRichEditor().innerHTML = sanitizeArticleEditorHtml(saved.content || '');
+    markEditorChanged();
+    setEditorSaveStatus('Recovered a locally auto-saved draft.', 'saved');
+  } catch (error) {
+    console.error('Could not restore the local article draft:', error);
+    setEditorSaveStatus('A local draft could not be restored.', 'error');
+  }
+}
+
+function markEditorChanged() {
+  editorIsDirty = getEditorSnapshot() !== editorInitialSnapshot;
+  if (editorIsDirty) {
+    scheduleEditorAutosave();
+  } else {
+    clearTimeout(editorAutosaveTimer);
+    setEditorSaveStatus('All changes are saved.', 'saved');
+  }
+  updateEditorStatistics();
+  if (document.getElementById('articlePreview')?.hidden === false) renderArticlePreview();
+}
+
+function getEditorBlock(range) {
+  let node = range?.startContainer;
+  if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  while (node && node !== getRichEditor()) {
+    if (/^(P|DIV|H[1-6]|BLOCKQUOTE|LI|PRE)$/.test(node.tagName)) return node;
+    node = node.parentElement;
+  }
+  return getRichEditor();
+}
+
+function convertLegacyFontMarkup(fontSize = null) {
+  const editor = getRichEditor();
+  editor?.querySelectorAll('font').forEach((font) => {
+    const span = document.createElement('span');
+    const color = font.getAttribute('color');
+    const size = font.getAttribute('size');
+    if (color && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(color)) span.style.color = color;
+    if (size === '7' && fontSize) span.style.fontSize = fontSize;
+    font.replaceWith(span);
+    while (font.firstChild) span.appendChild(font.firstChild);
+  });
+}
+
+function applyStyleToSelectedText(range, property, value) {
+  const editor = getRichEditor();
+  if (!range || range.collapsed) return false;
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) {
+    if (range.intersectsNode(walker.currentNode)) textNodes.push(walker.currentNode);
+  }
+
+  const startContainer = range.startContainer;
+  const endContainer = range.endContainer;
+  const startOffset = range.startOffset;
+  const endOffset = range.endOffset;
+  const selectedNodes = [];
+  textNodes.forEach((node) => {
+    const start = startContainer === node ? startOffset : 0;
+    const end = endContainer === node ? endOffset : node.length;
+    if (start >= end) return;
+    if (end < node.length) node.splitText(end);
+    const selectedNode = start > 0 ? node.splitText(start) : node;
+    const span = document.createElement('span');
+    span.style[property] = value;
+    selectedNode.parentNode.insertBefore(span, selectedNode);
+    span.appendChild(selectedNode);
+    selectedNodes.push(selectedNode);
+  });
+
+  if (!selectedNodes.length) return false;
+  const selectionRange = document.createRange();
+  selectionRange.setStart(selectedNodes[0], 0);
+  selectionRange.setEnd(selectedNodes[selectedNodes.length - 1], selectedNodes[selectedNodes.length - 1].length);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(selectionRange);
+  lastEditorRange = selectionRange.cloneRange();
+  return true;
+}
+
+function applyEditorFontSize(size) {
+  const range = restoreEditorSelection();
+  if (!range) return;
+  const block = getEditorBlock(range);
+  if (range.collapsed) {
+    if (size === 'reset') {
+      block.style.removeProperty('font-size');
+      let node = range.startContainer.nodeType === Node.TEXT_NODE
+        ? range.startContainer.parentElement
+        : range.startContainer;
+      while (node && node !== block) {
+        node.style?.removeProperty('font-size');
+        if (node.getAttribute?.('style') === '') node.removeAttribute('style');
+        node = node.parentElement;
+      }
+    }
+    else block.style.fontSize = `${size}px`;
+  } else {
+    applyStyleToSelectedText(range, 'fontSize', size === 'reset' ? '1.1rem' : `${size}px`);
+  }
+  getRichEditor().dispatchEvent(new Event('input', { bubbles: true }));
+  rememberEditorSelection();
+  updateCurrentEditorFontSize();
+}
+
+function updateCurrentEditorFontSize() {
+  const editor = getRichEditor();
+  const sizeLabel = document.getElementById('editorCurrentFontSize');
+  const sizeSelect = document.getElementById('editorFontSize');
+  if (!editor || !sizeLabel) return;
+  const selection = window.getSelection();
+  if (!selection?.rangeCount || !editor.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
+  const range = selection.getRangeAt(0);
+  const node = range.startContainer.nodeType === Node.TEXT_NODE
+    ? range.startContainer.parentElement
+    : range.startContainer;
+  const pixels = Math.round(Number.parseFloat(getComputedStyle(node).fontSize) || 16);
+  sizeLabel.textContent = `${pixels}px`;
+  if (sizeSelect) {
+    const option = Array.from(sizeSelect.options).find(item => item.value === String(pixels));
+    sizeSelect.value = option ? String(pixels) : '';
+  }
+}
+
+function validateEditorUrl(value, { image = false } = {}) {
+  const candidate = String(value || '').trim();
+  if (!candidate || candidate.startsWith('//')) return '';
+  try {
+    const url = new URL(candidate, window.location.origin);
+    if (url.username || url.password) return '';
+    const allowed = image ? ['http:', 'https:'] : ['http:', 'https:', 'mailto:'];
+    return allowed.includes(url.protocol) ? candidate : '';
+  } catch {
+    return '';
+  }
+}
+
+function openEditorDialog(title, fields, onSubmit) {
+  const dialog = document.getElementById('editorInsertDialog');
+  const form = document.getElementById('editorDialogForm');
+  const fieldsContainer = document.getElementById('editorDialogFields');
+  if (!dialog || !form || !fieldsContainer) return;
+  document.getElementById('editorDialogTitle').textContent = title;
+  fieldsContainer.replaceChildren();
+  fields.forEach((field) => {
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    let input;
+    if (field.type === 'textarea') {
+      input = document.createElement('textarea');
+    } else if (field.type === 'select') {
+      input = document.createElement('select');
+      field.options.forEach(({ value, label: optionLabel }) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = optionLabel;
+        input.appendChild(option);
+      });
+    } else {
+      input = document.createElement('input');
+      input.type = field.type || 'text';
+    }
+    input.name = field.name;
+    if (field.placeholder) input.placeholder = field.placeholder;
+    if (field.required) input.required = true;
+    if (field.min !== undefined) input.min = field.min;
+    if (field.max !== undefined) input.max = field.max;
+    if (field.value !== undefined) input.value = field.value;
+    if (field.type === 'checkbox') {
+      input.checked = Boolean(field.value);
+      label.classList.add('editor-dialog-checkbox');
+      label.prepend(input);
+    } else {
+      label.appendChild(input);
+    }
+    fieldsContainer.appendChild(label);
+  });
+
+  editorDialogAction = onSubmit;
+  if (!dialog.open) dialog.showModal();
+  fieldsContainer.querySelector('input, textarea, select')?.focus();
+}
+
+function setupEditorDialog() {
+  const dialog = document.getElementById('editorInsertDialog');
+  const form = document.getElementById('editorDialogForm');
+  if (!dialog || !form) return;
+  dialog.querySelectorAll('[data-dialog-close]').forEach(button => button.addEventListener('click', () => dialog.close()));
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const values = Object.fromEntries(new FormData(form));
+    const checkbox = form.querySelector('input[type="checkbox"]');
+    if (checkbox) values[checkbox.name] = checkbox.checked;
+    dialog.close();
+    const action = editorDialogAction;
+    editorDialogAction = null;
+    action?.(values);
+  });
+  dialog.addEventListener('close', () => { editorDialogAction = null; });
+}
+
+function insertEditorHtml(html, { block = false } = {}) {
+  const range = restoreEditorSelection();
+  if (!range) return;
+  const safeHtml = sanitizeArticleEditorHtml(html);
+  if (block) {
+    document.execCommand('insertHTML', false, safeHtml);
+    rememberEditorSelection();
+    getRichEditor().dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+  range.deleteContents();
+  const fragment = range.createContextualFragment(safeHtml);
+  const lastNode = fragment.lastChild;
+  range.insertNode(fragment);
+  if (lastNode) {
+    range.setStartAfter(lastNode);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  rememberEditorSelection();
+  getRichEditor().dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function showLinkDialog() {
+  const selection = restoreEditorSelection();
+  const selectedText = selection?.toString() || '';
+  openEditorDialog('Insert link', [
+    { name: 'url', label: 'URL', type: 'url', placeholder: 'https://example.com/article', required: true },
+    { name: 'text', label: 'Link text', value: selectedText, required: !selectedText },
+    { name: 'newTab', label: 'Open in a new tab', type: 'checkbox', value: true },
+  ], ({ url: rawUrl, text, newTab }) => {
+    const url = validateEditorUrl(rawUrl);
+    if (!url) {
+      setEditorSaveStatus('That link URL is not allowed.', 'error');
+      return;
+    }
+    const range = restoreEditorSelection();
+    const anchorAttributes = `href="${escapeEditorHtml(url)}"${newTab ? ' target="_blank" rel="noopener noreferrer"' : ''}`;
+    if (range && !range.collapsed) {
+      document.execCommand('createLink', false, url);
+      const current = window.getSelection();
+      const anchor = current?.anchorNode?.parentElement?.closest('a');
+      if (anchor) {
+        anchor.setAttribute('href', url);
+        if (newTab) {
+          anchor.target = '_blank';
+          anchor.rel = 'noopener noreferrer';
+        } else {
+          anchor.removeAttribute('target');
+          anchor.removeAttribute('rel');
+        }
+      }
+    } else {
+      insertEditorHtml(`<a ${anchorAttributes}>${escapeEditorHtml(text)}</a>`);
+    }
+    markEditorChanged();
+  });
+}
+
+function showImageUrlDialog() {
+  openEditorDialog('Insert image', [
+    { name: 'url', label: 'Image URL', type: 'url', placeholder: 'https://…', required: true },
+    { name: 'alt', label: 'Alt text', placeholder: 'Describe the image for accessibility', required: true },
+    { name: 'caption', label: 'Caption (optional)', placeholder: 'Image caption' },
+  ], ({ url: rawUrl, alt, caption }) => {
+    const url = validateEditorUrl(rawUrl, { image: true });
+    if (!url) {
+      setEditorSaveStatus('Use a valid HTTP or HTTPS image URL.', 'error');
+      return;
+    }
+    const captionHtml = caption.trim() ? `<figcaption>${escapeEditorHtml(caption.trim())}</figcaption>` : '';
+    insertEditorHtml(`<figure class="article-figure"><img src="${escapeEditorHtml(url)}" alt="${escapeEditorHtml(alt.trim())}" loading="lazy" decoding="async">${captionHtml}</figure><p><br></p>`, { block: true });
+  });
+}
+
+function getYouTubeEmbedUrl(value) {
+  try {
+    const url = new URL(value);
+    if (url.username || url.password) return '';
+    let videoId = '';
+    if (url.hostname === 'youtu.be') videoId = url.pathname.slice(1);
+    else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com'].includes(url.hostname)) {
+      if (url.pathname === '/watch') videoId = url.searchParams.get('v') || '';
+      else videoId = url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1] || '';
+    }
+    return /^[A-Za-z0-9_-]{6,20}$/.test(videoId)
+      ? `https://www.youtube-nocookie.com/embed/${videoId}`
+      : '';
+  } catch {
+    return '';
+  }
+}
+
+function showVideoDialog() {
+  openEditorDialog('Embed YouTube video', [
+    { name: 'url', label: 'YouTube URL', type: 'url', placeholder: 'https://www.youtube.com/watch?v=…', required: true },
+    { name: 'title', label: 'Accessible video title', placeholder: 'Video title', required: true },
+  ], ({ url, title }) => {
+    const src = getYouTubeEmbedUrl(url);
+    if (!src) {
+      setEditorSaveStatus('Enter a valid YouTube video URL.', 'error');
+      return;
+    }
+    insertEditorHtml(`<iframe src="${src}" title="${escapeEditorHtml(title.trim())}" width="560" height="315" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><p><br></p>`, { block: true });
+  });
+}
+
+function showTableDialog() {
+  openEditorDialog('Insert table', [
+    { name: 'rows', label: 'Rows', type: 'number', value: 3, min: 1, max: 12, required: true },
+    { name: 'columns', label: 'Columns', type: 'number', value: 3, min: 1, max: 8, required: true },
+  ], ({ rows, columns }) => {
+    const rowCount = Math.min(12, Math.max(1, Number(rows)));
+    const columnCount = Math.min(8, Math.max(1, Number(columns)));
+    const headers = Array.from({ length: columnCount }, (_, index) => `<th>Header ${index + 1}</th>`).join('');
+    const body = Array.from({ length: rowCount - 1 }, () =>
+      `<tr>${Array.from({ length: columnCount }, () => '<td>Cell</td>').join('')}</tr>`).join('');
+    insertEditorHtml(`<table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table><p><br></p>`, { block: true });
+  });
+}
+
+function insertCodeBlock() {
+  openEditorDialog('Insert code block', [
+    { name: 'code', label: 'Code', type: 'textarea', placeholder: 'Paste or type code…', required: true },
+  ], ({ code }) => {
+    insertEditorHtml(`<pre class="article-code-block"><code>${escapeEditorHtml(code)}</code></pre><p><br></p>`, { block: true });
+  });
+}
+
+function generateEditorToc() {
+  const editor = getRichEditor();
+  const headings = Array.from(editor.querySelectorAll('h2, h3'))
+    .filter(heading => heading.textContent.trim());
+  if (!headings.length) {
+    setEditorSaveStatus('Add an H2 or H3 heading before generating a table of contents.', 'error');
+    return;
+  }
+  const usedIds = new Set();
+  const items = headings.map((heading) => {
+    const baseId = heading.textContent.trim().toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'section';
+    let id = baseId;
+    let suffix = 2;
+    while (usedIds.has(id)) id = `${baseId}-${suffix++}`;
+    usedIds.add(id);
+    heading.id = id;
+    return `<li><a href="#${id}">${escapeEditorHtml(heading.textContent.trim())}</a></li>`;
+  }).join('');
+  insertEditorHtml(`<div class="article-toc"><p>In this article</p><ul>${items}</ul></div>`, { block: true });
+}
+
+function showFindReplaceDialog() {
+  openEditorDialog('Find and replace', [
+    { name: 'find', label: 'Find', required: true },
+    { name: 'replace', label: 'Replace with' },
+    { name: 'matchCase', label: 'Match case', type: 'checkbox' },
+  ], ({ find, replace, matchCase }) => {
+    const editor = getRichEditor();
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    let replacements = 0;
+    nodes.forEach((node) => {
+      const original = node.nodeValue;
+      const expression = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), matchCase ? 'g' : 'gi');
+      const updated = original.replace(expression, () => {
+        replacements += 1;
+        return replace;
+      });
+      if (updated !== original) node.nodeValue = updated;
+    });
+    if (replacements) {
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      setEditorSaveStatus(`Replaced ${replacements} occurrence${replacements === 1 ? '' : 's'}.`, 'saved');
+    } else {
+      setEditorSaveStatus('No matches found.', 'idle');
+    }
+  });
+}
+
+function renderArticlePreview() {
+  const preview = document.getElementById('articlePreview');
+  if (!preview) return;
+  const title = document.getElementById('postTitle')?.value.trim() || 'Untitled article';
+  const excerpt = document.getElementById('postExcerpt')?.value.trim() || '';
+  preview.innerHTML = `<h1 class="article-preview-title">${escapeEditorHtml(title)}</h1>${excerpt ? `<p class="article-excerpt-lead">${escapeEditorHtml(excerpt)}</p>` : ''}${sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '')}`;
+}
+
+function setEditorMode(previewMode) {
+  const editor = getRichEditor();
+  const preview = document.getElementById('articlePreview');
+  editor.hidden = previewMode;
+  preview.hidden = !previewMode;
+  document.getElementById('editorEditMode').classList.toggle('active', !previewMode);
+  document.getElementById('editorPreviewMode').classList.toggle('active', previewMode);
+  document.getElementById('editorEditMode').setAttribute('aria-selected', String(!previewMode));
+  document.getElementById('editorPreviewMode').setAttribute('aria-selected', String(previewMode));
+  if (previewMode) renderArticlePreview();
+  else editor.focus();
+}
+
+function runEditorToolbarAction(action, button) {
+  const editor = getRichEditor();
+  if (!editor) return;
+  const command = button?.dataset.cmd;
+  const value = button?.dataset.val;
+
+  if (action === 'font-step') {
+    const range = restoreEditorSelection();
+    let fontNode = range?.startContainer;
+    if (fontNode?.nodeType === Node.TEXT_NODE) fontNode = fontNode.parentElement;
+    const current = Math.round(Number.parseFloat(getComputedStyle(fontNode || editor).fontSize) || 16);
+    const closestIndex = ARTICLE_FONT_SIZES.reduce((best, size, index) =>
+      Math.abs(size - current) < Math.abs(ARTICLE_FONT_SIZES[best] - current) ? index : best, 0);
+    const next = Math.max(0, Math.min(ARTICLE_FONT_SIZES.length - 1, closestIndex + Number(button.dataset.step)));
+    applyEditorFontSize(ARTICLE_FONT_SIZES[next]);
+  } else if (action === 'block') {
+    restoreEditorSelection();
+    document.execCommand('formatBlock', false, value);
+  } else if (action === 'insert-link') showLinkDialog();
+  else if (action === 'insert-image') showImageUrlDialog();
+  else if (action === 'upload-image') openImageModalForEditor();
+  else if (action === 'insert-video') showVideoDialog();
+  else if (action === 'insert-table') showTableDialog();
+  else if (action === 'code-block') insertCodeBlock();
+  else if (action === 'toc') generateEditorToc();
+  else if (action === 'find-replace') showFindReplaceDialog();
+  else if (action === 'expand-editor') document.getElementById('editorWorkspace').classList.toggle('is-expanded');
+  else if (action === 'distraction-free') {
+    document.getElementById('editorWorkspace').classList.toggle('is-distraction-free');
+    document.body.classList.toggle('editor-distraction-free');
+  } else if (command) {
+    restoreEditorSelection();
+    document.execCommand(command, false, null);
+    convertLegacyFontMarkup('36px');
+  }
+
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function setupRichEditor() {
+  const editor = getRichEditor();
+  const toolbar = document.querySelector('.editor-toolbar');
+  if (!editor || !toolbar) return;
+
+  toolbar.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button, input, select')) rememberEditorSelection();
+    if (event.target.closest('button')) event.preventDefault();
+  });
+  toolbar.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action], button[data-cmd]');
+    if (!button) return;
+    event.preventDefault();
+    runEditorToolbarAction(button.dataset.action, button);
+  });
+
+  const sizeSelect = document.getElementById('editorFontSize');
+  sizeSelect.addEventListener('change', () => {
+    if (sizeSelect.value) applyEditorFontSize(sizeSelect.value);
+    sizeSelect.value = '';
+  });
+  toolbar.querySelectorAll('input[type="color"]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const range = restoreEditorSelection();
+      const block = getEditorBlock(range);
+      const property = input.dataset.action === 'highlight' ? 'backgroundColor' : 'color';
+      if (range?.collapsed) {
+        block.style[property] = input.value;
+        let node = range.startContainer.nodeType === Node.TEXT_NODE
+          ? range.startContainer.parentElement
+          : range.startContainer;
+        while (node && node !== block) {
+          node.style?.removeProperty(property === 'backgroundColor' ? 'background-color' : 'color');
+          if (node.getAttribute?.('style') === '') node.removeAttribute('style');
+          node = node.parentElement;
+        }
+      }
+        else applyStyleToSelectedText(range, property, input.value);
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  });
+
+  editor.addEventListener('input', () => {
+    markEditorChanged();
+    updateCurrentEditorFontSize();
+  });
+  editor.addEventListener('keyup', rememberEditorSelection);
+  editor.addEventListener('mouseup', rememberEditorSelection);
+  editor.addEventListener('paste', (event) => {
+    const clipboard = event.clipboardData;
+    if (!clipboard) return;
+    event.preventDefault();
+    const html = clipboard.getData('text/html');
+    const clean = sanitizeArticleEditorHtml(html || escapeEditorHtml(clipboard.getData('text/plain')).replace(/\n/g, '<br>'));
+    document.execCommand('insertHTML', false, clean);
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  editor.addEventListener('keydown', (event) => {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const key = event.key.toLowerCase();
+    if (key === 'k') {
+      event.preventDefault();
+      showLinkDialog();
+    } else if (key === 'h') {
+      event.preventDefault();
+      showFindReplaceDialog();
+    }
+  });
+  document.addEventListener('selectionchange', updateCurrentEditorFontSize);
+  document.getElementById('editorEditMode').addEventListener('click', () => setEditorMode(false));
+  document.getElementById('editorPreviewMode').addEventListener('click', () => setEditorMode(true));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      document.getElementById('editorWorkspace')?.classList.remove('is-distraction-free');
+      document.body.classList.remove('editor-distraction-free');
+    }
+  });
+  document.getElementById('postTitle').addEventListener('input', () => {
+    if (document.getElementById('articlePreview').hidden === false) renderArticlePreview();
+  });
+  document.getElementById('postEditorForm').addEventListener('input', (event) => {
+    if (event.target !== editor) markEditorChanged();
+  });
+  document.getElementById('postEditorForm').addEventListener('change', (event) => {
+    if (event.target !== editor) markEditorChanged();
+  });
+  setupEditorDialog();
+  updateEditorStatistics();
+
+  window.addEventListener('beforeunload', (event) => {
+    if (!editorIsDirty || editorSaveInProgress) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+}
 
 export async function initAdminEditor() {
   requireAdminAuth(async (user) => {
@@ -54,7 +726,10 @@ export async function initAdminEditor() {
       if (authorInput && user) {
         authorInput.value = user.displayName || user.email.split('@')[0];
       }
+      editorInitialSnapshot = getEditorSnapshot();
+      restoreEditorAutosave();
     }
+    updateEditorStatistics();
   });
 }
 
@@ -86,25 +761,7 @@ function setupFormControls() {
     });
   }
 
-  // Rich Text Editor Toolbar Buttons
-  document.querySelectorAll('.tool-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const cmd = btn.getAttribute('data-cmd');
-      const val = btn.getAttribute('data-val') || null;
-
-      if (cmd === 'createLink') {
-        const url = prompt('Enter link URL:');
-        if (url) document.execCommand(cmd, false, url);
-      } else if (cmd === 'insertImage') {
-        openImageModalForEditor();
-      } else if (cmd === 'formatBlock') {
-        document.execCommand(cmd, false, val);
-      } else {
-        document.execCommand(cmd, false, null);
-      }
-    });
-  });
+  setupRichEditor();
 
   setupArticleImageModal();
 
@@ -122,7 +779,10 @@ function setupFormControls() {
     saveDraftBtn.addEventListener('click', (e) => {
       e.preventDefault();
       const statusSelect = document.getElementById('postStatus');
-      if (statusSelect) statusSelect.value = 'draft';
+      if (statusSelect) {
+        statusSelect.value = 'draft';
+        statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       handlePostSubmit(e);
     });
   }
@@ -133,12 +793,14 @@ function addTag(tag) {
   if (clean && !postTags.includes(clean)) {
     postTags.push(clean);
     renderTagChips();
+    markEditorChanged();
   }
 }
 
 function removeTag(tag) {
   postTags = postTags.filter(t => t !== tag);
   renderTagChips();
+  markEditorChanged();
 }
 
 function renderTagChips() {
@@ -239,11 +901,14 @@ function closeImageModalForEditor(resetSelection = false) {
 function getArticleImageModalInsertHtml(images) {
   const batchId = `article-image-batch-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return images.map((image) => {
-    const alt = (image.alt || 'Article image').replace(/"/g, '&quot;');
-    const src = (image.src || '').replace(/"/g, '&quot;');
+    const alt = escapeEditorHtml(image.alt || 'Article image');
+    const src = escapeEditorHtml(image.src || '');
+    const caption = image.caption?.trim()
+      ? `<figcaption>${escapeEditorHtml(image.caption.trim())}</figcaption>`
+      : '';
     const width = Number.isFinite(image.width) ? ` width="${image.width}"` : '';
     const height = Number.isFinite(image.height) ? ` height="${image.height}"` : '';
-    return `<img src="${src}" alt="${alt}"${width}${height} loading="lazy" decoding="async" class="article-content-image" data-image-batch="${batchId}" />`;
+    return `<figure class="article-figure"><img src="${src}" alt="${alt}"${width}${height} loading="lazy" decoding="async" class="article-content-image" data-image-batch="${batchId}" />${caption}</figure>`;
   }).join('');
 }
 
@@ -262,23 +927,26 @@ function restoreSavedSelectionAndInsert(images) {
     rangeToUse = fallbackRange;
   }
 
-  const html = getArticleImageModalInsertHtml(images);
-  const fragment = rangeToUse.createContextualFragment(html);
-  rangeToUse.insertNode(fragment);
-
-  const batchId = editor.querySelector('img[data-image-batch]')?.getAttribute('data-image-batch');
-  const insertedImages = batchId ? editor.querySelectorAll(`img[data-image-batch="${batchId}"]`) : editor.querySelectorAll('.article-content-image');
+  const imageCount = editor.querySelectorAll('.article-content-image').length;
+  if (selection) {
+    selection.removeAllRanges();
+    selection.addRange(rangeToUse);
+  }
+  editor.focus();
+  document.execCommand('insertHTML', false, sanitizeArticleEditorHtml(getArticleImageModalInsertHtml(images)));
+  const insertedImages = Array.from(editor.querySelectorAll('.article-content-image')).slice(imageCount);
   const lastInserted = insertedImages[insertedImages.length - 1];
 
   if (selection && lastInserted) {
     const cursorRange = document.createRange();
-    cursorRange.setStartAfter(lastInserted);
+    cursorRange.setStartAfter(lastInserted.closest('figure') || lastInserted);
     cursorRange.collapse(true);
     selection.removeAllRanges();
     selection.addRange(cursorRange);
   }
 
-  editor.focus();
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  rememberEditorSelection();
   savedImageInsertRange = null;
 }
 
@@ -350,6 +1018,19 @@ function renderArticleImageModalItems() {
       item.alt = event.target.value.trim() || item.defaultAlt || 'Article image';
     });
 
+    const captionLabel = document.createElement('label');
+    captionLabel.className = 'article-image-field-label';
+    captionLabel.textContent = 'Caption (optional)';
+
+    const captionInput = document.createElement('input');
+    captionInput.type = 'text';
+    captionInput.className = 'article-image-caption-input';
+    captionInput.value = item.caption || '';
+    captionInput.placeholder = 'Image caption';
+    captionInput.addEventListener('input', (event) => {
+      item.caption = event.target.value;
+    });
+
     const fileName = document.createElement('div');
     fileName.className = 'article-image-filename';
     fileName.textContent = item.fileName;
@@ -357,6 +1038,8 @@ function renderArticleImageModalItems() {
     meta.appendChild(fileName);
     meta.appendChild(label);
     meta.appendChild(input);
+    meta.appendChild(captionLabel);
+    meta.appendChild(captionInput);
 
     card.appendChild(previewWrap);
     card.appendChild(meta);
@@ -385,6 +1068,7 @@ function handleArticleImageFiles(fileList) {
         preview: reader.result,
         fileName: file.name,
         alt: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Article image',
+        caption: '',
         defaultAlt: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Article image',
       });
 
@@ -493,6 +1177,7 @@ function setupArticleImageModal() {
           id: docRef.id,
           src: imageUrl,
           alt: compressed.alt,
+          caption: item.caption || '',
           width: compressed.width,
           height: compressed.height,
         });
@@ -1071,7 +1756,7 @@ async function loadPostForEditing(postId) {
     document.getElementById('postFeaturedOrder').value = post.featuredOrder || 1;
 
     const editorArea = document.getElementById('richEditorArea');
-    if (editorArea) editorArea.innerHTML = post.content || '';
+    if (editorArea) editorArea.innerHTML = sanitizeArticleEditorHtml(post.content || '');
 
     if (post.coverImage) {
       uploadedCoverUrl = '';
@@ -1110,6 +1795,9 @@ async function loadPostForEditing(postId) {
       postTags = [...post.tags];
       renderTagChips();
     }
+    editorInitialSnapshot = getEditorSnapshot();
+    restoreEditorAutosave();
+    if (!editorIsDirty) setEditorSaveStatus('Changes are saved when you publish.');
   } catch (err) {
     handleFirestoreError(err, 'get', `posts/${postId}`);
     alert("Could not load post details: " + err.message);
@@ -1118,6 +1806,7 @@ async function loadPostForEditing(postId) {
 
 async function handlePostSubmit(e) {
   e.preventDefault();
+  const autosaveKeyBeforeSave = getEditorAutosaveKey();
   const feedbackEl = document.getElementById('editorFeedback');
   const submitBtn = document.getElementById('publishSubmitBtn');
 
@@ -1155,7 +1844,9 @@ async function handlePostSubmit(e) {
   const status = document.getElementById('postStatus').value;
   const featured = document.getElementById('postFeatured').checked;
   const featuredOrder = parseInt(document.getElementById('postFeaturedOrder').value, 10) || 1;
-  const content = document.getElementById('richEditorArea').innerHTML.trim();
+  const editor = getRichEditor();
+  const content = sanitizeArticleEditorHtml(editor.innerHTML).trim();
+  editor.innerHTML = content;
   const selectedCover = buildCoverSelectionFromState();
   const coverImage = selectedCover.coverImage || '';
 
@@ -1329,6 +2020,7 @@ async function handlePostSubmit(e) {
   }
 
   try {
+    editorSaveInProgress = true;
     if (editingPostId) {
       await updateDoc(doc(db, 'posts', editingPostId), finalDocumentPayload);
       showFeedback(feedbackEl, "Changes saved successfully.", "success");
@@ -1338,11 +2030,23 @@ async function handlePostSubmit(e) {
       showFeedback(feedbackEl, status === 'published' ? "Article published successfully!" : "Draft saved successfully!", "success");
     }
 
+    editorSaveInProgress = false;
+    editorIsDirty = false;
+    editorInitialSnapshot = getEditorSnapshot();
+    try {
+      localStorage.removeItem(autosaveKeyBeforeSave);
+      if (editingPostId) localStorage.removeItem(getEditorAutosaveKey());
+      setEditorSaveStatus('Saved to Firestore.', 'saved');
+    } catch (error) {
+      console.warn('The local recovery copy could not be cleared after saving:', error);
+      setEditorSaveStatus('Saved to Firestore; local recovery copy could not be cleared.', 'error');
+    }
     setTimeout(() => {
       window.location.href = 'admin.html#posts';
     }, 1200);
 
   } catch (error) {
+    editorSaveInProgress = false;
     console.error("Publishing error details:", error);
     handleFirestoreError(error, editingPostId ? 'update' : 'create', 'posts');
     const isPerm = error?.message?.includes('permission') || error?.code === 'permission-denied';

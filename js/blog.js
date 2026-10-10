@@ -21,6 +21,7 @@ import {
   normalizeArticleSlug
 } from './article-url.js';
 import { getAnimePath, isValidAnimeSlug } from './anime-url.js';
+import { sanitizeArticleEditorHtml } from './article-content.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
 const VIEW_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -462,7 +463,7 @@ function renderArticle(container, post, canonicalUrl) {
     ` : ''}
 
     <main class="article-content-container" id="articleBody">
-      ${post.content || ''}
+      ${sanitizeArticleEditorHtml(post.content)}
 
       ${tagsHtml ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tagsHtml}</div>` : ''}
 

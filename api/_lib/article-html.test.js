@@ -95,3 +95,28 @@ test('preserves bounded legacy raster data URLs without allowing active image ty
   assert.match(html, /src="data:image\/webp;base64,UklGRg=="/);
   assert.doesNotMatch(activeImage, /data:image\/svg\+xml/);
 });
+
+test('preserves supported editor formatting and safe YouTube embeds while filtering unsafe styles and frames', () => {
+  const content = sanitizeArticleContent(
+    '<h1 id="overview">Overview</h1>' +
+    '<p style="font-size:20px;color:#facc15;background-color:#1e293b;text-align:center;position:fixed">Styled <strong>text</strong></p>' +
+    '<figure class="article-figure"><img src="https://cdn.example.test/a.webp" alt="Anime scene"><figcaption>Scene caption</figcaption></figure>' +
+    '<table><thead><tr><th>Season</th></tr></thead><tbody><tr><td>Spring</td></tr></tbody></table>' +
+    '<pre class="article-code-block"><code>const answer = 42;</code></pre>' +
+    '<div class="article-toc"><p>In this article</p><ul><li><a href="#overview">Overview</a></li></ul></div>' +
+    '<iframe src="https://www.youtube-nocookie.com/embed/abcdefghijk" title="Trailer"></iframe>' +
+    '<iframe src="https://evil.example.test/embed/abcdefghijk"></iframe>'
+  );
+
+  assert.match(content, /<h1 id="overview">Overview<\/h1>/);
+  assert.match(content, /font-size:20px/);
+  assert.match(content, /color:#facc15/);
+  assert.match(content, /background-color:#1e293b/);
+  assert.doesNotMatch(content, /position:fixed/);
+  assert.match(content, /<figcaption>Scene caption<\/figcaption>/);
+  assert.match(content, /<table>/);
+  assert.match(content, /<pre class="article-code-block"><code>const answer = 42;<\/code><\/pre>/);
+  assert.match(content, /<a href="#overview">Overview<\/a>/);
+  assert.match(content, /<iframe[^>]+src="https:\/\/www\.youtube-nocookie\.com\/embed\/abcdefghijk"/);
+  assert.doesNotMatch(content, /evil\.example\.test|<iframe[^>]*src=""/);
+});

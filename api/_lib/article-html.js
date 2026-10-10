@@ -6,15 +6,23 @@ export const SITE_ORIGIN = 'https://www.animoro.in';
 
 const ARTICLE_CONTENT_TAGS = [
   'a', 'b', 'blockquote', 'br', 'caption', 'code', 'del', 'div', 'em',
-  'figcaption', 'figure', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img',
+  'figcaption', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'iframe', 'img',
   'ins', 'li', 'ol', 'p', 'pre', 's', 'span', 'strong', 'sub', 'sup',
   'table', 'tbody', 'td', 'th', 'thead', 'tr', 'u', 'ul',
 ];
 
 const ARTICLE_CONTENT_ATTRIBUTES = {
-  '*': ['class'],
+  '*': ['class', 'style'],
   a: ['href', 'name', 'rel', 'target', 'title'],
+  figure: ['class'],
+  h1: ['id'],
+  h2: ['id'],
+  h3: ['id'],
+  h4: ['id'],
+  h5: ['id'],
+  h6: ['id'],
   img: ['alt', 'decoding', 'height', 'loading', 'src', 'width'],
+  iframe: ['allow', 'allowfullscreen', 'height', 'loading', 'referrerpolicy', 'src', 'title', 'width'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
 };
@@ -186,8 +194,18 @@ export function sanitizeArticleContent(value) {
     allowedAttributes: ARTICLE_CONTENT_ATTRIBUTES,
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedSchemesByTag: { img: ['http', 'https'] },
+    allowedIframeHostnames: ['www.youtube-nocookie.com', 'www.youtube.com'],
+    allowedStyles: {
+      '*': {
+        'font-size': [/^(?:(?:12|14|16|18|20|24|28|32|36)px|1\.1rem)$/],
+        color: [/^(?:#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})|rgba?\(\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i],
+        'background-color': [/^(?:#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})|rgba?\(\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i],
+        'text-align': [/^(?:left|center|right|justify)$/],
+      },
+    },
     allowProtocolRelative: false,
-    exclusiveFilter: frame => frame.tag === 'img' && !frame.attribs.src,
+    exclusiveFilter: frame => (frame.tag === 'img' && !frame.attribs.src) ||
+      (frame.tag === 'iframe' && !/^https:\/\/(?:www\.youtube-nocookie\.com|www\.youtube\.com)\/embed\/[A-Za-z0-9_-]{6,20}\/?$/i.test(frame.attribs.src || '')),
     transformTags: {
       a: (tagName, attributes) => ({
         tagName,
@@ -205,6 +223,19 @@ export function sanitizeArticleContent(value) {
           alt: attributes.alt?.trim() || 'Article image',
           loading: 'lazy',
           decoding: 'async',
+        },
+      }),
+      iframe: (tagName, attributes) => ({
+        tagName,
+        attribs: {
+          ...attributes,
+          src: /^https:\/\/(?:www\.youtube-nocookie\.com|www\.youtube\.com)\/embed\/[A-Za-z0-9_-]{6,20}\/?$/i.test(attributes.src || '')
+            ? attributes.src.replace('www.youtube.com', 'www.youtube-nocookie.com')
+            : '',
+          loading: 'lazy',
+          referrerpolicy: 'strict-origin-when-cross-origin',
+          allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
+          allowfullscreen: '',
         },
       }),
     },
