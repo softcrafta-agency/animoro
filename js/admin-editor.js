@@ -126,7 +126,7 @@ function saveEditorLocally() {
         .filter(field => field.type !== 'file')
         .map(field => [field.id, field.type === 'checkbox' ? field.checked : field.value]),
       tags: postTags,
-      content: sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || ''),
+      content: sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '', { allowLegacyDataImages: true }),
     }));
     const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date());
     setEditorSaveStatus(`Draft auto-saved locally at ${time}.`, 'saved');
@@ -163,7 +163,7 @@ function restoreEditorAutosave() {
       postTags = saved.tags.filter(tag => typeof tag === 'string');
       renderTagChips();
     }
-    getRichEditor().innerHTML = sanitizeArticleEditorHtml(saved.content || '');
+    getRichEditor().innerHTML = sanitizeArticleEditorHtml(saved.content || '', { allowLegacyDataImages: true });
     markEditorChanged();
     setEditorSaveStatus('Recovered a locally auto-saved draft.', 'saved');
   } catch (error) {
@@ -557,7 +557,7 @@ function renderArticlePreview() {
   if (!preview) return;
   const title = document.getElementById('postTitle')?.value.trim() || 'Untitled article';
   const excerpt = document.getElementById('postExcerpt')?.value.trim() || '';
-  preview.innerHTML = `<h1 class="article-preview-title">${escapeEditorHtml(title)}</h1>${excerpt ? `<p class="article-excerpt-lead">${escapeEditorHtml(excerpt)}</p>` : ''}${sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '')}`;
+  preview.innerHTML = `<h1 class="article-preview-title">${escapeEditorHtml(title)}</h1>${excerpt ? `<p class="article-excerpt-lead">${escapeEditorHtml(excerpt)}</p>` : ''}${sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '', { allowLegacyDataImages: true })}`;
 }
 
 function setEditorMode(previewMode) {
@@ -821,6 +821,7 @@ function renderTagChips() {
 
 let savedImageInsertRange = null;
 let articleImageModalState = [];
+let articleImageUploadInProgress = false;
 
 function getCurrentArticleIdFromEditor() {
   const params = new URLSearchParams(window.location.search);
@@ -865,11 +866,13 @@ function openImageModalForEditor() {
 
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
+  loadArticleImageLibrary();
   const fileInput = document.getElementById('articleImageFileInput');
   if (fileInput) fileInput.focus();
 }
 
 function closeImageModalForEditor(resetSelection = false) {
+  if (articleImageUploadInProgress) return;
   const modal = document.getElementById('articleImageModalOverlay');
   if (modal) {
     modal.classList.add('hidden');
@@ -886,6 +889,7 @@ function closeImageModalForEditor(resetSelection = false) {
   const input = document.getElementById('articleImageFileInput');
   if (input) input.value = '';
 
+  articleImageModalState.forEach(item => URL.revokeObjectURL(item.preview));
   articleImageModalState = [];
   renderArticleImageModalItems();
 
@@ -975,7 +979,7 @@ function renderArticleImageModalItems() {
   }
 
   section.style.display = 'block';
-  insertBtn.disabled = false;
+  insertBtn.disabled = articleImageUploadInProgress;
 
   articleImageModalState.forEach((item, index) => {
     const card = document.createElement('div');
@@ -994,7 +998,9 @@ function renderArticleImageModalItems() {
     removeBtn.className = 'article-image-remove';
     removeBtn.textContent = '×';
     removeBtn.title = 'Remove image';
+    removeBtn.disabled = articleImageUploadInProgress;
     removeBtn.addEventListener('click', () => {
+      URL.revokeObjectURL(item.preview);
       articleImageModalState.splice(index, 1);
       renderArticleImageModalItems();
     });
@@ -1012,6 +1018,8 @@ function renderArticleImageModalItems() {
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'article-image-alt-input';
+    input.maxLength = 500;
+    input.disabled = articleImageUploadInProgress;
     input.value = item.alt || '';
     input.placeholder = 'Itachi Uchiha';
     input.addEventListener('input', (event) => {
@@ -1025,6 +1033,7 @@ function renderArticleImageModalItems() {
     const captionInput = document.createElement('input');
     captionInput.type = 'text';
     captionInput.className = 'article-image-caption-input';
+    captionInput.disabled = articleImageUploadInProgress;
     captionInput.value = item.caption || '';
     captionInput.placeholder = 'Image caption';
     captionInput.addEventListener('input', (event) => {
@@ -1035,7 +1044,16 @@ function renderArticleImageModalItems() {
     fileName.className = 'article-image-filename';
     fileName.textContent = item.fileName;
 
+    const progress = document.createElement('progress');
+    progress.className = 'image-transfer-progress';
+    progress.max = 100;
+    progress.value = item.progress || 0;
+    progress.hidden = !articleImageUploadInProgress;
+    progress.setAttribute('aria-label', `Upload progress for ${item.fileName}`);
+    item.progressElement = progress;
+
     meta.appendChild(fileName);
+    meta.appendChild(progress);
     meta.appendChild(label);
     meta.appendChild(input);
     meta.appendChild(captionLabel);
@@ -1047,42 +1065,140 @@ function renderArticleImageModalItems() {
   });
 }
 
+async function loadArticleImageLibrary() {
+  const list = document.getElementById('articleImageLibraryList');
+  const status = document.getElementById('articleImageLibraryStatus');
+  if (!list || !status || !db) return;
+
+  status.textContent = 'Loading saved images…';
+  status.className = 'article-image-modal-status';
+  list.replaceChildren();
+  try {
+    const snapshot = await getDocs(query(collection(db, 'imageAssets'), limit(50)));
+    const assets = snapshot.docs
+      .map(document => ({ id: document.id, ...document.data() }))
+      .filter(asset => typeof asset.url === 'string' && /^https:\/\//i.test(asset.url));
+    if (!assets.length) {
+      status.textContent = 'No saved R2 images found.';
+      return;
+    }
+
+    status.textContent = `${assets.length} saved image${assets.length === 1 ? '' : 's'} shown.`;
+    assets.forEach((asset) => {
+      const card = document.createElement('article');
+      card.className = 'article-image-library-card';
+      const image = document.createElement('img');
+      image.src = asset.url;
+      image.alt = asset.alt || asset.fileName || 'Saved article image';
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      if (Number.isFinite(asset.width) && asset.width > 0) image.width = asset.width;
+      if (Number.isFinite(asset.height) && asset.height > 0) image.height = asset.height;
+
+      const name = document.createElement('div');
+      name.className = 'article-image-filename';
+      name.textContent = asset.fileName || 'R2 image';
+
+      const actions = document.createElement('div');
+      actions.className = 'article-image-library-actions';
+      const insertButton = document.createElement('button');
+      insertButton.type = 'button';
+      insertButton.className = 'action-btn-sm';
+      insertButton.textContent = 'Insert';
+      insertButton.setAttribute('aria-label', `Insert ${asset.fileName || 'saved image'}`);
+      insertButton.addEventListener('click', () => {
+        restoreSavedSelectionAndInsert([{
+          src: asset.url,
+          alt: asset.alt || asset.fileName || 'Article image',
+          width: asset.width,
+          height: asset.height,
+        }]);
+      });
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'action-btn-sm';
+      deleteButton.textContent = 'Delete';
+      deleteButton.setAttribute('aria-label', `Delete ${asset.fileName || 'saved image'} from R2`);
+      deleteButton.addEventListener('click', async () => {
+        const currentCoverUrl = document.getElementById('coverUrlInput')?.value.trim();
+        const editorUsesImage = Array.from(getRichEditor()?.querySelectorAll('img') || [])
+          .some(articleImage => articleImage.src === asset.url);
+        if (editorUsesImage || currentCoverUrl === asset.url) {
+          status.textContent = 'Remove this image from the current unsaved article before deleting it.';
+          status.className = 'article-image-modal-status error';
+          return;
+        }
+        if (!window.confirm('Delete this R2 image? Images still referenced by an article or anime entry cannot be deleted.')) return;
+        deleteButton.disabled = true;
+        status.textContent = 'Checking references and deleting…';
+        try {
+          const token = await auth.currentUser?.getIdToken();
+          if (!token) throw new Error('Please sign in again before deleting images.');
+          const response = await fetch('/api/delete-image', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: asset.url }),
+          });
+          const result = await response.json();
+          if (!response.ok || result.success !== true) {
+            throw new Error(result.message || 'Could not delete the image.');
+          }
+          status.textContent = 'Image deleted from R2.';
+          await loadArticleImageLibrary();
+        } catch (error) {
+          status.textContent = error.message || 'Could not delete the image.';
+          status.className = 'article-image-modal-status error';
+          deleteButton.disabled = false;
+        }
+      });
+
+      actions.append(insertButton, deleteButton);
+      card.append(image, name, actions);
+      list.appendChild(card);
+    });
+  } catch (error) {
+    console.error('Could not load the R2 image library:', error);
+    status.textContent = 'Could not load saved images. Check admin access and retry.';
+    status.className = 'article-image-modal-status error';
+  }
+}
+
 function handleArticleImageFiles(fileList) {
-  if (!fileList || fileList.length === 0) return;
+  if (articleImageUploadInProgress || !fileList || fileList.length === 0) return;
 
   const files = Array.from(fileList);
   const queued = [];
 
   files.forEach((file) => {
-    if (!file.type.startsWith('image/')) {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
       const feedbackEl = document.getElementById('editorFeedback');
-      showFeedback(feedbackEl, 'Unsupported file type. Please use JPG, JPEG, PNG, WEBP, or GIF.', 'error');
+      showFeedback(feedbackEl, 'Unsupported file type. Please use JPG, JPEG, PNG, or WEBP.', 'error');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      const feedbackEl = document.getElementById('editorFeedback');
+      showFeedback(feedbackEl, 'Image is too large. Please choose an image smaller than 15 MB.', 'error');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      queued.push({
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        file,
-        preview: reader.result,
-        fileName: file.name,
-        alt: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Article image',
-        caption: '',
-        defaultAlt: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Article image',
-      });
-
-      if (queued.length === files.filter(Boolean).length) {
-        articleImageModalState = [...articleImageModalState, ...queued];
-        renderArticleImageModalItems();
-      }
-    };
-    reader.onerror = () => {
-      const feedbackEl = document.getElementById('editorFeedback');
-      showFeedback(feedbackEl, 'Could not read a selected image. Please try a different file.', 'error');
-    };
-    reader.readAsDataURL(file);
+    const defaultAlt = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Article image';
+    queued.push({
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      file,
+      preview: URL.createObjectURL(file),
+      fileName: file.name,
+      alt: defaultAlt,
+      caption: '',
+      defaultAlt,
+      progress: 0,
+    });
   });
+  articleImageModalState = [...articleImageModalState, ...queued];
+  renderArticleImageModalItems();
 }
 
 function getArticleImageModalDropzoneText() {
@@ -1099,8 +1215,10 @@ function setupArticleImageModal() {
   const closeBtn = document.getElementById('closeArticleImageModalBtn');
   const cancelBtn = document.getElementById('cancelArticleImageModalBtn');
   const insertBtn = document.getElementById('insertArticleImagesBtn');
+  const refreshLibraryBtn = document.getElementById('refreshArticleImageLibraryBtn');
 
   chooseBtn?.addEventListener('click', () => fileInput?.click());
+  refreshLibraryBtn?.addEventListener('click', loadArticleImageLibrary);
   closeBtn?.addEventListener('click', () => closeImageModalForEditor());
   cancelBtn?.addEventListener('click', () => closeImageModalForEditor());
 
@@ -1141,7 +1259,7 @@ function setupArticleImageModal() {
   });
 
   insertBtn?.addEventListener('click', async () => {
-    if (!articleImageModalState.length) return;
+    if (!articleImageModalState.length || articleImageUploadInProgress) return;
 
     const articleId = getCurrentArticleIdFromEditor();
     if (!articleId) {
@@ -1150,36 +1268,53 @@ function setupArticleImageModal() {
       return;
     }
 
+    articleImageUploadInProgress = true;
     insertBtn.disabled = true;
-    insertBtn.textContent = 'Uploading...';
+    insertBtn.textContent = 'Uploading…';
+    document.getElementById('closeArticleImageModalBtn').disabled = true;
+    document.getElementById('cancelArticleImageModalBtn').disabled = true;
+    document.getElementById('articleImageChooseBtn').disabled = true;
+    document.getElementById('refreshArticleImageLibraryBtn').disabled = true;
+    renderArticleImageModalItems();
 
     try {
       const savedImages = [];
 
       for (const item of articleImageModalState) {
-        const compressed = await compressArticleImage(item.file, item.alt || item.defaultAlt || 'Article image');
-        const imageUrl = await uploadImageToR2(compressed.blob, {
-          kind: 'articles',
-          fileName: compressed.fileName,
-        });
-        const docRef = await addDoc(collection(db, 'imageAssets'), {
-          articleId,
-          fileName: compressed.fileName,
-          mimeType: compressed.mimeType,
-          alt: compressed.alt,
-          url: imageUrl,
-          width: compressed.width,
-          height: compressed.height,
-          createdAt: serverTimestamp()
-        });
+        if (!item.uploaded) {
+          const compressed = await compressArticleImage(item.file, item.alt || item.defaultAlt || 'Article image');
+          const imageUrl = await uploadImageToR2(compressed.blob, {
+            kind: 'articles',
+            fileName: compressed.fileName,
+            onProgress: (percent) => {
+              item.progress = percent;
+              if (item.progressElement) item.progressElement.value = percent;
+            },
+          });
+          item.uploaded = {
+            fileName: compressed.fileName,
+            mimeType: compressed.mimeType,
+            alt: compressed.alt,
+            url: imageUrl,
+            width: compressed.width,
+            height: compressed.height,
+          };
+        }
+        if (!item.assetSaved) {
+          await addDoc(collection(db, 'imageAssets'), {
+            articleId,
+            ...item.uploaded,
+            createdAt: serverTimestamp(),
+          });
+          item.assetSaved = true;
+        }
 
         savedImages.push({
-          id: docRef.id,
-          src: imageUrl,
-          alt: compressed.alt,
+          src: item.uploaded.url,
+          alt: item.uploaded.alt,
           caption: item.caption || '',
-          width: compressed.width,
-          height: compressed.height,
+          width: item.uploaded.width,
+          height: item.uploaded.height,
         });
       }
 
@@ -1187,15 +1322,23 @@ function setupArticleImageModal() {
         restoreSavedSelectionAndInsert(savedImages);
       }
 
+      articleImageUploadInProgress = false;
+      insertBtn.disabled = false;
       closeImageModalForEditor();
+      loadArticleImageLibrary();
       const feedbackEl = document.getElementById('editorFeedback');
       showFeedback(feedbackEl, 'Images inserted successfully.', 'success');
     } catch (error) {
       const feedbackEl = document.getElementById('editorFeedback');
       showFeedback(feedbackEl, error?.message || 'Image upload failed. Please try again.', 'error');
     } finally {
-      insertBtn.disabled = false;
+      articleImageUploadInProgress = false;
+      insertBtn.disabled = articleImageModalState.length === 0;
       insertBtn.textContent = 'Insert Images';
+      document.getElementById('closeArticleImageModalBtn').disabled = false;
+      document.getElementById('cancelArticleImageModalBtn').disabled = false;
+      document.getElementById('articleImageChooseBtn').disabled = false;
+      document.getElementById('refreshArticleImageLibraryBtn').disabled = false;
     }
   });
 
@@ -1649,12 +1792,70 @@ function estimatePayloadSize(payload) {
   return new Blob([JSON.stringify(payload)]).size;
 }
 
+async function migrateEmbeddedArticleImages(content, articleId) {
+  const container = document.createElement('div');
+  container.innerHTML = content;
+  const images = Array.from(container.querySelectorAll('img'))
+    .filter(image => /^data:image\//i.test(image.getAttribute('src') || ''));
+
+  for (const [index, image] of images.entries()) {
+    const dataUrl = image.getAttribute('src') || '';
+    if (!/^data:image\/(?:webp|jpeg|png);base64,/i.test(dataUrl)) {
+      throw new Error('An embedded image uses an unsupported format. Replace it with a WebP, JPEG, or PNG image.');
+    }
+
+    const blob = await fetch(dataUrl).then(response => response.blob());
+    if (!blob.size || blob.size > MAX_COMPRESSED_IMAGE_BYTES ||
+        !['image/webp', 'image/jpeg', 'image/png'].includes(blob.type)) {
+      throw new Error('An embedded image is invalid or exceeds the 3 MB upload limit.');
+    }
+    const bitmap = await createImageBitmap(blob);
+    if (bitmap.width > 10000 || bitmap.height > 10000) {
+      bitmap.close();
+      throw new Error('An embedded image has unsupported dimensions. Replace it with a smaller image.');
+    }
+    const dimensions = {
+      width: Number(image.getAttribute('width')) || bitmap.width,
+      height: Number(image.getAttribute('height')) || bitmap.height,
+    };
+    bitmap.close();
+    const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1];
+    const fileName = `embedded-image-${Date.now()}-${index}.${extension}`;
+    const alt = (image.getAttribute('alt') || 'Article image').slice(0, 500);
+    const url = await uploadImageToR2(blob, {
+      kind: 'articles',
+      fileName,
+      onProgress: percent => {
+        const submitButton = document.getElementById('publishSubmitBtn');
+        if (submitButton) submitButton.textContent = `Uploading embedded image… ${percent}%`;
+      },
+    });
+    const metadata = {
+      fileName,
+      mimeType: blob.type,
+      alt,
+      url,
+      createdAt: serverTimestamp(),
+      ...(articleId ? { articleId } : {}),
+      ...dimensions,
+    };
+    await addDoc(collection(db, 'imageAssets'), metadata);
+    image.setAttribute('src', url);
+    image.setAttribute('alt', alt);
+    image.setAttribute('width', String(dimensions.width));
+    image.setAttribute('height', String(dimensions.height));
+    image.setAttribute('loading', 'lazy');
+    image.setAttribute('decoding', 'async');
+  }
+
+  return sanitizeArticleEditorHtml(container.innerHTML);
+}
+
 function isValidCoverValue(value) {
   if (!value) return false;
-  if (value.startsWith('data:image/')) return true;
   try {
     const parsed = new URL(value);
-    return ['http:', 'https:'].includes(parsed.protocol);
+    return ['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password;
   } catch {
     return false;
   }
@@ -1756,7 +1957,7 @@ async function loadPostForEditing(postId) {
     document.getElementById('postFeaturedOrder').value = post.featuredOrder || 1;
 
     const editorArea = document.getElementById('richEditorArea');
-    if (editorArea) editorArea.innerHTML = sanitizeArticleEditorHtml(post.content || '');
+    if (editorArea) editorArea.innerHTML = sanitizeArticleEditorHtml(post.content || '', { allowLegacyDataImages: true });
 
     if (post.coverImage) {
       uploadedCoverUrl = '';
@@ -1767,7 +1968,7 @@ async function loadPostForEditing(postId) {
       const coverFileName = document.getElementById('coverFileName');
       const coverFileMeta = document.getElementById('coverFileMeta');
 
-      if (post.coverImage.startsWith('data:image/')) {
+      if (/^data:image\//i.test(post.coverImage)) {
         if (previewImg) {
           previewImg.src = post.coverImage;
           previewImg.style.display = 'block';
@@ -1845,7 +2046,7 @@ async function handlePostSubmit(e) {
   const featured = document.getElementById('postFeatured').checked;
   const featuredOrder = parseInt(document.getElementById('postFeaturedOrder').value, 10) || 1;
   const editor = getRichEditor();
-  const content = sanitizeArticleEditorHtml(editor.innerHTML).trim();
+  let content = sanitizeArticleEditorHtml(editor.innerHTML, { allowLegacyDataImages: true }).trim();
   editor.innerHTML = content;
   const selectedCover = buildCoverSelectionFromState();
   const coverImage = selectedCover.coverImage || '';
@@ -1909,8 +2110,13 @@ async function handlePostSubmit(e) {
   submitBtn.textContent = editingPostId ? "Saving changes..." : "Publishing article...";
 
   const migrateEmbeddedCover = selectedCover.mode === 'existing' &&
-    selectedCover.coverImage.startsWith('data:image/');
+    /^data:image\//i.test(selectedCover.coverImage);
   if (selectedCover.mode === 'upload' || migrateEmbeddedCover) {
+    const coverProgress = document.getElementById('coverUploadProgress');
+    if (coverProgress) {
+      coverProgress.hidden = false;
+      coverProgress.value = 0;
+    }
     try {
       const coverBlob = selectedCover.mode === 'upload'
         ? selectedCover.blob
@@ -1931,8 +2137,17 @@ async function handlePostSubmit(e) {
       selectedCover.coverImage = await uploadImageToR2(coverBlob, {
         kind: 'covers',
         fileName: selectedCover.coverImageName,
+        onProgress: percent => {
+          if (coverProgress) coverProgress.value = percent;
+          submitBtn.textContent = `Uploading cover image… ${percent}%`;
+        },
       });
+      if (coverProgress) {
+        coverProgress.value = 100;
+        coverProgress.hidden = true;
+      }
     } catch (error) {
+      if (coverProgress) coverProgress.hidden = true;
       showFeedback(feedbackEl, error?.message || 'Cover image upload failed. Please try again.', 'error');
       submitBtn.disabled = false;
       submitBtn.textContent = editingPostId ? "Save Changes" : "Publish Article";
@@ -1943,6 +2158,18 @@ async function handlePostSubmit(e) {
       showFeedback(feedbackEl, "The uploaded cover image URL is invalid. Please try again.", "error");
       submitBtn.disabled = false;
       submitBtn.textContent = editingPostId ? "Save Changes" : "Publish Article";
+      return;
+    }
+  }
+
+  if (/<img\b[^>]*data:image\//i.test(content)) {
+    try {
+      content = await migrateEmbeddedArticleImages(content, editingPostId || '');
+      editor.innerHTML = content;
+    } catch (error) {
+      showFeedback(feedbackEl, error?.message || 'Could not migrate embedded images to R2.', 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = editingPostId ? 'Save Changes' : 'Publish Article';
       return;
     }
   }

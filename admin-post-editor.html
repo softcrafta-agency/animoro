@@ -221,6 +221,7 @@
                   <div style="min-width: 0; overflow: hidden;">
                     <div id="coverFileName" style="font-weight: 600; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">cover-image.webp</div>
                     <div id="coverFileMeta" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5;">0 KB • 0 × 0</div>
+                        <progress id="coverUploadProgress" class="image-transfer-progress" max="100" value="0" hidden aria-label="Cover image upload progress"></progress>
                   </div>
                   <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
                     <button type="button" id="replaceCoverBtn" class="action-btn-sm" style="font-size: 0.75rem; padding: 5px 10px;">
@@ -348,7 +349,7 @@
           </div>
         </div>
 
-        <input id="articleImageFileInput" type="file" accept="image/*" multiple hidden />
+        <input id="articleImageFileInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
         <div class="article-image-upload-trigger-wrap">
           <button type="button" id="articleImageChooseBtn" class="btn-cta">Choose Images</button>
         </div>
@@ -360,6 +361,15 @@
           </div>
           <div id="articleImageSelectedList" class="article-image-selected-list"></div>
         </div>
+
+        <section class="article-image-library" aria-labelledby="articleImageLibraryTitle">
+          <div class="article-image-selected-header">
+            <span id="articleImageLibraryTitle">R2 Image Library</span>
+            <button type="button" id="refreshArticleImageLibraryBtn" class="action-btn-sm">Refresh</button>
+          </div>
+          <p id="articleImageLibraryStatus" class="article-image-modal-status">Loading saved images…</p>
+          <div id="articleImageLibraryList" class="article-image-library-list"></div>
+        </section>
       </div>
 
       <div class="article-image-modal-footer">

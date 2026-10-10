@@ -10,18 +10,17 @@
   <link rel="apple-touch-icon" href="/assets/favicon-small-CgBFTsN3.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-
-  <script type="module" crossorigin src="/assets/admin-post-editor-CYXmPjvG.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/style-CW4kVq1C.js">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/admin-post-editor-BBbQgqv6.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DfJ9IhWl.js">
   <link rel="modulepreload" crossorigin href="/assets/index.esm-DYG7j1t_.js">
   <link rel="modulepreload" crossorigin href="/assets/firebase-init-DDjfCsKu.js">
   <link rel="modulepreload" crossorigin href="/assets/auth-D59JkcR5.js">
-  <link rel="modulepreload" crossorigin href="/assets/r2-upload-C709QJiS.js">
+  <link rel="modulepreload" crossorigin href="/assets/r2-upload-WTkYDnTG.js">
   <link rel="modulepreload" crossorigin href="/assets/anime-url-Bwj29Ekj.js">
-  <link rel="stylesheet" crossorigin href="/assets/style-Db8mJnEV.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-C76V9HQo.css">
+  <link rel="modulepreload" crossorigin href="/assets/article-content-C2qxFj9R.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-D9CxJPZl.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-CR9B6HxG.css">
 </head>
 <body class="admin-body">
 
@@ -106,19 +105,83 @@
 
               <!-- Rich Text Editor -->
               <div class="form-group" style="margin-top: 24px;">
-                <label class="form-label">Article Body Content</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tool-btn" data-cmd="bold" title="Bold"><strong>B</strong></button>
-                  <button type="button" class="tool-btn" data-cmd="italic" title="Italic"><em>I</em></button>
-                  <button type="button" class="tool-btn" data-cmd="formatBlock" data-val="H2" title="Heading 2">H2</button>
-                  <button type="button" class="tool-btn" data-cmd="formatBlock" data-val="H3" title="Heading 3">H3</button>
-                  <button type="button" class="tool-btn" data-cmd="formatBlock" data-val="blockquote" title="Quote">&ldquo;Quote&rdquo;</button>
-                  <button type="button" class="tool-btn" data-cmd="insertUnorderedList" title="Bullet List">&bull; List</button>
-                  <button type="button" class="tool-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
-                  <button type="button" class="tool-btn" data-cmd="createLink" title="Link">Link</button>
-                  <button type="button" class="tool-btn" data-cmd="insertImage" title="Insert Image">Img</button>
+                  <label class="form-label" for="richEditorArea">Article Body Content</label>
+                  <div class="editor-workspace" id="editorWorkspace">
+                  <div class="editor-toolbar">
+                    <div class="toolbar-group" aria-label="Font size">
+                      <button type="button" class="tool-btn" data-action="font-step" data-step="-1" title="Decrease font size (A−)" aria-label="Decrease font size">A−</button>
+                      <select id="editorFontSize" class="editor-toolbar-select" aria-label="Font size">
+                        <option value="">Font size</option>
+                        <option value="12">12px</option><option value="14">14px</option><option value="16">16px</option>
+                        <option value="18">18px</option><option value="20">20px</option><option value="24">24px</option>
+                        <option value="28">28px</option><option value="32">32px</option><option value="36">36px</option>
+                        <option value="reset">Reset size</option>
+                      </select>
+                      <span id="editorCurrentFontSize" class="editor-current-size" aria-live="polite">—</span>
+                      <button type="button" class="tool-btn" data-action="font-step" data-step="1" title="Increase font size (A+)" aria-label="Increase font size">A+</button>
+                    </div>
+                    <div class="toolbar-group" aria-label="Text formatting">
+                      <button type="button" class="tool-btn" data-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold"><strong>B</strong></button>
+                      <button type="button" class="tool-btn" data-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic"><em>I</em></button>
+                      <button type="button" class="tool-btn" data-cmd="underline" title="Underline (Ctrl+U)" aria-label="Underline"><u>U</u></button>
+                      <button type="button" class="tool-btn" data-cmd="strikeThrough" title="Strikethrough" aria-label="Strikethrough"><s>S</s></button>
+                      <button type="button" class="tool-btn" data-action="block" data-val="P" title="Normal paragraph" aria-label="Normal paragraph">¶</button>
+                      <button type="button" class="tool-btn" data-action="block" data-val="H1" title="Heading 1" aria-label="Heading 1">H1</button>
+                      <button type="button" class="tool-btn" data-action="block" data-val="H2" title="Heading 2" aria-label="Heading 2">H2</button>
+                      <button type="button" class="tool-btn" data-action="block" data-val="H3" title="Heading 3" aria-label="Heading 3">H3</button>
+                      <button type="button" class="tool-btn" data-cmd="superscript" title="Superscript" aria-label="Superscript">x²</button>
+                      <button type="button" class="tool-btn" data-cmd="subscript" title="Subscript" aria-label="Subscript">x₂</button>
+                    </div>
+                    <div class="toolbar-group" aria-label="Alignment and lists">
+                      <button type="button" class="tool-btn" data-cmd="justifyLeft" title="Align left" aria-label="Align left">≡</button>
+                      <button type="button" class="tool-btn" data-cmd="justifyCenter" title="Align center" aria-label="Align center">☷</button>
+                      <button type="button" class="tool-btn" data-cmd="justifyRight" title="Align right" aria-label="Align right">≣</button>
+                      <button type="button" class="tool-btn" data-cmd="justifyFull" title="Justify text" aria-label="Justify text">☰</button>
+                      <button type="button" class="tool-btn" data-cmd="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list">• List</button>
+                      <button type="button" class="tool-btn" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list">1. List</button>
+                      <button type="button" class="tool-btn" data-cmd="outdent" title="Decrease indent" aria-label="Decrease indent">⇤</button>
+                      <button type="button" class="tool-btn" data-cmd="indent" title="Increase indent" aria-label="Increase indent">⇥</button>
+                    </div>
+                    <div class="toolbar-group" aria-label="Text color">
+                      <label class="editor-color-control" title="Text color">A <input type="color" data-action="color" aria-label="Text color" value="#e2e8f0" /></label>
+                      <label class="editor-color-control" title="Highlight color">▰ <input type="color" data-action="highlight" aria-label="Highlight color" value="#facc15" /></label>
+                      <button type="button" class="tool-btn" data-cmd="removeFormat" title="Clear formatting" aria-label="Clear formatting">Tx</button>
+                      <button type="button" class="tool-btn" data-cmd="undo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+                      <button type="button" class="tool-btn" data-cmd="redo" title="Redo (Ctrl+Y)" aria-label="Redo">↷</button>
+                    </div>
+                    <div class="toolbar-group" aria-label="Insert content">
+                      <button type="button" class="tool-btn" data-action="insert-link" title="Insert or edit link (Ctrl+K)" aria-label="Insert link">↗ Link</button>
+                      <button type="button" class="tool-btn" data-action="insert-image" title="Insert image from URL" aria-label="Insert image from URL">▧ Image</button>
+                      <button type="button" class="tool-btn" data-action="upload-image" title="Upload images to Cloudflare R2" aria-label="Upload image">↑ Upload</button>
+                      <button type="button" class="tool-btn" data-action="insert-video" title="Embed a YouTube video" aria-label="Embed YouTube video">▶ Video</button>
+                      <button type="button" class="tool-btn" data-action="block" data-val="BLOCKQUOTE" title="Blockquote" aria-label="Blockquote">❝ Quote</button>
+                      <button type="button" class="tool-btn" data-cmd="insertHorizontalRule" title="Horizontal separator" aria-label="Horizontal separator">―</button>
+                      <button type="button" class="tool-btn" data-action="insert-table" title="Insert table" aria-label="Insert table">▦ Table</button>
+                      <button type="button" class="tool-btn" data-action="code-block" title="Insert code block" aria-label="Insert code block">&lt;/&gt;</button>
+                      <button type="button" class="tool-btn" data-action="toc" title="Generate a table of contents from H2 and H3" aria-label="Generate table of contents">☷ TOC</button>
+                      <button type="button" class="tool-btn" data-action="find-replace" title="Find and replace (Ctrl+H)" aria-label="Find and replace">⌕ Find</button>
+                    </div>
+                  </div>
+                  <div class="editor-mode-bar">
+                    <div class="editor-mode-tabs" role="tablist" aria-label="Editor mode">
+                      <button type="button" id="editorEditMode" class="editor-mode-tab active" role="tab" aria-selected="true">Edit</button>
+                      <button type="button" id="editorPreviewMode" class="editor-mode-tab" role="tab" aria-selected="false">Preview</button>
+                    </div>
+                    <div class="editor-utility-actions">
+                      <span id="editorSaveStatus" class="editor-save-status" role="status" aria-live="polite">Changes are saved when you publish.</span>
+                      <button type="button" class="tool-btn" data-action="expand-editor" title="Expand writing area" aria-label="Expand writing area">↕ Expand</button>
+                      <button type="button" class="tool-btn" data-action="distraction-free" title="Distraction-free mode" aria-label="Toggle distraction-free mode">⛶ Focus</button>
+                    </div>
+                  </div>
+                  <div id="richEditorArea" class="rich-editor-area" contenteditable="true" role="textbox" aria-label="Article body content" aria-multiline="true" spellcheck="true"></div>
+                  <section id="articlePreview" class="article-preview article-content-container" aria-label="Article preview" hidden></section>
+                  <div class="editor-statistics" aria-live="polite">
+                    <span><strong id="editorWordCount">0</strong> words</span>
+                    <span><strong id="editorCharacterCount">0</strong> characters</span>
+                    <span><strong id="editorReadingTime">0 min</strong> read</span>
+                  </div>
+                  </div>
                 </div>
-                <div id="richEditorArea" class="rich-editor-area" contenteditable="true" spellcheck="true"></div>
               </div>
             </div>
           </div>
@@ -166,6 +229,7 @@
                   <div style="min-width: 0; overflow: hidden;">
                     <div id="coverFileName" style="font-weight: 600; color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">cover-image.webp</div>
                     <div id="coverFileMeta" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5;">0 KB • 0 × 0</div>
+                        <progress id="coverUploadProgress" class="image-transfer-progress" max="100" value="0" hidden aria-label="Cover image upload progress"></progress>
                   </div>
                   <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
                     <button type="button" id="replaceCoverBtn" class="action-btn-sm" style="font-size: 0.75rem; padding: 5px 10px;">
@@ -259,6 +323,20 @@
     </div>
   </div>
 
+  <dialog id="editorInsertDialog" class="editor-insert-dialog" aria-labelledby="editorDialogTitle">
+    <form id="editorDialogForm" method="dialog">
+      <header class="editor-dialog-header">
+        <h3 id="editorDialogTitle">Insert content</h3>
+        <button type="button" class="image-modal-close" data-dialog-close aria-label="Close dialog">×</button>
+      </header>
+      <div id="editorDialogFields" class="editor-dialog-fields"></div>
+      <div class="editor-dialog-actions">
+        <button type="button" class="action-btn-sm" data-dialog-close>Cancel</button>
+        <button type="submit" class="btn-cta">Insert</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="articleImageModalOverlay" class="article-image-modal-overlay hidden" aria-hidden="true">
     <div class="article-image-modal" role="dialog" aria-modal="true" aria-labelledby="articleImageModalTitle">
       <div class="article-image-modal-header">
@@ -279,7 +357,7 @@
           </div>
         </div>
 
-        <input id="articleImageFileInput" type="file" accept="image/*" multiple hidden />
+        <input id="articleImageFileInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
         <div class="article-image-upload-trigger-wrap">
           <button type="button" id="articleImageChooseBtn" class="btn-cta">Choose Images</button>
         </div>
@@ -291,6 +369,15 @@
           </div>
           <div id="articleImageSelectedList" class="article-image-selected-list"></div>
         </div>
+
+        <section class="article-image-library" aria-labelledby="articleImageLibraryTitle">
+          <div class="article-image-selected-header">
+            <span id="articleImageLibraryTitle">R2 Image Library</span>
+            <button type="button" id="refreshArticleImageLibraryBtn" class="action-btn-sm">Refresh</button>
+          </div>
+          <p id="articleImageLibraryStatus" class="article-image-modal-status">Loading saved images…</p>
+          <div id="articleImageLibraryList" class="article-image-library-list"></div>
+        </section>
       </div>
 
       <div class="article-image-modal-footer">
@@ -299,7 +386,6 @@
       </div>
     </div>
   </div>
-
-
+
 </body>
 </html>

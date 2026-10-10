@@ -78,7 +78,7 @@ npx firebase-tools deploy --only firestore:rules --project YOUR_FIREBASE_PROJECT
 - **Admin protection:** Only authenticated administrators can create, edit, publish, or delete posts.
 - **Upcoming anime:** Published entries in the existing `upcomingAnime` collection are public-read; all writes require the verified admin role.
 - **View counter:** Public visitors can atomically increment `views` on published articles (+1).
-- **Image uploads:** Article covers and upcoming anime posters are uploaded through the authenticated `/api/upload-image` endpoint to Cloudflare R2. Firestore stores only the public image URL.
+- **Image uploads:** Article covers, body images, and upcoming anime posters are sent as image bytes to the authenticated `/api/upload-image` endpoint and stored in Cloudflare R2. Firestore stores public image URLs and lightweight metadata only; the `imageAssets` rules reject data URLs, binary fields, and unknown fields. The admin image library uses a protected `/api/delete-image` endpoint, which refuses deletion while any post or anime record references the image.
 - **My List:** Public users have no regular Firebase account in this project, so their unified normal/upcoming anime list persists locally in `animoro_my_list`.
 
 ### Cloudflare R2 image uploads
@@ -88,10 +88,10 @@ Configure these as server-side Vercel environment variables; do not expose them 
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET_NAME`
-- `R2_PUBLIC_URL`
+- `R2_PUBLIC_BASE_URL` (preferred; the existing `R2_PUBLIC_URL` name remains supported)
 - `FIREBASE_SERVICE_ACCOUNT_JSON` (used by the API to verify Firebase ID tokens and administrator roles)
 
-Upcoming posters are saved under `upcoming-anime/{slug}/{generated-filename}`. Deploy the Vercel API after changing `api/upload-image.js`.
+Uploads are limited to 3 MB after client-side compression and accept WebP, JPEG, or PNG. The API also validates the image signature and admin role before writing to R2. Upcoming posters are saved under `upcoming-anime/{slug}/{generated-filename}`. Deploy the Vercel API and Firestore rules after changing the image storage implementation.
 
 ---
 

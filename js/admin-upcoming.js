@@ -262,6 +262,7 @@ async function saveUpcomingAnime(event) {
         kind: 'upcoming',
         fileName: selectedUpcomingPoster.name,
         slug,
+        onProgress: percent => showUpcomingFeedback(feedback, `Uploading poster… ${percent}%`, 'info'),
       })
       : currentUpcomingPosterUrl;
 

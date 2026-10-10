@@ -37,10 +37,12 @@ service cloud.firestore {
       return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
              data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200 &&
              data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
+             !data.content.matches('(?is).*data:image/.*') &&
              data.category is string && data.category.size() <= 100 &&
              (data.status == 'draft' || data.status == 'published') &&
              (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000)) &&
-             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 2000)) &&
+             (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 2000 &&
+                                           !data.coverImage.matches('(?i)^data:image/.*'))) &&
              (!('tags' in data) || data.tags is list) &&
              (!('featured' in data) || data.featured is bool) &&
              (!('featuredOrder' in data) || data.featuredOrder is number) &&
@@ -48,6 +50,29 @@ service cloud.firestore {
              (!('authorId' in data) || (data.authorId is string && data.authorId.size() <= 128)) &&
              (!('authorEmail' in data) || (data.authorEmail is string && data.authorEmail.size() <= 200)) &&
              (!('authorName' in data) || (data.authorName is string && data.authorName.size() <= 100));
+    }
+
+    function isValidImageAsset(data) {
+      return data.keys().hasOnly([
+               'url', 'fileName', 'mimeType', 'width', 'height', 'articleId', 'alt', 'createdAt'
+             ]) &&
+             data.keys().hasAll(['url', 'fileName', 'mimeType', 'createdAt']) &&
+             data.url is string && data.url.matches('^https://[^ ]+$') && data.url.size() <= 2048 &&
+             data.fileName is string && data.fileName.size() > 0 && data.fileName.size() <= 255 &&
+             data.mimeType in ['image/webp', 'image/jpeg', 'image/png'] &&
+             data.createdAt is timestamp &&
+             (!('width' in data) || (data.width is int && data.width > 0 && data.width <= 10000)) &&
+             (!('height' in data) || (data.height is int && data.height > 0 && data.height <= 10000)) &&
+             (!('articleId' in data) || (data.articleId is string && data.articleId.size() <= 200)) &&
+             (!('alt' in data) || (data.alt is string && data.alt.size() <= 500));
+    }
+
+    function hasNoInlinePoster(data) {
+      return !('poster' in data) ||
+             data.poster == null ||
+             (data.poster is string &&
+              data.poster.size() <= 2048 &&
+              !data.poster.matches('(?i)^data:image/.*'));
     }
 
     // Posts Collection
@@ -58,11 +83,17 @@ service cloud.firestore {
       allow list: if (resource.data.status == 'published') ||
                      isAdmin() ||
                      (isSignedIn() && resource.data.authorId == request.auth.uid);
-      allow create: if isSuperOrDocAdmin() || (isSignedIn() && incoming().authorId == request.auth.uid);
-      allow update: if isSuperOrDocAdmin() ||
-                       (isSignedIn() && resource.data.authorId == request.auth.uid) ||
-                       (resource.data.status == 'published' &&
+      allow create: if isValidPost(incoming()) &&
+                       (isSuperOrDocAdmin() || (isSignedIn() && incoming().authorId == request.auth.uid));
+      allow update: if (
+                       (isSuperOrDocAdmin() ||
+                        (isSignedIn() && resource.data.authorId == request.auth.uid)) &&
+                       isValidPost(incoming())
+                     ) ||
+                     (
+                       resource.data.status == 'published' &&
                         incoming().diff(existing()).affectedKeys().hasOnly(['views', 'lastViewedAt']) &&
+                        isValidPost(incoming()) &&
                         incoming().views is number &&
                         incoming().views >= 0 &&
                         incoming().views == existing().views + 1 &&
@@ -88,13 +119,14 @@ service cloud.firestore {
 
     match /upcomingAnime/{animeId} {
       allow get, list: if resource.data.status == 'published' || isSuperOrDocAdmin();
-      allow create, update, delete: if isSuperOrDocAdmin();
+      allow create, update: if isSuperOrDocAdmin() && hasNoInlinePoster(incoming());
+      allow delete: if isSuperOrDocAdmin();
     }
 
     // Article Image Assets Collection
     match /imageAssets/{imageId} {
       allow get, list: if isSuperOrDocAdmin();
-      allow create, update: if isSuperOrDocAdmin();
+      allow create, update: if isSuperOrDocAdmin() && isValidImageAsset(incoming());
       allow delete: if isSuperOrDocAdmin();
     }
 

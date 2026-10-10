@@ -11,9 +11,14 @@ const ALLOWED_CLASSES = new Set(['article-content-image', 'article-figure', 'art
 const LEGACY_FONT_SIZES = { 1: '12px', 2: '14px', 3: '16px', 4: '20px', 5: '24px', 6: '28px', 7: '36px' };
 const SAFE_COLOR = /^(?:#(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})|rgba?\(\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\s*,\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\))$/i;
 
-function safeUrl(value, { image = false, iframe = false } = {}) {
+function safeUrl(value, { image = false, iframe = false, allowLegacyDataImage = false } = {}) {
   const candidate = String(value || '').trim();
   if (!candidate || candidate.startsWith('//')) return '';
+
+  if (image && allowLegacyDataImage && candidate.length <= 4_194_328 &&
+      /^data:image\/(?:webp|png|jpeg);base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/i.test(candidate)) {
+    return candidate;
+  }
 
   try {
     const url = new URL(candidate, window.location.origin);
@@ -59,7 +64,7 @@ function cleanStyle(element) {
   }
 }
 
-function cleanElement(element) {
+function cleanElement(element, options) {
   const tag = element.tagName;
   if (tag === 'FONT') {
     const span = document.createElement('span');
@@ -69,7 +74,7 @@ function cleanElement(element) {
     if (size) span.style.fontSize = size;
     span.append(...element.childNodes);
     element.replaceWith(span);
-    cleanElement(span);
+    cleanElement(span, options);
     return;
   }
   if (DROP_CONTENT_TAGS.has(tag) || (tag === 'IFRAME' && !safeUrl(element.getAttribute('src'), { iframe: true }))) {
@@ -79,7 +84,7 @@ function cleanElement(element) {
 
   if (!ALLOWED_TAGS.has(tag)) {
     Array.from(element.childNodes).forEach((child) => {
-      if (child.nodeType === Node.ELEMENT_NODE) cleanElement(child);
+      if (child.nodeType === Node.ELEMENT_NODE) cleanElement(child, options);
     });
     element.replaceWith(...element.childNodes);
     return;
@@ -117,7 +122,11 @@ function cleanElement(element) {
       if (url) element.setAttribute(name, url);
       else element.removeAttribute(name);
     } else if (name === 'src') {
-      const url = safeUrl(attribute.value, { image: tag === 'IMG', iframe: tag === 'IFRAME' });
+      const url = safeUrl(attribute.value, {
+        image: tag === 'IMG',
+        iframe: tag === 'IFRAME',
+        allowLegacyDataImage: options.allowLegacyDataImages,
+      });
       if (url) element.setAttribute(name, url);
       else element.removeAttribute(name);
     } else if (name === 'id') {
@@ -167,15 +176,15 @@ function cleanElement(element) {
 
   cleanStyle(element);
   Array.from(element.childNodes).forEach((child) => {
-    if (child.nodeType === Node.ELEMENT_NODE) cleanElement(child);
+    if (child.nodeType === Node.ELEMENT_NODE) cleanElement(child, options);
   });
 }
 
-export function sanitizeArticleEditorHtml(value) {
+export function sanitizeArticleEditorHtml(value, options = {}) {
   const parser = new DOMParser();
   const document = parser.parseFromString(String(value || ''), 'text/html');
   Array.from(document.body.childNodes).forEach((child) => {
-    if (child.nodeType === Node.ELEMENT_NODE) cleanElement(child);
+    if (child.nodeType === Node.ELEMENT_NODE) cleanElement(child, options);
   });
   return document.body.innerHTML;
 }
