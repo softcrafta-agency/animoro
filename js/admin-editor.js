@@ -43,6 +43,46 @@ let editorAutosaveTimer = null;
 let editorIsDirty = false;
 let editorInitialSnapshot = '';
 let editorSaveInProgress = false;
+const THEME_STORAGE_KEY = 'animoro-theme';
+
+function getPreferredTheme() {
+  try {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme;
+    }
+  } catch (error) {
+    console.warn('Unable to read saved theme preference:', error);
+  }
+
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function applyThemePreference(theme) {
+  const nextTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', nextTheme);
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  } catch (error) {
+    console.warn('Unable to save theme preference:', error);
+  }
+  const toggle = document.querySelector('[data-theme-toggle]');
+  if (toggle) {
+    toggle.textContent = nextTheme === 'light' ? '☾' : '☀';
+    toggle.setAttribute('aria-label', nextTheme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+  }
+}
+
+function initEditorThemeToggle() {
+  const toggle = document.querySelector('[data-theme-toggle]');
+  if (!toggle) return;
+  const initialTheme = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+  applyThemePreference(initialTheme);
+  toggle.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    applyThemePreference(currentTheme === 'light' ? 'dark' : 'light');
+  });
+}
 
 function getRichEditor() {
   return document.getElementById('richEditorArea');
@@ -709,6 +749,7 @@ function setupRichEditor() {
 }
 
 export async function initAdminEditor() {
+  initEditorThemeToggle();
   requireAdminAuth(async (user) => {
     currentAdminUser = user;
     setupFormControls();

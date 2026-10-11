@@ -3,6 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    (function() {
+      try {
+        const storedTheme = localStorage.getItem('animoro-theme');
+        const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        document.documentElement.setAttribute('data-theme', storedTheme || (prefersLight ? 'light' : 'dark'));
+      } catch (error) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
   <title>Article Editor — Animoro Admin</title>
   <meta name="robots" content="noindex, nofollow" />
   <meta name="theme-color" content="#080a0f" />
@@ -63,6 +74,7 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 12px;">
+        <button type="button" class="theme-toggle-btn" data-theme-toggle aria-label="Toggle light and dark theme">☀</button>
         <button type="button" id="saveDraftBtn" class="action-btn-sm" style="padding: 8px 16px;">
           Save as Draft
         </button>

@@ -1,6 +1,8 @@
 import { FieldPath } from 'firebase-admin/firestore';
 import { getAdminServices } from './_lib/firebase-admin.js';
 
+const FEATURED_CACHE_CONTROL = 'public, max-age=0, s-maxage=60, must-revalidate';
+
 const POST_SUMMARY_FIELDS = [
   'title',
   'slug',
@@ -100,7 +102,7 @@ async function loadCoverImage(firestore, postId) {
   return snapshot.docs[0]?.data().coverImage || '';
 }
 
-export function createFeaturedHandler({ getServices = getAdminServices } = {}) {
+export function createFeaturedHandler({ getServices = getAdminServices, logger = console } = {}) {
   return async function featuredHandler(request, response) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       response.setHeader('Allow', 'GET, HEAD');
@@ -121,7 +123,7 @@ export function createFeaturedHandler({ getServices = getAdminServices } = {}) {
             featuredImages: featured.map(({ id, coverImage }) => ({ id, coverImage })),
             latestImages: latest.map(({ id, coverImage }) => ({ id, coverImage })),
           },
-          'no-store',
+          FEATURED_CACHE_CONTROL,
           request.method === 'HEAD'
         );
       }
@@ -140,11 +142,11 @@ export function createFeaturedHandler({ getServices = getAdminServices } = {}) {
           imagesDeferred: initialPosts.length > 1,
           deferredSection: featured.length ? 'featured' : 'latest',
         },
-        'no-store',
+        FEATURED_CACHE_CONTROL,
         request.method === 'HEAD'
       );
     } catch (error) {
-      console.error('Failed to load the public featured feed.', error);
+      logger.error('Failed to load the public featured feed.', error);
       return sendJson(response, 503, { error: 'Featured stories are temporarily unavailable.' });
     }
   };

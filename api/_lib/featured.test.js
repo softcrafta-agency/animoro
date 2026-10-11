@@ -62,7 +62,7 @@ function createFirestore({ featured = [], latest = [] } = {}) {
   return { firestore, queries };
 }
 
-test('returns only the first featured cover before the hero renders without caching publication data', async () => {
+test('returns only the first featured cover before the hero renders with bounded public caching', async () => {
   const { firestore, queries } = createFirestore({
     featured: [
       createDocument('featured-1', {
@@ -90,7 +90,7 @@ test('returns only the first featured cover before the hero renders without cach
   await handler({ method: 'GET' }, response);
 
   assert.equal(response.statusCode, 200);
-  assert.equal(response.headers['cache-control'], 'no-store');
+  assert.equal(response.headers['cache-control'], 'public, max-age=0, s-maxage=60, must-revalidate');
   const body = JSON.parse(response.body);
   assert.equal(body.featured[0].title, 'Featured Story');
   assert.equal(body.featured[0].coverImage, 'https://images.example/cover.webp');
@@ -101,7 +101,7 @@ test('returns only the first featured cover before the hero renders without cach
   assert.ok(queries.some(query => query[0] === 'select' && !query.includes('content')));
 });
 
-test('returns remaining cover URLs separately after the initial hero image loads', async () => {
+test('returns remaining cover URLs separately after the initial hero image loads with bounded public caching', async () => {
   const { firestore } = createFirestore({
     featured: [
       createDocument('featured-1', { coverImage: 'https://images.example/cover.webp', featuredOrder: 1 }),
@@ -114,7 +114,7 @@ test('returns remaining cover URLs separately after the initial hero image loads
   await handler({ method: 'GET', url: '/api/featured?images=1' }, response);
 
   assert.equal(response.statusCode, 200);
-  assert.equal(response.headers['cache-control'], 'no-store');
+  assert.equal(response.headers['cache-control'], 'public, max-age=0, s-maxage=60, must-revalidate');
   const body = JSON.parse(response.body);
   assert.deepEqual(body.featuredImages, [
     { id: 'featured-1', coverImage: 'https://images.example/cover.webp' },
@@ -135,8 +135,24 @@ test('loads a limited latest-post fallback when there are no featured stories', 
   await handler({ method: 'GET' }, response);
 
   assert.equal(response.statusCode, 200);
+  assert.equal(response.headers['cache-control'], 'public, max-age=0, s-maxage=60, must-revalidate');
   assert.deepEqual(JSON.parse(response.body).featured, []);
   assert.equal(JSON.parse(response.body).latest[0].title, 'Latest Story');
+});
+
+test('does not cache a failed featured feed response', async () => {
+  const response = createResponse();
+  const handler = createFeaturedHandler({
+    getServices() {
+      throw new Error('Firestore unavailable');
+    },
+    logger: { error() {} },
+  });
+
+  await handler({ method: 'GET' }, response);
+
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.headers['cache-control'], 'no-store');
 });
 
 test('rejects methods other than GET and HEAD without caching the response', async () => {

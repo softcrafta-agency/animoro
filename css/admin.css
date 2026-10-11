@@ -9,6 +9,29 @@
   min-height: 100vh;
 }
 
+html[data-theme='light'] .admin-body {
+  background-color: var(--bg-primary);
+}
+
+html[data-theme='light'] .admin-sidebar,
+html[data-theme='light'] .admin-topbar,
+html[data-theme='light'] .article-image-modal {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+html[data-theme='light'] .admin-nav-item,
+html[data-theme='light'] .admin-user-email,
+html[data-theme='light'] .article-image-modal-header h3,
+html[data-theme='light'] .image-modal-close,
+html[data-theme='light'] .article-image-library-card {
+  color: var(--text-primary);
+}
+
+html[data-theme='light'] .article-image-library-card {
+  background: var(--bg-card);
+}
+
 /* Admin Layout */
 .admin-sidebar {
   width: 260px;

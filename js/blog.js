@@ -24,7 +24,47 @@ import { getAnimePath, isValidAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
+const THEME_STORAGE_KEY = 'animoro-theme';
 const VIEW_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+function getPreferredTheme() {
+  try {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme;
+    }
+  } catch (error) {
+    console.warn('Unable to read saved theme preference:', error);
+  }
+
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function applyThemePreference(theme) {
+  const nextTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', nextTheme);
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  } catch (error) {
+    console.warn('Unable to save theme preference:', error);
+  }
+  const toggle = document.querySelector('[data-theme-toggle]');
+  if (toggle) {
+    toggle.textContent = nextTheme === 'light' ? '☾' : '☀';
+    toggle.setAttribute('aria-label', nextTheme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+  }
+}
+
+function initThemeToggle() {
+  const toggle = document.querySelector('[data-theme-toggle]');
+  if (!toggle) return;
+  const initialTheme = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+  applyThemePreference(initialTheme);
+  toggle.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    applyThemePreference(currentTheme === 'light' ? 'dark' : 'light');
+  });
+}
 
 function generateVisitorId() {
   const buffer = new Uint8Array(16);
@@ -89,6 +129,7 @@ async function shouldSkipPublicViewTracking() {
 
 async function initBlogPage() {
   setupMobileNav();
+  initThemeToggle();
 
   const renderedDataElement = document.getElementById('serverRenderedArticleData');
   if (renderedDataElement) {
