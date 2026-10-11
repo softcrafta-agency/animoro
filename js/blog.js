@@ -233,6 +233,8 @@ async function hydrateServerRenderedArticle({ id, canonicalUrl }) {
   const container = document.getElementById('blogArticleContainer');
   if (!container) return;
 
+  enhanceArticleLayout(container);
+
   const coverImage = container.querySelector('.article-cover-img');
   if (coverImage) {
     coverImage.addEventListener('error', () => {
@@ -537,6 +539,7 @@ function renderArticle(container, post, canonicalUrl) {
     image.loading = 'lazy';
     image.decoding = 'async';
   });
+  enhanceArticleLayout(container);
 
   // Attach share link copy handler
   const copyBtn = document.getElementById('copyShareBtn');
@@ -552,6 +555,109 @@ function renderArticle(container, post, canonicalUrl) {
       }
     });
   }
+}
+
+function enhanceArticleLayout(container) {
+  const articleBody = container.querySelector('#articleBody');
+  if (!articleBody || articleBody.dataset.editorialLayout === 'true') return;
+  articleBody.dataset.editorialLayout = 'true';
+
+  const headings = Array.from(articleBody.querySelectorAll('h2, h3'))
+    .filter(heading => heading.textContent.trim());
+  if (headings.length >= 2) {
+    const headingSet = new Set(headings);
+    const usedIds = new Set(Array.from(document.querySelectorAll('[id]'))
+      .filter(element => !headingSet.has(element))
+      .map(element => element.id));
+    const items = headings.map((heading, index) => {
+      const text = heading.textContent.trim();
+      const slug = text.toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || `section-${index + 1}`;
+      const existingId = /^[a-z0-9][a-z0-9_-]{0,79}$/i.test(heading.id) ? heading.id : '';
+      const baseId = existingId && !usedIds.has(existingId) ? existingId : slug;
+      let id = baseId;
+      let suffix = 2;
+      while (usedIds.has(id)) id = `${baseId}-${suffix++}`;
+      usedIds.add(id);
+      heading.id = id;
+
+      const item = document.createElement('li');
+      if (heading.tagName === 'H3') item.className = 'article-toc-subitem';
+      const link = document.createElement('a');
+      link.href = `#${id}`;
+      link.textContent = text;
+      item.appendChild(link);
+      return item;
+    });
+
+    const aside = document.createElement('aside');
+    aside.className = 'article-toc-sidebar';
+    aside.setAttribute('aria-label', 'Article navigation');
+    const details = document.createElement('details');
+    details.className = 'article-toc-panel';
+    details.open = !window.matchMedia('(max-width: 1024px)').matches;
+    const summary = document.createElement('summary');
+    summary.textContent = 'In this article';
+    const nav = document.createElement('nav');
+    nav.setAttribute('aria-label', 'Table of contents');
+    const list = document.createElement('ol');
+    items.forEach(item => list.appendChild(item));
+    nav.appendChild(list);
+    details.append(summary, nav);
+    aside.appendChild(details);
+
+    const layout = document.createElement('div');
+    layout.className = 'article-reading-layout';
+    articleBody.parentNode.insertBefore(layout, articleBody);
+    layout.append(aside, articleBody);
+  }
+
+  initReadingProgress(articleBody);
+}
+
+function initReadingProgress(articleBody) {
+  if (articleBody.dataset.progressReady === 'true') return;
+  articleBody.dataset.progressReady = 'true';
+
+  const progress = document.createElement('div');
+  progress.className = 'article-reading-progress';
+  progress.setAttribute('role', 'progressbar');
+  progress.setAttribute('aria-label', 'Article reading progress');
+  progress.setAttribute('aria-valuemin', '0');
+  progress.setAttribute('aria-valuemax', '100');
+  progress.setAttribute('aria-valuenow', '0');
+  const fill = document.createElement('span');
+  progress.appendChild(fill);
+  document.body.appendChild(progress);
+
+  let scheduled = false;
+  const update = () => {
+    scheduled = false;
+    const rect = articleBody.getBoundingClientRect();
+    const articleTop = rect.top + window.scrollY;
+    const articleHeight = articleBody.scrollHeight;
+    const scrollableHeight = articleHeight - window.innerHeight;
+    const isLongArticle = articleHeight > window.innerHeight * 1.5;
+    progress.hidden = !isLongArticle;
+    if (!isLongArticle || scrollableHeight <= 0) return;
+
+    const percent = Math.max(0, Math.min(100,
+      Math.round(((window.scrollY - articleTop) / scrollableHeight) * 100)));
+    fill.style.transform = `scaleX(${percent / 100})`;
+    progress.setAttribute('aria-valuenow', String(percent));
+  };
+  const scheduleUpdate = () => {
+    if (scheduled) return;
+    scheduled = true;
+    window.requestAnimationFrame(update);
+  };
+
+  window.addEventListener('scroll', scheduleUpdate, { passive: true });
+  window.addEventListener('resize', scheduleUpdate);
+  scheduleUpdate();
 }
 
 async function loadRelatedArticles(currentPost, currentId) {
