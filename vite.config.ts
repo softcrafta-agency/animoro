@@ -30,13 +30,6 @@ export default defineConfig(() => {
           admin: path.resolve(__dirname, 'admin.html'),
           'admin-post-editor': path.resolve(__dirname, 'admin-post-editor.html'),
         },
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules/firebase')) {
-              return 'firebase-vendor';
-            }
-          },
-        },
       },
     },
     server: {

@@ -11,7 +11,6 @@ let isLoadingMore = false;
 let latestArticlesPromise = null;
 let featuredFeedPromise = null;
 let firestoreDependenciesPromise = null;
-const FEATURED_FEED_FETCH_TTL_MS = 30000;
 const ARTICLES_PER_PAGE = 6;
 const AUTO_SLIDE_INTERVAL_MS = 5000;
 const INITIAL_AUTO_SLIDE_DELAY_MS = 30000;
@@ -39,7 +38,6 @@ function getFirestoreDependencies() {
 function getFeaturedFeed() {
   if (!featuredFeedPromise) {
     featuredFeedPromise = fetch('/api/featured', {
-      cache: 'force-cache',
       headers: { Accept: 'application/json' },
     })
       .then(async response => {
@@ -213,7 +211,7 @@ function renderSlides(container, slides) {
 async function loadDeferredSlideImages(container, section) {
   const imageProperty = section === 'featured' ? 'featuredImages' : 'latestImages';
   try {
-    const response = await fetch('/api/featured?images=1', { cache: 'no-cache' });
+    const response = await fetch('/api/featured?images=1');
     if (!response.ok) {
       throw new Error(`Featured image feed returned HTTP ${response.status}.`);
     }

@@ -9,12 +9,21 @@ const PAGE_SIZE = 9;
 
 async function getFirestoreRuntime() {
   if (!firestoreRuntime) {
-    firestoreRuntime = import('./firebase-init.js');
+    firestoreRuntime = Promise.all([
+      import('firebase/firestore'),
+      import('./firebase-init.js'),
+    ]).then(([firestore, firebase]) => ({
+      ...firebase,
+      collection: firestore.collection,
+      getDocs: firestore.getDocs,
+      limit: firestore.limit,
+      orderBy: firestore.orderBy,
+      query: firestore.query,
+      startAfter: firestore.startAfter,
+      where: firestore.where,
+    }));
   }
-  return firestoreRuntime.then(async (firebase) => {
-    const { db, isConfigured, handleFirestoreError } = firebase;
-    return { db, isConfigured, handleFirestoreError };
-  });
+  return firestoreRuntime;
 }
 
 async function initBlogsPage() {
@@ -72,24 +81,31 @@ async function loadArticles(reset = false) {
     container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
   }
 
-  if (!isConfigured || !db) {
-    container.innerHTML = `
-      <div class="empty-state" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
-        </div>
-        <h3 class="empty-state-title">No Stories Published Yet</h3>
-        <p class="empty-state-desc">Connect Firebase in Settings and publish your first article from the Admin Panel.</p>
-      </div>
-    `;
-    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
-    return;
-  }
-
   isLoading = true;
   if (loadMoreBtn) loadMoreBtn.textContent = 'Loading stories...';
 
+  let firestoreErrorHandler;
   try {
+    const runtime = await getFirestoreRuntime();
+    firestoreErrorHandler = runtime.handleFirestoreError;
+    const {
+      collection, db, getDocs, isConfigured, limit, orderBy, query, startAfter, where,
+    } = runtime;
+
+    if (!isConfigured || !db) {
+      container.innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <div class="empty-state-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
+          </div>
+          <h3 class="empty-state-title">No Stories Published Yet</h3>
+          <p class="empty-state-desc">Connect Firebase in Settings and publish your first article from the Admin Panel.</p>
+        </div>
+      `;
+      if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+      return;
+    }
+
     let orderField = 'publishedAt';
     let orderDir = 'desc';
 
@@ -177,7 +193,11 @@ async function loadArticles(reset = false) {
     }
 
   } catch (error) {
-    handleFirestoreError(error, 'list', 'posts');
+    if (firestoreErrorHandler) {
+      firestoreErrorHandler(error, 'list', 'posts');
+    } else {
+      console.error('Could not load Firestore for the article listing.', error);
+    }
     if (reset) {
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">

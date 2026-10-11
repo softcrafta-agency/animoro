@@ -1,4 +1,3 @@
-import { onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
   getDocs,
@@ -9,8 +8,6 @@ import {
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { setupMobileNav, createUpcomingAnimeCard } from './ui.js';
 import { attachMyListToggle } from './my-list.js';
-import { auth } from './auth-init.js';
-import { verifyAdminStatus } from './auth.js';
 import { getUpcomingAnimeCanonicalUrl, getUpcomingAnimePath } from './upcoming-url.js';
 
 let allPublishedUpcoming = [];
@@ -84,7 +81,12 @@ async function loadUpcomingDetail(slug, preview = false) {
 
   try {
     if (preview) {
-      const user = auth?.currentUser || await getInitialAuthUser();
+      const [{ onAuthStateChanged }, { auth }, { verifyAdminStatus }] = await Promise.all([
+        import('firebase/auth'),
+        import('./auth-init.js'),
+        import('./auth.js'),
+      ]);
+      const user = auth?.currentUser || await getInitialAuthUser(auth, onAuthStateChanged);
       if (!user || !await verifyAdminStatus(user)) {
         detailRoot.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Admin permission required to preview this upcoming anime.</p></div>';
         return;
@@ -110,7 +112,7 @@ async function loadUpcomingDetail(slug, preview = false) {
   }
 }
 
-function getInitialAuthUser() {
+function getInitialAuthUser(auth, onAuthStateChanged) {
   if (!auth) return Promise.resolve(null);
   return new Promise(resolve => {
     let initialized = false;

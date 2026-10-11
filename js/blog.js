@@ -1,17 +1,3 @@
-import { 
-  doc, 
-  getDoc, 
-  runTransaction, 
-  serverTimestamp, 
-  collection, 
-  query, 
-  where, 
-  limit, 
-  getDocs 
-} from 'firebase/firestore';
-import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { auth } from './auth-init.js';
-import { verifyAdminStatus } from './auth.js';
 import { formatDate, setupMobileNav } from './ui.js';
 import {
   getArticlePath,
@@ -26,6 +12,28 @@ import { sanitizeArticleEditorHtml } from './article-content.js';
 const VISITOR_ID_KEY = 'animoro_visitor_id';
 const THEME_STORAGE_KEY = 'animoro-theme';
 const VIEW_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+let firestoreRuntimePromise = null;
+
+function getFirestoreRuntime() {
+  if (!firestoreRuntimePromise) {
+    firestoreRuntimePromise = Promise.all([
+      import('firebase/firestore'),
+      import('./firebase-init.js'),
+    ]).then(([firestore, firebase]) => ({
+      ...firebase,
+      collection: firestore.collection,
+      doc: firestore.doc,
+      getDoc: firestore.getDoc,
+      getDocs: firestore.getDocs,
+      limit: firestore.limit,
+      query: firestore.query,
+      runTransaction: firestore.runTransaction,
+      serverTimestamp: firestore.serverTimestamp,
+      where: firestore.where,
+    }));
+  }
+  return firestoreRuntimePromise;
+}
 
 function getPreferredTheme() {
   try {
@@ -115,11 +123,14 @@ async function shouldSkipPublicViewTracking() {
     return true;
   }
 
-  if (!auth || !auth.currentUser) {
-    return false;
-  }
-
   try {
+    const [{ auth }, { verifyAdminStatus }] = await Promise.all([
+      import('./auth-init.js'),
+      import('./auth.js'),
+    ]);
+    if (!auth || !auth.currentUser) {
+      return false;
+    }
     return await verifyAdminStatus(auth.currentUser);
   } catch (error) {
     console.warn('Unable to verify admin status for article view check:', error);
@@ -157,12 +168,22 @@ async function initBlogPage() {
     return;
   }
 
+  let runtime;
+  try {
+    runtime = await getFirestoreRuntime();
+  } catch (error) {
+    console.error('Could not load Firebase for this article.', error);
+    renderArticleError(mainContainer, "Unable to load article. Please check your network connection.");
+    return;
+  }
+  const { db, isConfigured, handleFirestoreError } = runtime;
   if (!isConfigured || !db) {
     renderArticleError(mainContainer, "Firebase is not configured yet. Connect Firebase in Settings to load this article.");
     return;
   }
 
   try {
+    const { collection, doc, getDoc, getDocs, limit, query, where } = runtime;
     let postSnap;
     if (requestedSlug) {
       const postQuery = query(
@@ -184,7 +205,6 @@ async function initBlogPage() {
 
     const post = postSnap.data();
     const postId = postSnap.id;
-    const postRef = doc(db, 'posts', postId);
 
     // Check status: only show published articles to public visitors
     if (post.status !== 'published') {
@@ -218,7 +238,7 @@ async function initBlogPage() {
     renderArticle(mainContainer, post, canonicalUrl);
 
     // Record a single unique public view per anonymous browser visitor per article.
-    recordCooldownArticleView(postRef, postId);
+    void recordCooldownArticleView(postId);
 
     // Load related articles
     void loadRelatedArticles(post, postId);
@@ -260,9 +280,7 @@ async function hydrateServerRenderedArticle({ id, canonicalUrl }) {
     });
   }
 
-  if (db) {
-    recordCooldownArticleView(doc(db, 'posts', id), id);
-  }
+  void recordCooldownArticleView(id);
 }
 
 function getRequestedSlug() {
@@ -304,8 +322,8 @@ async function resolveLegacyArticleSlug(articleId, title) {
 /**
  * Atomically count one view per anonymous browser every 24 hours per article.
  */
-async function recordCooldownArticleView(postRef, articleId) {
-  if (!db || !articleId) {
+async function recordCooldownArticleView(articleId) {
+  if (!articleId) {
     return;
   }
 
@@ -314,6 +332,9 @@ async function recordCooldownArticleView(postRef, articleId) {
       return;
     }
 
+    const { db, doc, runTransaction, serverTimestamp } = await getFirestoreRuntime();
+    if (!db) return;
+    const postRef = doc(db, 'posts', articleId);
     const visitorId = getOrCreateVisitorId();
 
     await runTransaction(db, async (transaction) => {
@@ -699,7 +720,7 @@ async function loadRelatedArticles(currentPost, currentId) {
   const sidebar = document.getElementById('articleRelatedSidebar');
   const layout = document.getElementById('articleReadingLayout');
   const category = currentPost.category;
-  if (!container || !sidebar || !layout || !db) return;
+  if (!container || !sidebar || !layout) return;
 
   const hideSidebar = () => {
     sidebar.hidden = true;
@@ -707,6 +728,8 @@ async function loadRelatedArticles(currentPost, currentId) {
   };
 
   try {
+    const { db, collection, limit, query, where } = await getFirestoreRuntime();
+    if (!db) return;
     const tags = Array.isArray(currentPost.tags)
       ? currentPost.tags.filter(tag => typeof tag === 'string' && tag.trim()).slice(0, 10)
       : [];
@@ -821,6 +844,7 @@ async function loadRelatedArticles(currentPost, currentId) {
 
 async function loadRelatedCandidates(candidateQuery) {
   try {
+    const { getDocs } = await getFirestoreRuntime();
     const snapshot = await getDocs(candidateQuery);
     return snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
   } catch (error) {
