@@ -92,6 +92,15 @@ function formatDate(value) {
   });
 }
 
+function getReadingTime(content) {
+  const text = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&(?:#\d+|#x[\da-f]+|[a-z]+);/gi, ' ')
+    .trim();
+  const wordCount = text ? text.split(/\s+/).length : 0;
+  return Math.max(1, Math.ceil(wordCount / 200));
+}
+
 function getPublishedDate(post) {
   return post.publishedAt || post.createdAt || null;
 }
@@ -256,18 +265,20 @@ function renderBreadcrumbs(post) {
   return `<nav aria-label="Breadcrumb" class="article-breadcrumbs"><ol>${crumbs.join('')}</ol></nav>`;
 }
 
-function renderArticleBody(post, canonicalUrl) {
+function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
   const category = typeof post.category === 'string' && post.category.trim()
     ? post.category.trim()
-    : 'General';
+    : '';
   const publishedDate = getPublishedDate(post);
   const dateTime = toIsoDateTime(publishedDate);
   const visibleDate = formatDate(publishedDate);
   const title = String(post.title || 'Untitled Article');
   const authorName = typeof post.authorName === 'string' && post.authorName.trim()
     ? post.authorName.trim()
-    : 'Animoro Editor';
+    : '';
   const coverImage = getSafeCoverSource(post.coverImage);
+  const articleContent = sanitizeArticleContent(post.content);
+  const readingTime = getReadingTime(articleContent);
   const tags = Array.isArray(post.tags)
     ? post.tags
       .filter(tag => typeof tag === 'string' && tag.trim())
@@ -277,32 +288,38 @@ function renderArticleBody(post, canonicalUrl) {
   const animeLink = isValidAnimeSlug(post.animeSlug)
     ? `<a href="${escapeHtml(getAnimePath({ slug: post.animeSlug }))}" class="badge-category">${escapeHtml(post.animeTitle || 'Anime')}</a>`
     : '';
+  const relatedHtml = renderRelatedArticles(relatedPosts, currentId);
 
   return `${renderBreadcrumbs(post)}
-    <header class="article-header">
-      <div class="article-header-meta">
-        ${post.category ? `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category" style="margin-left: 0;">${escapeHtml(category)}</a>` : `<span class="badge-category" style="margin-left: 0;">${escapeHtml(category)}</span>`}
-        ${animeLink}
-        <span style="color: var(--text-muted); font-size: 0.85rem;">•</span>
-        ${visibleDate ? `<time datetime="${escapeHtml(dateTime)}" style="color: var(--text-secondary); font-size: 0.85rem;">${escapeHtml(visibleDate)}</time>` : ''}
-      </div>
-      <h1 class="article-page-title">${escapeHtml(title)}</h1>
-      ${post.excerpt ? `<p class="article-excerpt-lead">${escapeHtml(post.excerpt)}</p>` : ''}
-      <div class="article-author-bar">
-        <div class="article-author-details">
-          <div class="article-author-avatar-lg">${escapeHtml(authorName.charAt(0).toUpperCase())}</div>
-          <div>
-            <div style="font-weight: 700; color: var(--text-primary);">${escapeHtml(authorName)}</div>
-            <div style="font-size: 0.78rem; color: var(--text-muted);">Published in ${escapeHtml(category)}</div>
-          </div>
+    <header class="article-header${coverImage ? ' has-cover' : ''}">
+      <div class="article-intro-copy">
+        <div class="article-header-meta">
+          ${category ? `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>` : ''}
+          ${animeLink}
+          ${visibleDate ? `<time datetime="${escapeHtml(dateTime)}">${escapeHtml(visibleDate)}</time>` : ''}
+        </div>
+        <h1 class="article-page-title">${escapeHtml(title)}</h1>
+        ${post.excerpt ? `<p class="article-excerpt-lead">${escapeHtml(post.excerpt)}</p>` : ''}
+        <div class="article-author-bar">
+          ${authorName ? `<div class="article-author-details">
+            <div class="article-author-avatar-lg" aria-hidden="true">${escapeHtml(authorName.charAt(0).toUpperCase())}</div>
+            <span class="article-author-name">${escapeHtml(authorName)}</span>
+          </div>` : ''}
+          <span class="article-reading-time">${readingTime} min read</span>
         </div>
       </div>
+      ${coverImage ? `<div class="article-cover-wrap"><img class="article-cover-img" src="${escapeHtml(coverImage)}" alt="${escapeHtml(title)} cover" width="1600" height="900" loading="eager" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" /></div>` : ''}
     </header>
-    ${coverImage ? `<div class="article-cover-wrap"><img class="article-cover-img" src="${escapeHtml(coverImage)}" alt="${escapeHtml(title)} cover" width="1600" height="900" loading="eager" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" /></div>` : ''}
-    <main class="article-content-container" id="articleBody">
-      ${sanitizeArticleContent(post.content)}
-      ${tags ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tags}</div>` : ''}
-      <div class="article-share-bar">
+    <div class="article-reading-progress" role="progressbar" aria-label="Article reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0% read">
+      <span class="article-reading-progress-label">Reading progress</span>
+      <span class="article-reading-progress-value">0%</span>
+      <div class="article-reading-progress-track"><span></span></div>
+    </div>
+    <div class="article-reading-layout${relatedHtml ? ' has-related' : ''}" id="articleReadingLayout">
+      <main class="article-content-container" id="articleBody">
+        ${articleContent}
+        ${tags ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tags}</div>` : ''}
+        <div class="article-share-bar">
         <span style="font-weight: 600; font-size: 0.88rem; color: var(--text-muted);">SHARE ARTICLE:</span>
         <button class="share-btn" id="copyShareBtn" type="button">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -310,35 +327,41 @@ function renderArticleBody(post, canonicalUrl) {
         </button>
         <a class="share-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&amp;url=${encodeURIComponent(canonicalUrl)}" target="_blank" rel="noopener noreferrer">Twitter / X</a>
         <a class="share-btn" href="https://reddit.com/submit?url=${encodeURIComponent(canonicalUrl)}&amp;title=${encodeURIComponent(title)}" target="_blank" rel="noopener noreferrer">Reddit</a>
-      </div>
-    </main>`;
+        </div>
+      </main>
+      ${relatedHtml}
+    </div>`;
 }
 
 function renderRelatedArticles(posts, currentId) {
   if (!Array.isArray(posts) || posts.length === 0) return '';
 
   const cards = posts
-    .filter(post => post.id !== currentId && isValidArticleSlug(post.slug))
+    .filter(post => post.id !== currentId && isValidArticleSlug(post.slug) && typeof post.title === 'string' && post.title.trim())
     .slice(0, 6)
     .map(post => {
       const path = getArticlePath(post);
-      const title = String(post.title || 'Untitled Article');
+      const title = post.title.trim();
       const image = getSafeCoverSource(post.coverImage);
-      return `<article class="article-card">
-        <a href="${escapeHtml(path)}" class="card-img-wrap">
-          ${image ? `<img class="card-img" src="${escapeHtml(image)}" alt="${escapeHtml(title)}" width="800" height="450" loading="lazy" decoding="async" />` : ''}
-          <span class="card-category-badge">${escapeHtml(post.category || 'General')}</span>
-        </a>
-        <div class="card-body">
-          <h3 class="card-title"><a href="${escapeHtml(path)}">${escapeHtml(title)}</a></h3>
-          ${post.excerpt ? `<p class="card-excerpt">${escapeHtml(post.excerpt)}</p>` : ''}
-          <div class="card-footer"><a href="${escapeHtml(path)}" style="color: var(--accent-crimson); font-weight: 600;">Read article</a></div>
-        </div>
-      </article>`;
+      const publishedDate = getPublishedDate(post);
+      const dateTime = toIsoDateTime(publishedDate);
+      const visibleDate = formatDate(publishedDate);
+      return `<a class="article-related-card${image ? '' : ' article-related-card-no-image'}" href="${escapeHtml(path)}">
+        ${image ? `<img src="${escapeHtml(image)}" alt="" width="800" height="450" loading="lazy" decoding="async" />` : ''}
+        <span class="article-related-copy">
+          <span class="article-related-title">${escapeHtml(title)}</span>
+          ${visibleDate ? `<time datetime="${escapeHtml(dateTime)}">${escapeHtml(visibleDate)}</time>` : ''}
+        </span>
+      </a>`;
     })
     .join('');
 
-  return cards;
+  return cards
+    ? `<aside class="article-related-sidebar" id="articleRelatedSidebar" aria-label="Related articles">
+        <h2>Related Articles</h2>
+        <div class="article-related-list" id="relatedArticlesContainer">${cards}</div>
+      </aside>`
+    : '';
 }
 
 function createClientArticleData(id, canonicalUrl) {
@@ -362,7 +385,6 @@ export function renderArticleDocument(template, article, relatedPosts = []) {
   const canonicalUrl = new URL(getArticlePath(post), `${SITE_ORIGIN}/`).toString();
   const publisherLogoUrl = new URL('/logo.png', `${SITE_ORIGIN}/`).toString();
   const metadata = getArticleMetadata(post, canonicalUrl, publisherLogoUrl);
-  const renderedRelated = renderRelatedArticles(relatedPosts, id);
 
   let html = replaceMarker(template, '<!-- ARTICLE_SEO_METADATA -->', metadata.metadataHtml);
   html = replaceMarker(
@@ -372,18 +394,11 @@ export function renderArticleDocument(template, article, relatedPosts = []) {
       .map((item, index) => `<script id="${index === 0 ? 'articleJsonLd' : 'articleBreadcrumbJsonLd'}" type="application/ld+json">${escapeJson(item)}</script>`)
       .join('\n  ')
   );
-  html = replaceMarker(html, '<!-- ARTICLE_BODY -->', renderArticleBody(post, canonicalUrl));
-  html = replaceMarker(html, '<!-- ARTICLE_RELATED -->', renderedRelated);
+  html = replaceMarker(html, '<!-- ARTICLE_BODY -->', renderArticleBody(post, canonicalUrl, relatedPosts, id));
   html = replaceMarker(
     html,
     '<!-- ARTICLE_CLIENT_DATA -->',
     `<script id="serverRenderedArticleData" type="application/json">${createClientArticleData(id, canonicalUrl)}</script>`
   );
-  if (renderedRelated) {
-    html = html.replace(
-      'id="relatedSection" style="display: none;',
-      'id="relatedSection" style="'
-    );
-  }
   return html;
 }

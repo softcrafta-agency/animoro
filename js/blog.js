@@ -12,7 +12,7 @@ import {
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { auth } from './auth-init.js';
 import { verifyAdminStatus } from './auth.js';
-import { formatDate, createArticleCard, setupMobileNav } from './ui.js';
+import { formatDate, setupMobileNav } from './ui.js';
 import {
   getArticlePath,
   getArticleSlug,
@@ -263,10 +263,6 @@ async function hydrateServerRenderedArticle({ id, canonicalUrl }) {
   if (db) {
     recordCooldownArticleView(doc(db, 'posts', id), id);
   }
-  if (!document.getElementById('relatedArticlesContainer')?.childElementCount) {
-    const section = document.getElementById('relatedSection');
-    if (section) section.style.display = 'none';
-  }
 }
 
 function getRequestedSlug() {
@@ -461,69 +457,92 @@ function renderCoverImageFallback(wrap) {
   `;
 }
 
+function getArticleReadingTime(content) {
+  const text = document.createElement('div');
+  text.innerHTML = content;
+  const words = text.textContent.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+function renderArticleBreadcrumbs(post) {
+  const category = typeof post.category === 'string' ? post.category.trim() : '';
+  return `<nav aria-label="Breadcrumb" class="article-breadcrumbs"><ol>
+    <li><a href="/">Home</a></li>
+    <li><a href="/blogs.html">Articles</a></li>
+    ${category ? `<li><a href="/category.html?category=${encodeURIComponent(category)}">${escapeHtml(category)}</a></li>` : ''}
+    <li aria-current="page">${escapeHtml(post.title || 'Article')}</li>
+  </ol></nav>`;
+}
+
 function renderArticle(container, post, canonicalUrl) {
   const tagsHtml = (post.tags || []).map(t => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join('');
   const currentUrl = canonicalUrl;
   const coverSource = getCoverImageSource(post.coverImage);
+  const category = typeof post.category === 'string' && post.category.trim()
+    ? post.category.trim()
+    : '';
+  const publishedDate = post.publishedAt || post.createdAt;
+  const isoPublishedDate = toIsoDateTime(publishedDate);
+  const visiblePublishedDate = formatDate(publishedDate);
+  const authorName = typeof post.authorName === 'string' && post.authorName.trim()
+    ? post.authorName.trim()
+    : '';
+  const articleContent = sanitizeArticleEditorHtml(post.content);
+  const readingTime = getArticleReadingTime(articleContent);
 
   container.innerHTML = `
-    <header class="article-header">
-      <div class="article-header-meta">
-        <a href="category.html?category=${encodeURIComponent(post.category || 'Anime')}" class="badge-category" style="margin-left: 0;">
-          ${escapeHtml(post.category || 'General')}
-        </a>
-        ${isValidAnimeSlug(post.animeSlug) ? `
-          <a href="${getAnimePath({ slug: post.animeSlug, title: post.animeTitle })}" class="badge-category">
-            ${escapeHtml(post.animeTitle || 'Anime')}
-          </a>
-        ` : ''}
-        <span style="color: var(--text-muted); font-size: 0.85rem;">•</span>
-        <span style="color: var(--text-secondary); font-size: 0.85rem;">${formatDate(post.publishedAt || post.createdAt)}</span>
-      </div>
-
-      <h1 class="article-page-title">${escapeHtml(post.title || 'Untitled Article')}</h1>
-      
-      ${post.excerpt ? `<p class="article-excerpt-lead">${escapeHtml(post.excerpt)}</p>` : ''}
-
-      <div class="article-author-bar">
-        <div class="article-author-details">
-          <div class="article-author-avatar-lg">
-            ${(post.authorName || 'A')[0].toUpperCase()}
-          </div>
-          <div>
-            <div style="font-weight: 700; color: var(--text-primary);">${escapeHtml(post.authorName || 'Animoro Editor')}</div>
-            <div style="font-size: 0.78rem; color: var(--text-muted);">Published in ${escapeHtml(post.category || 'Anime')}</div>
-          </div>
+    ${renderArticleBreadcrumbs(post)}
+    <header class="article-header${coverSource ? ' has-cover' : ''}">
+      <div class="article-intro-copy">
+        <div class="article-header-meta">
+          ${category ? `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>` : ''}
+          ${isValidAnimeSlug(post.animeSlug) ? `
+            <a href="${getAnimePath({ slug: post.animeSlug, title: post.animeTitle })}" class="badge-category">
+              ${escapeHtml(post.animeTitle || 'Anime')}
+            </a>
+          ` : ''}
+          ${visiblePublishedDate ? `<time${isoPublishedDate ? ` datetime="${escapeHtml(isoPublishedDate)}"` : ''}>${escapeHtml(visiblePublishedDate)}</time>` : ''}
         </div>
-
+        <h1 class="article-page-title">${escapeHtml(post.title || 'Untitled Article')}</h1>
+        ${post.excerpt ? `<p class="article-excerpt-lead">${escapeHtml(post.excerpt)}</p>` : ''}
+        <div class="article-author-bar">
+          ${authorName ? `<div class="article-author-details">
+            <div class="article-author-avatar-lg" aria-hidden="true">${escapeHtml(authorName.charAt(0).toUpperCase())}</div>
+            <span class="article-author-name">${escapeHtml(authorName)}</span>
+          </div>` : ''}
+          <span class="article-reading-time">${readingTime} min read</span>
+        </div>
       </div>
+      ${coverSource ? `
+        <div class="article-cover-wrap">
+          <img class="article-cover-img" alt="${escapeHtml(post.title || 'Article cover')}" width="1600" height="900" loading="eager" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" />
+        </div>
+      ` : ''}
     </header>
-
-    ${coverSource ? `
-      <div class="article-cover-wrap">
-        <img class="article-cover-img" alt="${escapeHtml(post.title || 'Article cover')}" width="1600" height="900" loading="eager" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" />
-      </div>
-    ` : ''}
-
-    <main class="article-content-container" id="articleBody">
-      ${sanitizeArticleEditorHtml(post.content)}
-
-      ${tagsHtml ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tagsHtml}</div>` : ''}
-
-      <div class="article-share-bar">
-        <span style="font-weight: 600; font-size: 0.88rem; color: var(--text-muted);">SHARE ARTICLE:</span>
-        <button class="share-btn" id="copyShareBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          <span id="copyBtnText">Copy Link</span>
-        </button>
-        <a class="share-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(currentUrl)}" target="_blank" rel="noopener noreferrer">
-          Twitter / X
-        </a>
-        <a class="share-btn" href="https://reddit.com/submit?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(post.title)}" target="_blank" rel="noopener noreferrer">
-          Reddit
-        </a>
-      </div>
-    </main>
+    <div class="article-reading-progress" role="progressbar" aria-label="Article reading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0% read">
+      <span class="article-reading-progress-label">Reading progress</span>
+      <span class="article-reading-progress-value">0%</span>
+      <div class="article-reading-progress-track"><span></span></div>
+    </div>
+    <div class="article-reading-layout" id="articleReadingLayout">
+      <main class="article-content-container" id="articleBody">
+        ${articleContent}
+        ${tagsHtml ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tagsHtml}</div>` : ''}
+        <div class="article-share-bar">
+          <span style="font-weight: 600; font-size: 0.88rem; color: var(--text-muted);">SHARE ARTICLE:</span>
+          <button class="share-btn" id="copyShareBtn" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 0-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span id="copyBtnText">Copy Link</span>
+          </button>
+          <a class="share-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(currentUrl)}" target="_blank" rel="noopener noreferrer">Twitter / X</a>
+          <a class="share-btn" href="https://reddit.com/submit?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(post.title)}" target="_blank" rel="noopener noreferrer">Reddit</a>
+        </div>
+      </main>
+      <aside class="article-related-sidebar" id="articleRelatedSidebar" aria-label="Related articles" hidden>
+        <h2>Related Articles</h2>
+        <div class="article-related-list" id="relatedArticlesContainer"></div>
+      </aside>
+    </div>
   `;
 
   const coverImg = container.querySelector('.article-cover-img');
@@ -600,7 +619,7 @@ function enhanceArticleLayout(container) {
     details.className = 'article-toc-panel';
     details.open = !window.matchMedia('(max-width: 1024px)').matches;
     const summary = document.createElement('summary');
-    summary.textContent = 'In this article';
+    summary.textContent = 'Table of Contents';
     const nav = document.createElement('nav');
     nav.setAttribute('aria-label', 'Table of contents');
     const list = document.createElement('ol');
@@ -609,10 +628,33 @@ function enhanceArticleLayout(container) {
     details.append(summary, nav);
     aside.appendChild(details);
 
-    const layout = document.createElement('div');
-    layout.className = 'article-reading-layout';
-    articleBody.parentNode.insertBefore(layout, articleBody);
-    layout.append(aside, articleBody);
+    const layout = container.querySelector('#articleReadingLayout');
+    if (layout) {
+      layout.insertBefore(aside, articleBody);
+      layout.classList.add('has-toc');
+    }
+
+    const links = Array.from(aside.querySelectorAll('a'));
+    let activeFrame = false;
+    const updateActiveHeading = () => {
+      activeFrame = false;
+      let activeIndex = 0;
+      headings.forEach((heading, index) => {
+        if (heading.getBoundingClientRect().top <= 120) activeIndex = index;
+      });
+      links.forEach((link, index) => {
+        if (index === activeIndex) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+    };
+    const scheduleActiveHeading = () => {
+      if (activeFrame) return;
+      activeFrame = true;
+      window.requestAnimationFrame(updateActiveHeading);
+    };
+    window.addEventListener('scroll', scheduleActiveHeading, { passive: true });
+    window.addEventListener('resize', scheduleActiveHeading);
+    scheduleActiveHeading();
   }
 
   initReadingProgress(articleBody);
@@ -622,32 +664,24 @@ function initReadingProgress(articleBody) {
   if (articleBody.dataset.progressReady === 'true') return;
   articleBody.dataset.progressReady = 'true';
 
-  const progress = document.createElement('div');
-  progress.className = 'article-reading-progress';
-  progress.setAttribute('role', 'progressbar');
-  progress.setAttribute('aria-label', 'Article reading progress');
-  progress.setAttribute('aria-valuemin', '0');
-  progress.setAttribute('aria-valuemax', '100');
-  progress.setAttribute('aria-valuenow', '0');
-  const fill = document.createElement('span');
-  progress.appendChild(fill);
-  document.body.appendChild(progress);
+  const progress = articleBody.closest('#blogArticleContainer')?.querySelector('.article-reading-progress');
+  const fill = progress?.querySelector('.article-reading-progress-track > span');
+  const value = progress?.querySelector('.article-reading-progress-value');
+  if (!progress || !fill || !value) return;
 
   let scheduled = false;
   const update = () => {
     scheduled = false;
     const rect = articleBody.getBoundingClientRect();
     const articleTop = rect.top + window.scrollY;
-    const articleHeight = articleBody.scrollHeight;
-    const scrollableHeight = articleHeight - window.innerHeight;
-    const isLongArticle = articleHeight > window.innerHeight * 1.5;
-    progress.hidden = !isLongArticle;
-    if (!isLongArticle || scrollableHeight <= 0) return;
-
-    const percent = Math.max(0, Math.min(100,
-      Math.round(((window.scrollY - articleTop) / scrollableHeight) * 100)));
+    const articleHeight = Math.max(1, articleBody.scrollHeight);
+    const percent = Math.max(0, Math.min(100, Math.round(
+      ((window.scrollY - articleTop) / articleHeight) * 100
+    )));
     fill.style.transform = `scaleX(${percent / 100})`;
     progress.setAttribute('aria-valuenow', String(percent));
+    progress.setAttribute('aria-valuetext', `${percent}% read`);
+    value.textContent = `${percent}%`;
   };
   const scheduleUpdate = () => {
     if (scheduled) return;
@@ -662,8 +696,15 @@ function initReadingProgress(articleBody) {
 
 async function loadRelatedArticles(currentPost, currentId) {
   const container = document.getElementById('relatedArticlesContainer');
+  const sidebar = document.getElementById('articleRelatedSidebar');
+  const layout = document.getElementById('articleReadingLayout');
   const category = currentPost.category;
-  if (!container || !db) return;
+  if (!container || !sidebar || !layout || !db) return;
+
+  const hideSidebar = () => {
+    sidebar.hidden = true;
+    layout.classList.remove('has-related');
+  };
 
   try {
     const tags = Array.isArray(currentPost.tags)
@@ -720,21 +761,61 @@ async function loadRelatedArticles(currentPost, currentId) {
       .map(item => item.post);
 
     if (related.length === 0) {
-      const section = document.getElementById('relatedSection');
-      if (section) section.style.display = 'none';
+      hideSidebar();
       return;
     }
 
-    container.innerHTML = '';
+    container.replaceChildren();
     related.forEach(post => {
-      container.appendChild(createArticleCard(post.id, post));
+      if (!isValidArticleSlug(post.slug) || typeof post.title !== 'string' || !post.title.trim()) return;
+
+      const card = document.createElement('a');
+      card.className = 'article-related-card';
+      card.href = getArticlePath(post);
+
+      const imageSource = getCoverImageSource(post.coverImage);
+      if (imageSource) {
+        const image = document.createElement('img');
+        image.src = imageSource;
+        image.alt = '';
+        image.width = 800;
+        image.height = 450;
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        card.appendChild(image);
+      } else {
+        card.classList.add('article-related-card-no-image');
+      }
+
+      const copy = document.createElement('span');
+      copy.className = 'article-related-copy';
+      const title = document.createElement('span');
+      title.className = 'article-related-title';
+      title.textContent = post.title.trim();
+      copy.appendChild(title);
+
+      const dateValue = post.publishedAt || post.createdAt;
+      const dateTime = toIsoDateTime(dateValue);
+      const visibleDate = formatDate(dateValue);
+      if (dateTime && visibleDate) {
+        const time = document.createElement('time');
+        time.dateTime = dateTime;
+        time.textContent = visibleDate;
+        copy.appendChild(time);
+      }
+
+      card.appendChild(copy);
+      container.appendChild(card);
     });
-    const section = document.getElementById('relatedSection');
-    if (section) section.style.display = '';
+    if (container.childElementCount) {
+      sidebar.hidden = false;
+      layout.classList.add('has-related');
+    } else {
+      hideSidebar();
+    }
   } catch (err) {
     console.warn("Could not load related articles:", err);
-    const section = document.getElementById('relatedSection');
-    if (section) section.style.display = 'none';
+    hideSidebar();
   }
 }
 

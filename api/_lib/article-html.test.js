@@ -21,11 +21,16 @@ test('renders published article content, metadata, canonical URL, and structured
   });
 
   assert.match(html, /<h1 class="article-page-title">A &lt;Great&gt; Anime Story<\/h1>/);
+  assert.match(html, /<header class="article-header has-cover">/);
+  assert.match(html, /<div class="article-reading-progress" role="progressbar"/);
+  assert.match(html, /<div class="article-reading-layout" id="articleReadingLayout">/);
+  assert.match(html, /<span class="article-reading-time">1 min read<\/span>/);
   assert.match(html, /<a href="\/blogs\.html">Articles<\/a>/);
   assert.doesNotMatch(html, /href="blogs\.html"/);
   assert.match(html, /Real article <strong>body<\/strong>\./);
   assert.match(html, /Editor One/);
   assert.match(html, /https:\/\/images\.example\.test\/cover\.webp/);
+  assert.match(html, /class="article-cover-img"[^>]+loading="eager" fetchpriority="high"/);
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\.html\/great-anime-story"/);
   assert.match(html, /"url":"https:\/\/www\.animoro\.in\/logo\.png"/);
   assert.match(html, /<meta property="og:title" content="A &lt;Great&gt; Anime Story"/);
@@ -33,6 +38,20 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /"@type":"BreadcrumbList"/);
   assert.match(html, /"datePublished":"2026-10-01T10:00:00\.000Z"/);
   assert.match(html, /"dateModified":"2026-10-03T10:00:00\.000Z"/);
+});
+
+test('does not display missing author, category, or publication metadata', () => {
+  const html = renderArticleDocument(template, {
+    id: 'article-without-display-metadata',
+    title: 'Article Without Display Metadata',
+    slug: 'article-without-display-metadata',
+    content: '<p>Body text.</p>',
+  });
+  const breadcrumbs = html.match(/<nav aria-label="Breadcrumb" class="article-breadcrumbs">([\s\S]*?)<\/nav>/)?.[1] || '';
+  const intro = html.match(/<header class="article-header">([\s\S]*?)<\/header>/)?.[1] || '';
+
+  assert.doesNotMatch(breadcrumbs, /category\.html/);
+  assert.doesNotMatch(intro, /class="badge-category"|class="article-author-details"|<time datetime=/);
 });
 
 test('sanitizes executable article markup and safely serializes attacker-controlled metadata', () => {
@@ -66,11 +85,20 @@ test('renders related links only for valid published article slugs', () => {
     content: '<p>Article.</p>',
   }, [
     { id: 'article-1', title: 'Current', slug: 'current', status: 'published' },
-    { id: 'article-2', title: 'Related', slug: 'related', status: 'published' },
+    {
+      id: 'article-2',
+      title: 'Related',
+      slug: 'related',
+      status: 'published',
+      coverImage: 'https://images.example.test/related.webp',
+      publishedAt: new Date('2026-10-05T10:00:00Z'),
+    },
     { id: 'article-3', title: 'Invalid', slug: 'not valid', status: 'published' },
   ]);
 
-  assert.match(html, /<a href="\/blog\.html\/related">Related<\/a>/);
+  assert.match(html, /<a class="article-related-card" href="\/blog\.html\/related">[\s\S]*?Related/);
+  assert.match(html, /class="article-related-card" href="\/blog\.html\/related"[\s\S]*?loading="lazy"/);
+  assert.match(html, /<time datetime="2026-10-05T10:00:00\.000Z">Oct 5, 2026<\/time>/);
   assert.doesNotMatch(html, /not%20valid|not valid/);
   assert.doesNotMatch(html, /ARTICLE_(?:SEO_METADATA|STRUCTURED_DATA|BODY|RELATED|CLIENT_DATA)/);
 });
@@ -100,7 +128,7 @@ test('preserves supported editor formatting and safe YouTube embeds while filter
   const content = sanitizeArticleContent(
     '<h1 id="overview">Overview</h1>' +
     '<p style="font-size:20px;color:#facc15;background-color:#1e293b;text-align:center;position:fixed">Styled <strong>text</strong></p>' +
-    '<figure class="article-figure"><img src="https://cdn.example.test/a.webp" alt="Anime scene"><figcaption>Scene caption</figcaption></figure>' +
+    '<figure class="article-figure"><img src="https://cdn.example.test/a.webp" alt="Anime scene" width="1200" height="675"><figcaption>Scene caption</figcaption></figure>' +
     '<table><thead><tr><th>Season</th></tr></thead><tbody><tr><td>Spring</td></tr></tbody></table>' +
     '<pre class="article-code-block"><code>const answer = 42;</code></pre>' +
     '<div class="article-toc"><p>In this article</p><ul><li><a href="#overview">Overview</a></li></ul></div>' +
@@ -114,6 +142,8 @@ test('preserves supported editor formatting and safe YouTube embeds while filter
   assert.match(content, /background-color:#1e293b/);
   assert.doesNotMatch(content, /position:fixed/);
   assert.match(content, /<figcaption>Scene caption<\/figcaption>/);
+  assert.match(content, /loading="lazy"/);
+  assert.match(content, /width="1200" height="675"/);
   assert.match(content, /<table>/);
   assert.match(content, /<pre class="article-code-block"><code>const answer = 42;<\/code><\/pre>/);
   assert.match(content, /<a href="#overview">Overview<\/a>/);
