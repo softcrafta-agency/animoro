@@ -11,6 +11,7 @@ let isLoadingMore = false;
 let latestArticlesPromise = null;
 let featuredFeedPromise = null;
 let firestoreDependenciesPromise = null;
+const FEATURED_FEED_FETCH_TTL_MS = 30000;
 const ARTICLES_PER_PAGE = 6;
 const AUTO_SLIDE_INTERVAL_MS = 5000;
 const INITIAL_AUTO_SLIDE_DELAY_MS = 30000;
@@ -37,7 +38,10 @@ function getFirestoreDependencies() {
 
 function getFeaturedFeed() {
   if (!featuredFeedPromise) {
-    featuredFeedPromise = fetch('/api/featured', { cache: 'no-cache' })
+    featuredFeedPromise = fetch('/api/featured', {
+      cache: 'force-cache',
+      headers: { Accept: 'application/json' },
+    })
       .then(async response => {
         if (!response.ok) {
           throw new Error(`Featured feed returned HTTP ${response.status}.`);

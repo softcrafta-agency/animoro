@@ -1,20 +1,21 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  getDocs, 
-  startAfter 
-} from 'firebase/firestore';
-import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { createArticleCard, setupMobileNav } from './ui.js';
 
+let firestoreRuntime = null;
 let selectedCategory = 'all';
 let currentSort = 'latest'; // latest, popular, oldest
 let lastDoc = null;
 let isLoading = false;
 const PAGE_SIZE = 9;
+
+async function getFirestoreRuntime() {
+  if (!firestoreRuntime) {
+    firestoreRuntime = import('./firebase-init.js');
+  }
+  return firestoreRuntime.then(async (firebase) => {
+    const { db, isConfigured, handleFirestoreError } = firebase;
+    return { db, isConfigured, handleFirestoreError };
+  });
+}
 
 async function initBlogsPage() {
   setupMobileNav();

@@ -43,6 +43,15 @@
                   ],
     "headers": [
         {
+            "source": "/api/featured",
+            "headers": [
+                {
+                     "key": "Cache-Control",
+                     "value": "public, max-age=30, s-maxage=120, stale-while-revalidate=300"
+                }
+            ]
+        },
+        {
             "source": "/assets/(.*)",
             "headers": [
                 {

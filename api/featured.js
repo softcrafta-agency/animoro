@@ -1,7 +1,7 @@
 import { FieldPath } from 'firebase-admin/firestore';
 import { getAdminServices } from './_lib/firebase-admin.js';
 
-const FEATURED_CACHE_CONTROL = 'public, max-age=0, s-maxage=60, must-revalidate';
+const FEATURED_CACHE_CONTROL = 'public, max-age=30, s-maxage=120, stale-while-revalidate=300';
 
 const POST_SUMMARY_FIELDS = [
   'title',
