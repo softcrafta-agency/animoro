@@ -43,6 +43,42 @@ export function saveMyList(items) {
   window.localStorage.setItem(getListStorageKey(), JSON.stringify(items));
 }
 
+export function getPendingMyListItem() {
+  try {
+    const raw = window.sessionStorage.getItem('animoro_pending_my_list_item');
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.warn('Could not restore pending My List item:', error);
+    return null;
+  }
+}
+
+export function queuePendingMyListItem(item) {
+  if (!item) return null;
+  window.sessionStorage.setItem('animoro_pending_my_list_item', JSON.stringify(item));
+  return item;
+}
+
+export function clearPendingMyListItem() {
+  window.sessionStorage.removeItem('animoro_pending_my_list_item');
+}
+
+export async function applyPendingMyListAction(user = auth?.currentUser) {
+  const pending = getPendingMyListItem();
+  if (!pending) return null;
+  if (!user) return null;
+
+  const existing = await readUserList(user);
+  const record = buildListRecord(pending);
+  const key = getListKey(record);
+  const alreadyInList = existing.some(item => getListKey(item) === key);
+  const next = alreadyInList ? existing : [...existing, record];
+
+  if (!alreadyInList) await writeUserList(user, next);
+  clearPendingMyListItem();
+  return next;
+}
+
 export function getListKey(item) {
   const slug = item?.slug || item?.id || item?.title || 'item';
   const kind = item?.kind || 'anime';
@@ -112,7 +148,7 @@ export async function readUserList(user = auth?.currentUser) {
     return normalized;
   } catch (error) {
     console.warn('Could not read the authenticated My List from Firestore:', error);
-    return getMyList();
+    throw error;
   }
 }
 
@@ -169,6 +205,19 @@ export async function writeUserList(user = auth?.currentUser, items = getMyList(
 
 export async function toggleMyList(item) {
   const user = auth?.currentUser;
+  if (!user) {
+    const list = getMyList();
+    const record = buildListRecord(item);
+    const key = getListKey(record);
+    const exists = list.some(entry => getListKey(entry) === key);
+    const nextList = exists
+      ? list.filter(entry => getListKey(entry) !== key)
+      : [...list, record];
+
+    saveMyList(nextList);
+    return { exists: !exists, list: nextList };
+  }
+
   if (user && isConfigured && db) {
     const list = await readUserList(user);
     const record = buildListRecord(item);
@@ -193,6 +242,12 @@ export async function toggleMyList(item) {
   return { exists: !exists, list: nextList };
 }
 
+export function redirectToLoginForPendingAction(item) {
+  queuePendingMyListItem(item);
+  const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}` || '/');
+  window.location.href = `/login.html?redirect=${redirect}`;
+}
+
 export function attachMyListToggle(button, item) {
   if (!button) return;
   button.type = 'button';
@@ -206,10 +261,22 @@ export function attachMyListToggle(button, item) {
 
   syncButton();
   button.addEventListener('click', async () => {
-    const result = await toggleMyList(item);
-    syncButton();
-    document.dispatchEvent(new CustomEvent('animoro-my-list-change', {
-      detail: { item, inList: result.exists, list: result.list }
-    }));
+    if (!auth?.currentUser) {
+      redirectToLoginForPendingAction(item);
+      return;
+    }
+
+    try {
+      const result = await toggleMyList(item);
+      syncButton();
+      document.dispatchEvent(new CustomEvent('animoro-my-list-change', {
+        detail: { item, inList: result.exists, list: result.list }
+      }));
+    } catch (error) {
+      console.error('Could not update the authenticated My List:', error);
+      button.textContent = 'Unable to update list';
+      button.title = error?.message || 'Please try again.';
+      window.setTimeout(syncButton, 3000);
+    }
   });
 }

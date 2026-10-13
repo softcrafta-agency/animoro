@@ -14,7 +14,6 @@ const STATIC_PATHS = [
   '/',
   '/blogs.html',
   '/anime.html',
-  '/upcoming-anime.html',
   '/anime-calendar.html',
   '/about.html',
   '/contact.html',

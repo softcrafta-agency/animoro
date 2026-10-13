@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Animoro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="icon" type="image/png" href="/favicon-small.png" />
+  <link rel="apple-touch-icon" href="/favicon-small.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="auth-page-body">
+  <div class="auth-shell">
+    <div class="auth-card">
+      <a href="/" class="brand-logo auth-brand" aria-label="Animoro Home">
+        <img class="brand-logo-image" src="/logo-small.webp" alt="Animoro logo" />
+        <span class="brand-logo-text">ANIMORO</span>
+      </a>
+
+      <div class="auth-header-copy">
+        <h1>Welcome back</h1>
+        <p>Sign in to save anime to your personal My List.</p>
+      </div>
+
+      <div id="authFeedback" class="form-feedback" aria-live="polite"></div>
+
+      <button type="button" id="googleSignInBtn" class="btn-google-auth">
+        <span class="google-mark" aria-hidden="true">G</span>
+        Continue with Google
+      </button>
+
+      <div class="auth-divider"><span>or use email</span></div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="loginEmail" class="form-label">Email</label>
+          <input id="loginEmail" name="email" type="email" class="form-input" placeholder="you@example.com" autocomplete="email" required />
+        </div>
+
+        <div class="form-group">
+          <label for="loginPassword" class="form-label">Password</label>
+          <div class="password-field">
+            <input id="loginPassword" name="password" type="password" class="form-input" placeholder="Enter your password" autocomplete="current-password" required />
+            <button type="button" class="password-toggle" data-target="loginPassword" aria-label="Show password">Show</button>
+          </div>
+        </div>
+
+        <div class="auth-inline-row">
+          <a href="#" id="forgotPasswordLink" class="auth-link">Forgot password?</a>
+        </div>
+
+        <button type="submit" id="loginSubmitBtn" class="btn-cta auth-submit-btn">Log in</button>
+      </form>
+
+      <p class="auth-subtle-copy">
+        Need an account?
+        <a href="/register.html" id="createAccountLink" class="auth-link">Create one</a>
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { loginWithEmail, loginWithGoogle, requestPasswordReset, watchAuthState } from '/js/auth.js';
+    import { applyPendingMyListAction, getPendingMyListItem } from '/js/my-list.js';
+    import { getPostAuthRedirect } from '/js/auth-guard.js';
+
+    const feedback = document.getElementById('authFeedback');
+    const form = document.getElementById('loginForm');
+    const submitBtn = document.getElementById('loginSubmitBtn');
+    const googleBtn = document.getElementById('googleSignInBtn');
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    const createAccountLink = document.getElementById('createAccountLink');
+    const redirectParam = new URLSearchParams(window.location.search).get('redirect');
+    if (redirectParam) {
+      const registerUrl = new URL('/register.html', window.location.origin);
+      registerUrl.searchParams.set('redirect', getPostAuthRedirect('/'));
+      createAccountLink.href = `${registerUrl.pathname}${registerUrl.search}`;
+    }
+
+    const setFeedback = (message, type = 'error') => {
+      feedback.textContent = message;
+      feedback.className = 'form-feedback ' + (type === 'success' ? 'success' : 'error');
+      feedback.hidden = false;
+    };
+
+    const redirectAfterAuth = () => {
+      window.location.replace(getPostAuthRedirect('/my-list.html'));
+    };
+
+    const finalizeAuth = async () => {
+      try {
+        const pending = getPendingMyListItem();
+        if (pending) await applyPendingMyListAction();
+      } catch (error) {
+        console.error('Could not resume the pending My List action:', error);
+        setFeedback('You are signed in, but the requested My List item could not be saved. Please try again from the anime page.');
+        return;
+      }
+      redirectAfterAuth();
+    };
+
+    let initialAuthStateResolved = false;
+    watchAuthState((user) => {
+      if (initialAuthStateResolved) return;
+      initialAuthStateResolved = true;
+      if (user) finalizeAuth();
+    });
+
+    const togglePassword = (button) => {
+      const target = document.getElementById(button.dataset.target);
+      if (!target) return;
+      const isHidden = target.type === 'password';
+      target.type = isHidden ? 'text' : 'password';
+      button.textContent = isHidden ? 'Hide' : 'Show';
+    };
+
+    document.querySelectorAll('.password-toggle').forEach((button) => {
+      button.addEventListener('click', () => togglePassword(button));
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setFeedback('', 'error');
+
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      if (!email || !password) {
+        setFeedback('Please enter both your email and password.');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Logging in...';
+
+      try {
+        await loginWithEmail(email, password);
+        setFeedback('Signed in successfully. Redirecting…', 'success');
+        await finalizeAuth();
+      } catch (error) {
+        console.error(error);
+        const message = error?.message || 'Unable to sign in. Please try again.';
+        setFeedback(message.replace('Firebase:', '').trim());
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Log in';
+      }
+    });
+
+    googleBtn.addEventListener('click', async () => {
+      googleBtn.disabled = true;
+      googleBtn.textContent = 'Connecting...';
+      try {
+        await loginWithGoogle();
+        setFeedback('Google sign-in successful. Redirecting…', 'success');
+        await finalizeAuth();
+      } catch (error) {
+        console.error(error);
+        setFeedback(error?.message || 'Google sign-in failed. Please try again.');
+      } finally {
+        googleBtn.disabled = false;
+        googleBtn.textContent = 'Continue with Google';
+      }
+    });
+
+    forgotPasswordLink.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      if (!email) {
+        setFeedback('Enter your email address first, then request a password reset.');
+        return;
+      }
+
+      try {
+        await requestPasswordReset(email);
+        setFeedback('Password reset email sent. Check your inbox and spam folder.', 'success');
+      } catch (error) {
+        console.error(error);
+        setFeedback(error?.message || 'Unable to send a password reset email.');
+      }
+    });
+  </script>
+</body>
+</html>

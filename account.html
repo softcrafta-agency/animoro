@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account — Animoro</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="icon" type="image/png" href="/favicon-small.png" />
+  <link rel="apple-touch-icon" href="/favicon-small.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="auth-page-body">
+  <div class="auth-shell account-shell">
+    <div class="auth-card account-card">
+      <a href="/" class="brand-logo auth-brand" aria-label="Animoro Home">
+        <img class="brand-logo-image" src="/logo-small.webp" alt="Animoro logo" />
+        <span class="brand-logo-text">ANIMORO</span>
+      </a>
+
+      <div id="accountStatus" class="form-feedback" hidden></div>
+
+      <div class="account-header">
+        <div id="accountAvatar" class="account-avatar">A</div>
+        <div>
+          <h1 id="accountName">Account</h1>
+          <p id="accountEmail">Loading…</p>
+        </div>
+      </div>
+
+      <div class="account-actions">
+        <button type="button" id="verifyEmailBtn" class="btn-outline auth-action-btn">Verify email</button>
+        <button type="button" id="resetPasswordBtn" class="btn-outline auth-action-btn">Reset password</button>
+        <button type="button" id="logoutBtn" class="btn-cta auth-action-btn">Log out</button>
+        <button type="button" id="deleteAccountBtn" class="btn-danger auth-action-btn">Delete account</button>
+      </div>
+
+      <div class="account-block" id="settings">
+        <label for="displayNameInput" class="form-label">Display name</label>
+        <div class="inline-form-row">
+          <input id="displayNameInput" class="form-input" type="text" placeholder="Display name" />
+          <button type="button" id="saveDisplayNameBtn" class="btn-outline">Save</button>
+        </div>
+      </div>
+
+      <div class="account-links">
+        <a href="/my-list.html" class="auth-link">Open My List</a>
+        <a href="/" class="auth-link">Back to home</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth } from '/js/auth-init.js';
+    import { logoutUser, requestPasswordReset, sendVerificationEmail, updateUserProfile, watchAuthState } from '/js/auth.js';
+
+    const statusEl = document.getElementById('accountStatus');
+    const avatarEl = document.getElementById('accountAvatar');
+    const nameEl = document.getElementById('accountName');
+    const emailEl = document.getElementById('accountEmail');
+    const displayNameInput = document.getElementById('displayNameInput');
+
+    const setStatus = (message, type = 'error') => {
+      statusEl.hidden = false;
+      statusEl.textContent = message;
+      statusEl.className = 'form-feedback ' + (type === 'success' ? 'success' : 'error');
+    };
+
+    const renderUser = (user) => {
+      if (!user) {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      const name = user.displayName || 'Animoro Fan';
+      const email = user.email || 'No email on file';
+      avatarEl.textContent = (name || email).charAt(0).toUpperCase();
+      nameEl.textContent = name;
+      emailEl.textContent = email;
+      displayNameInput.value = name;
+    };
+
+    watchAuthState((user) => renderUser(user));
+
+    document.getElementById('verifyEmailBtn').addEventListener('click', async () => {
+      try {
+        await sendVerificationEmail();
+        setStatus('Verification email sent successfully.', 'success');
+      } catch (error) {
+        setStatus(error?.message || 'Unable to send a verification email.');
+      }
+    });
+
+    document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+      try {
+        const email = auth?.currentUser?.email;
+        if (!email) {
+          setStatus('No email is available for this account.');
+          return;
+        }
+        await requestPasswordReset(email);
+        setStatus('Password reset email sent.', 'success');
+      } catch (error) {
+        setStatus(error?.message || 'Unable to send the reset email.');
+      }
+    });
+
+    document.getElementById('saveDisplayNameBtn').addEventListener('click', async () => {
+      try {
+        const value = displayNameInput.value.trim();
+        await updateUserProfile({ displayName: value || auth.currentUser.displayName || 'Animoro Fan' });
+        setStatus('Display name updated.', 'success');
+        renderUser(auth.currentUser);
+      } catch (error) {
+        setStatus(error?.message || 'Unable to update your profile.');
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      try {
+        await logoutUser();
+        window.location.href = '/login.html';
+      } catch (error) {
+        setStatus(error?.message || 'Unable to log out.');
+      }
+    });
+
+    document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+      const confirmed = window.confirm('This will permanently delete your Animoro account. Continue?');
+      if (!confirmed) return;
+
+      try {
+        const user = auth?.currentUser;
+        if (!user) {
+          window.location.href = '/login.html';
+          return;
+        }
+        await user.delete();
+        setStatus('Your account was deleted.', 'success');
+        setTimeout(() => window.location.href = '/', 1200);
+      } catch (error) {
+        const message = error?.code === 'auth/requires-recent-login'
+          ? 'For security, please sign out and sign back in before deleting your account.'
+          : (error?.message || 'Unable to delete your account.');
+        setStatus(message);
+      }
+    });
+  </script>
+</body>
+</html>

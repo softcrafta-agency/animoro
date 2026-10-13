@@ -34,13 +34,14 @@ Animoro is built on **HTML5, CSS3, Vanilla JavaScript, Firebase Authentication, 
 
 ---
 
-## 3. Enable Firebase Authentication (Email/Password)
+## 3. Enable Firebase Authentication
 
 1. In the Firebase Console left menu, navigate to **Build &rarr; Authentication**.
 2. Click **Get started**.
-3. In the **Sign-in method** tab, select **Email/Password**.
-4. Enable the first toggle (**Email/Password**), then click **Save**.
-5. Switch to the **Users** tab and click **Add user**:
+3. In the **Sign-in method** tab, enable **Email/Password** and **Google**, then click **Save**.
+4. In **Authentication &rarr; Settings &rarr; Authorized domains**, add `animoro.in` and `www.animoro.in`.
+5. Keep `VITE_FIREBASE_AUTH_DOMAIN` set to the Firebase project's configured auth domain (for project `animoro-b9268`, normally `animoro-b9268.firebaseapp.com`). Do not replace it with `animoro.in` unless a Firebase custom auth domain has been explicitly configured and its DNS setup is complete.
+6. Switch to the **Users** tab and click **Add user**:
    - Enter your admin email (e.g., `softcrafta@gmail.com`).
    - Enter a strong password.
    - Click **Add user**.
@@ -76,13 +77,22 @@ npx firebase-tools deploy --only firestore:rules --project YOUR_FIREBASE_PROJECT
 - **Public access:** Anyone can read published articles, view categories, and submit contact inquiries.
 - **Private Drafts:** Draft articles are never visible to the public — only authenticated admins can see or edit them.
 - **Admin protection:** Only authenticated administrators can create, edit, publish, or delete posts.
-- **Upcoming anime:** Published entries in the existing `upcomingAnime` collection are public-read; all writes require the verified admin role.
+- **Upcoming anime:** Published entries in the existing `upcomingAnime` collection are readable only by signed-in users; writes and unpublished-entry access require administrator authorization.
 - **View counter:** Public visitors can atomically increment `views` on published articles (+1).
-- **Image uploads:** Article covers, body images, and upcoming anime posters are sent as image bytes to the authenticated `/api/upload-image` endpoint and stored in Cloudflare R2. Firestore stores public image URLs and lightweight metadata only; the `imageAssets` rules reject data URLs, binary fields, and unknown fields. The admin image library uses a protected `/api/delete-image` endpoint, which refuses deletion while any post or anime record references the image.
-- **My List:** Public users have no regular Firebase account in this project, so their unified normal/upcoming anime list persists locally in `animoro_my_list`.
+- **Image uploads:** Anime covers and banners, upcoming anime posters, article covers, and article body images can be selected by drag-and-drop or file picker, with manual URL entry retained as a fallback. New image files are uploaded to the configured Firebase Storage bucket by the authenticated Firebase client and Firestore stores download URLs and lightweight metadata only. Storage writes are limited to admins by `storage.rules`; the protected `/api/delete-image` endpoint checks Firestore references before deleting either Firebase Storage or legacy R2 objects. Existing R2 URLs remain readable.
+- **My List:** Each signed-in user's normal/upcoming anime entries are stored under `users/{uid}/myList`; Firestore rules permit access only when the authenticated UID matches `{uid}`.
 
-### Cloudflare R2 image uploads
-Configure these as server-side Vercel environment variables; do not expose them in browser code:
+### Firebase Storage setup
+
+The existing project configuration uses `VITE_FIREBASE_STORAGE_BUCKET`. For `animoro-b9268`, verify that its value matches the bucket shown under Firebase Console → **animoro-b9268** → **Build** → **Storage**. The repository currently targets `animoro-b9268.firebasestorage.app`, but a project setting alone does not prove that the remote bucket exists.
+
+If Storage has not been initialized, open **Build → Storage → Get started**, create the default bucket only if the Console reports that no bucket exists, choose the required data location, and start in production mode. Then publish this repository's rules with `firebase deploy --only storage` from a Firebase CLI authenticated to `animoro-b9268`, or paste `storage.rules` into the Storage **Rules** tab and click **Publish**. The rules allow public reads for image objects, restrict writes to existing Animoro super-admins or `admins/{uid}` records with `role: "admin"`, limit uploads to 3 MB PNG/JPEG/WebP files, and disallow client-side deletes. If the Console asks to enable Storage-to-Firestore rule lookups, approve that so the admin-document check can run.
+
+Set `VITE_FIREBASE_STORAGE_BUCKET` to the verified bucket name in every frontend build environment and redeploy. The existing API image deletion route also uses the existing `FIREBASE_SERVICE_ACCOUNT_JSON` and accepts `FIREBASE_STORAGE_BUCKET` (or the same `VITE_FIREBASE_STORAGE_BUCKET`) server-side; no R2 credentials are used for new uploads.
+
+### Legacy Cloudflare R2 images
+
+Keep these server-side Vercel variables only while legacy R2 objects are still referenced or need deletion. Never expose the secret key in browser code:
 
 - `R2_ACCOUNT_ID`
 - `R2_ACCESS_KEY_ID`
@@ -91,7 +101,7 @@ Configure these as server-side Vercel environment variables; do not expose them 
 - `R2_PUBLIC_BASE_URL` (preferred; the existing `R2_PUBLIC_URL` name remains supported)
 - `FIREBASE_SERVICE_ACCOUNT_JSON` (used by the API to verify Firebase ID tokens and administrator roles)
 
-Uploads are limited to 3 MB after client-side compression and accept WebP, JPEG, or PNG. The API also validates the image signature and admin role before writing to R2. Upcoming posters are saved under `upcoming-anime/{slug}/{generated-filename}`. Deploy the Vercel API and Firestore rules after changing the image storage implementation.
+Existing R2 download URLs in Firestore and published article HTML continue to work. New uploads use Firebase Storage. Keep the legacy R2 API/configuration until its objects have been migrated and verified; do not delete R2 objects just because a new Firebase URL was saved.
 
 ---
 

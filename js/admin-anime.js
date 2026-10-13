@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, isConfigured } from './firebase-init.js';
 import { normalizeAnimeSlug } from './anime-url.js';
+import { ImageUploadField } from './image-upload-field.js';
 
 const ANIME_FIELDS = [
   'Title', 'Slug', 'AlternativeTitles', 'Synopsis', 'CoverImage', 'BannerImage',
@@ -21,11 +22,16 @@ const ANIME_FIELDS = [
   'Timezone', 'NextEpisode', 'Visibility'
 ];
 let slugManuallyEdited = false;
+const animeImageFields = [];
 
 export function setupAnimeManager() {
   const form = document.getElementById('animeManagerForm');
   if (!form) return;
 
+  animeImageFields.push(
+    new ImageUploadField(document.getElementById('animeCoverImage'), { kind: 'covers' }),
+    new ImageUploadField(document.getElementById('animeBannerImage'), { kind: 'covers' })
+  );
   form.addEventListener('submit', saveAnime);
   document.getElementById('animeTitle')?.addEventListener('input', event => {
     if (!slugManuallyEdited) {
@@ -195,6 +201,7 @@ function populateAnimeForm(anime) {
     const value = anime[key];
     element.value = Array.isArray(value) ? value.join(', ') : value ?? '';
   });
+  animeImageFields.forEach(field => field.refresh());
   document.getElementById('cancelAnimeEditButton').hidden = false;
   slugManuallyEdited = false;
   document.getElementById('animeFormHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -214,6 +221,7 @@ async function deleteAnimeEntry(anime) {
 
 function resetAnimeForm() {
   document.getElementById('animeManagerForm')?.reset();
+  animeImageFields.forEach(field => field.refresh());
   document.getElementById('animeDocumentId').value = '';
   document.getElementById('animeFormHeading').textContent = 'Add Anime';
   document.getElementById('cancelAnimeEditButton').hidden = true;

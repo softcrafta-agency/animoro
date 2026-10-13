@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getStorage } from 'firebase/storage';
 import {
   getFirestore,
   initializeFirestore,
@@ -7,7 +8,7 @@ import {
   doc,
   getDocFromServer
 } from 'firebase/firestore';
-import { getActiveFirebaseConfig, isConfigPlaceholder } from './firebase-config.js';
+import { firebaseConfig, getActiveFirebaseConfig, isConfigPlaceholder } from './firebase-config.js';
 
 const config = getActiveFirebaseConfig();
 export const isConfigured = !isConfigPlaceholder(config);
@@ -15,6 +16,7 @@ export const isConfigured = !isConfigPlaceholder(config);
 let appInstance = null;
 let dbInstance = null;
 let authInstance = null;
+let storageInstance = null;
 
 if (isConfigured) {
   try {
@@ -29,6 +31,11 @@ if (isConfigured) {
       console.warn('Persistent Firestore cache unavailable; using the default cache.', cacheError);
       dbInstance = getFirestore(appInstance);
     }
+    if (firebaseConfig.storageBucket) {
+      storageInstance = getStorage(appInstance, firebaseConfig.storageBucket);
+    } else {
+      console.error('Firebase Storage is not configured: set VITE_FIREBASE_STORAGE_BUCKET to the existing Firebase Storage bucket name.');
+    }
   } catch (err) {
     console.error('Firebase initialization failed:', err);
   }
@@ -38,6 +45,7 @@ if (isConfigured) {
 
 export const app = appInstance;
 export const db = dbInstance;
+export const storage = storageInstance;
 
 export function setAuthInstanceForDiagnostics(instance) {
   authInstance = instance;

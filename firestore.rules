@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global Helpers
     function isSignedIn() {
       return request.auth != null;
     }
@@ -25,12 +24,26 @@ service cloud.firestore {
          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin');
     }
 
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
     function incoming() {
       return request.resource.data;
     }
 
     function existing() {
       return resource.data;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.uid == userId &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 254 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('photoURL' in data) || data.photoURL == null || data.photoURL == '' ||
+              (data.photoURL is string && data.photoURL.size() <= 2048 && data.photoURL.matches('^https://.*')));
     }
 
     function isValidPost(data) {
@@ -75,7 +88,24 @@ service cloud.firestore {
               !data.poster.matches('(?i)^data:image/.*'));
     }
 
-    // Posts Collection
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidUserProfile(incoming(), userId);
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/myList/{animeId} {
+      allow get, list, create, update, delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/favorites/{animeId} {
+      allow get, list, create, update, delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/recentlyViewed/{animeId} {
+      allow get, list, create, update, delete: if isOwner(userId);
+    }
+
     match /posts/{postId} {
       allow get: if (resource.data.status == 'published') ||
                     isSuperOrDocAdmin() ||
@@ -118,25 +148,23 @@ service cloud.firestore {
     }
 
     match /upcomingAnime/{animeId} {
-      allow get, list: if resource.data.status == 'published' || isSuperOrDocAdmin();
+      allow get, list: if isSignedIn() &&
+                           (resource.data.status == 'published' || isSuperOrDocAdmin());
       allow create, update: if isSuperOrDocAdmin() && hasNoInlinePoster(incoming());
       allow delete: if isSuperOrDocAdmin();
     }
 
-    // Article Image Assets Collection
     match /imageAssets/{imageId} {
       allow get, list: if isSuperOrDocAdmin();
       allow create, update: if isSuperOrDocAdmin() && isValidImageAsset(incoming());
       allow delete: if isSuperOrDocAdmin();
     }
 
-    // Categories Collection
     match /categories/{categoryId} {
       allow get, list: if true;
       allow create, update, delete: if isSuperOrDocAdmin();
     }
 
-    // Contacts Collection
     match /contacts/{contactId} {
       allow create: if incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100 &&
                        incoming().email is string && incoming().email.size() > 0 && incoming().email.size() <= 200 &&
@@ -144,7 +172,6 @@ service cloud.firestore {
       allow get, list, update, delete: if isSuperOrDocAdmin();
     }
 
-    // Admins Collection
     match /admins/{adminUid} {
       allow get: if isSignedIn() && (request.auth.uid == adminUid || isSuperOrDocAdmin());
       allow list: if isSuperOrDocAdmin();

@@ -1,5 +1,6 @@
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { authorizeAdminRequest } from './_lib/admin-auth.js';
+import { getFirebaseStorageObjectPath } from './_lib/firebase-storage.js';
 import { findImageReferences } from './_lib/image-references.js';
 import { getR2Client, getR2Configuration, getR2ObjectKey } from './_lib/r2.js';
 
@@ -64,16 +65,21 @@ export default async function handler(req, res) {
       return respond(res, 400, { message: 'A valid image URL is required.' });
     }
 
-    let configuration;
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET;
+    const firebaseObjectPath = getFirebaseStorageObjectPath(payload.url, storageBucket);
+    let r2Configuration = null;
+    let r2ObjectKey = null;
     try {
-      configuration = getR2Configuration();
+      r2Configuration = getR2Configuration();
+      r2ObjectKey = getR2ObjectKey(payload.url, r2Configuration.publicBaseUrl);
     } catch (error) {
-      console.error('[delete-image] R2 configuration unavailable', { name: error.name });
-      return respond(res, 500, { message: 'Image deletion is not configured on the server.' });
+      if (!firebaseObjectPath) {
+        console.error('[delete-image] R2 configuration unavailable', { name: error.name });
+        return respond(res, 500, { message: 'Image deletion is not configured on the server.' });
+      }
     }
-    const key = getR2ObjectKey(payload.url, configuration.publicBaseUrl);
-    if (!key) {
-      return respond(res, 400, { message: 'Image URL is not a valid Animoro R2 object URL.' });
+    if (!firebaseObjectPath && !r2ObjectKey) {
+      return respond(res, 400, { message: 'Image URL is not a valid Animoro R2 or Firebase Storage object URL.' });
     }
 
     const references = await findImageReferences(authorization.services.firestore, payload.url);
@@ -82,17 +88,21 @@ export default async function handler(req, res) {
     }
 
     try {
-      await getR2Client().send(new DeleteObjectCommand({
-        Bucket: configuration.bucketName,
-        Key: key,
-      }));
+      if (firebaseObjectPath) {
+        await authorization.services.storage.bucket(storageBucket).file(firebaseObjectPath).delete();
+      } else {
+        await getR2Client().send(new DeleteObjectCommand({
+          Bucket: r2Configuration.bucketName,
+          Key: r2ObjectKey,
+        }));
+      }
     } catch (error) {
-      console.error('[delete-image] R2 deletion failed', {
+      console.error('[delete-image] Image deletion failed', {
         name: error?.name || 'Error',
         code: error?.code || error?.Code || null,
         requestId: error?.$metadata?.requestId || null,
       });
-      return respond(res, 502, { message: 'Could not delete the image from R2. Please retry.' });
+      return respond(res, 502, { message: 'Could not delete the image from storage. Please retry.' });
     }
 
     const metadata = await authorization.services.firestore

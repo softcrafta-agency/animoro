@@ -2,6 +2,7 @@ import { getArticlePath } from './article-url.js';
 import { getAnimePath } from './anime-url.js';
 import { attachMyListToggle } from './my-list.js';
 import { getUpcomingAnimePath } from './upcoming-url.js';
+import { initializeAuthNavigation } from './auth-nav.js';
 
 export function formatDate(timestamp) {
   if (!timestamp) return 'Recent';
@@ -184,6 +185,7 @@ export function createUpcomingAnimeCard(item) {
 }
 
 export function setupMobileNav() {
+  initializeAuthNavigation();
   const hamburgerBtn = document.getElementById('hamburgerBtn');
   const drawer = document.getElementById('mobileNavDrawer');
   const backdrop = document.getElementById('mobileBackdrop');

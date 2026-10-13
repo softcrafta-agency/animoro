@@ -1,0 +1,33 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'X5WFM4C88cecVqry3wr4luIIVAv1' ||
+        (request.auth.token.email != null &&
+          request.auth.token.email.lower() == 'softcrafta@gmail.com')
+      );
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() ||
+        (isSignedIn() &&
+          firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+          firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    match /images/{kind}/{fileName} {
+      allow read: if true;
+      allow create, update: if isAdmin() &&
+        kind in ['covers', 'articles', 'upcoming'] &&
+        request.resource.size > 0 &&
+        request.resource.size <= 3 * 1024 * 1024 &&
+        request.resource.contentType in ['image/webp', 'image/jpeg', 'image/png'];
+      allow delete: if false;
+    }
+  }
+}

@@ -9,6 +9,7 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { setupMobileNav, createUpcomingAnimeCard } from './ui.js';
 import { attachMyListToggle } from './my-list.js';
 import { getUpcomingAnimeCanonicalUrl, getUpcomingAnimePath } from './upcoming-url.js';
+import { requireAuthenticatedPage } from './auth-guard.js';
 
 let allPublishedUpcoming = [];
 let activeFilters = {
@@ -81,12 +82,11 @@ async function loadUpcomingDetail(slug, preview = false) {
 
   try {
     if (preview) {
-      const [{ onAuthStateChanged }, { auth }, { verifyAdminStatus }] = await Promise.all([
-        import('firebase/auth'),
+      const [{ auth }, { verifyAdminStatus }] = await Promise.all([
         import('./auth-init.js'),
         import('./auth.js'),
       ]);
-      const user = auth?.currentUser || await getInitialAuthUser(auth, onAuthStateChanged);
+      const user = auth?.currentUser || null;
       if (!user || !await verifyAdminStatus(user)) {
         detailRoot.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Admin permission required to preview this upcoming anime.</p></div>';
         return;
@@ -110,20 +110,6 @@ async function loadUpcomingDetail(slug, preview = false) {
     handleFirestoreError(error, 'fetch', `upcomingAnime/${slug}`);
     detailRoot.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Unable to load this upcoming anime page.</p></div>';
   }
-}
-
-function getInitialAuthUser(auth, onAuthStateChanged) {
-  if (!auth) return Promise.resolve(null);
-  return new Promise(resolve => {
-    let initialized = false;
-    let unsubscribe = () => {};
-    unsubscribe = onAuthStateChanged(auth, user => {
-      initialized = true;
-      unsubscribe();
-      resolve(user);
-    });
-    if (initialized) unsubscribe();
-  });
 }
 
 function bindFilterControls() {
@@ -481,8 +467,13 @@ function setMeta(attribute, name, content) {
   element.content = content;
 }
 
+async function initializeUpcomingPage() {
+  const authenticatedUser = await requireAuthenticatedPage();
+  if (authenticatedUser) initUpcomingPage();
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initUpcomingPage);
+  document.addEventListener('DOMContentLoaded', initializeUpcomingPage, { once: true });
 } else {
-  initUpcomingPage();
+  initializeUpcomingPage();
 }

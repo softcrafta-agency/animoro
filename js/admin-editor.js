@@ -14,10 +14,11 @@ import {
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { requireAdminAuth, verifyAdminStatus } from './auth.js';
 import { auth } from './auth-init.js';
-import { uploadImageToR2 } from './r2-upload.js';
+import { uploadImageToStorage } from './firebase-storage-upload.js';
 import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
+import { ImageUploadField } from './image-upload-field.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -365,7 +366,7 @@ function openEditorDialog(title, fields, onSubmit) {
       });
     } else {
       input = document.createElement('input');
-      input.type = field.type || 'text';
+      input.type = field.type === 'image-url' ? 'url' : field.type || 'text';
     }
     input.name = field.name;
     if (field.placeholder) input.placeholder = field.placeholder;
@@ -381,6 +382,9 @@ function openEditorDialog(title, fields, onSubmit) {
       label.appendChild(input);
     }
     fieldsContainer.appendChild(label);
+    if (field.type === 'image-url') {
+      new ImageUploadField(input, { kind: 'articles' });
+    }
   });
 
   editorDialogAction = onSubmit;
@@ -470,7 +474,7 @@ function showLinkDialog() {
 
 function showImageUrlDialog() {
   openEditorDialog('Insert image', [
-    { name: 'url', label: 'Image URL', type: 'url', placeholder: 'https://…', required: true },
+    { name: 'url', label: 'Image URL', type: 'image-url', placeholder: 'https://…', required: true },
     { name: 'alt', label: 'Alt text', placeholder: 'Describe the image for accessibility', required: true },
     { name: 'caption', label: 'Caption (optional)', placeholder: 'Image caption' },
   ], ({ url: rawUrl, alt, caption }) => {
@@ -806,7 +810,7 @@ function setupFormControls() {
 
   setupArticleImageModal();
 
-  // Direct Cover Image URL Handler (No Firebase Storage)
+  // Direct cover image URLs remain available alongside Firebase Storage uploads.
   setupCoverImageUrl();
 
   // Save / Publish form submit
@@ -1138,7 +1142,7 @@ async function loadArticleImageLibrary() {
 
       const name = document.createElement('div');
       name.className = 'article-image-filename';
-      name.textContent = asset.fileName || 'R2 image';
+      name.textContent = asset.fileName || 'Saved image';
 
       const actions = document.createElement('div');
       actions.className = 'article-image-library-actions';
@@ -1160,7 +1164,7 @@ async function loadArticleImageLibrary() {
       deleteButton.type = 'button';
       deleteButton.className = 'action-btn-sm';
       deleteButton.textContent = 'Delete';
-      deleteButton.setAttribute('aria-label', `Delete ${asset.fileName || 'saved image'} from R2`);
+      deleteButton.setAttribute('aria-label', `Delete ${asset.fileName || 'saved image'} from storage`);
       deleteButton.addEventListener('click', async () => {
         const currentCoverUrl = document.getElementById('coverUrlInput')?.value.trim();
         const editorUsesImage = Array.from(getRichEditor()?.querySelectorAll('img') || [])
@@ -1170,7 +1174,7 @@ async function loadArticleImageLibrary() {
           status.className = 'article-image-modal-status error';
           return;
         }
-        if (!window.confirm('Delete this R2 image? Images still referenced by an article or anime entry cannot be deleted.')) return;
+        if (!window.confirm('Delete this stored image? Images still referenced by an article or anime entry cannot be deleted.')) return;
         deleteButton.disabled = true;
         status.textContent = 'Checking references and deleting…';
         try {
@@ -1188,7 +1192,7 @@ async function loadArticleImageLibrary() {
           if (!response.ok || result.success !== true) {
             throw new Error(result.message || 'Could not delete the image.');
           }
-          status.textContent = 'Image deleted from R2.';
+          status.textContent = 'Image deleted from storage.';
           await loadArticleImageLibrary();
         } catch (error) {
           status.textContent = error.message || 'Could not delete the image.';
@@ -1202,7 +1206,7 @@ async function loadArticleImageLibrary() {
       list.appendChild(card);
     });
   } catch (error) {
-    console.error('Could not load the R2 image library:', error);
+    console.error('Could not load the saved image library:', error);
     status.textContent = 'Could not load saved images. Check admin access and retry.';
     status.className = 'article-image-modal-status error';
   }
@@ -1324,7 +1328,7 @@ function setupArticleImageModal() {
       for (const item of articleImageModalState) {
         if (!item.uploaded) {
           const compressed = await compressArticleImage(item.file, item.alt || item.defaultAlt || 'Article image');
-          const imageUrl = await uploadImageToR2(compressed.blob, {
+          const imageUrl = await uploadImageToStorage(compressed.blob, {
             kind: 'articles',
             fileName: compressed.fileName,
             onProgress: (percent) => {
@@ -1469,7 +1473,7 @@ async function compressArticleImage(file, altText) {
 
 /**
  * Direct URL + Drag-and-drop upload support for cover images.
- * Uploaded images are compressed to WebP in-browser and sent to the Vercel upload API.
+ * Uploaded cover images are compressed in-browser before being sent to Firebase Storage.
  */
 function setupCoverImageUrl() {
   const urlInput = document.getElementById('coverUrlInput');
@@ -1578,47 +1582,43 @@ function setupCoverImageUrl() {
     });
   }
 
-  async function processSelectedFile(file) {
-    if (!file) return;
-
-    try {
+  new ImageUploadField(urlInput, {
+    kind: 'covers',
+    maxBytes: 15 * 1024 * 1024,
+    fileInput,
+    dropzone: uploadBox,
+    previewElement: previewImg,
+    containerParent: uploadPanel,
+    showActions: false,
+    prepareFile: async file => {
       const validation = validateCoverFile(file);
-      if (!validation.valid) {
-        throw new Error(validation.message);
-      }
-
-      const compressedCover = await compressCoverImage(file);
-      if (currentUploadedCoverData?.previewUrl) {
-        URL.revokeObjectURL(currentUploadedCoverData.previewUrl);
-      }
-      currentUploadedCoverData = {
-        ...compressedCover,
-        previewUrl: URL.createObjectURL(compressedCover.blob),
-      };
-      uploadedCoverUrl = '';
+      if (!validation.valid) throw new Error(validation.message);
+      const compressed = await compressCoverImage(file);
+      return { blob: compressed.blob, fileName: compressed.name };
+    },
+    onUploaded: () => {
+      currentUploadedCoverData = null;
       userRequestedCoverRemoval = false;
-      currentCoverMode = 'upload';
-      syncMode('upload');
+      currentCoverMode = 'url';
+      syncMode('url');
+    },
+    onCleared: () => {
+      currentUploadedCoverData = null;
+      uploadedCoverUrl = '';
+      userRequestedCoverRemoval = true;
+      resetPreviewState();
+    },
+  });
 
-      if (previewImg) {
-        previewImg.src = currentUploadedCoverData.previewUrl;
-        previewImg.style.display = 'block';
-      }
-      if (placeholder) placeholder.style.display = 'none';
-      setPreviewMeta({
-        name: currentUploadedCoverData.name,
-        size: currentUploadedCoverData.size,
-        width: currentUploadedCoverData.width,
-        height: currentUploadedCoverData.height,
-        imageSource: 'upload'
-      });
-      if (coverSelectedMeta) coverSelectedMeta.style.display = 'block';
-    } catch (error) {
-      console.error('Cover image process failed:', error);
-      resetPreviewState(error?.message || 'This file could not be processed. Please choose a PNG, JPG, JPEG, or WEBP image under a reasonable size.');
-      if (fileInput) fileInput.value = '';
-    }
-  }
+  replaceBtn?.addEventListener('click', () => fileInput?.click());
+  clearBtn?.addEventListener('click', () => {
+    currentUploadedCoverData = null;
+    uploadedCoverUrl = '';
+    userRequestedCoverRemoval = true;
+    if (urlInput) urlInput.value = '';
+    if (fileInput) fileInput.value = '';
+    resetPreviewState();
+  });
 
   if (urlInput) {
     urlInput.addEventListener('input', (e) => {
@@ -1626,42 +1626,6 @@ function setupCoverImageUrl() {
     });
     urlInput.addEventListener('change', (e) => {
       updateUrlPreview(e.target.value);
-    });
-  }
-
-  if (fileInput) {
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (file) processSelectedFile(file);
-    });
-  }
-
-  if (uploadBox) {
-    uploadBox.addEventListener('click', () => fileInput?.click());
-    uploadBox.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        fileInput?.click();
-      }
-    });
-
-    ['dragenter', 'dragover'].forEach((eventName) => {
-      uploadBox.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        uploadBox.classList.add('dragover');
-      });
-    });
-
-    ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
-      uploadBox.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        uploadBox.classList.remove('dragover');
-      });
-    });
-
-    uploadBox.addEventListener('drop', (e) => {
-      const file = e.dataTransfer?.files?.[0];
-      if (file) processSelectedFile(file);
     });
   }
 
@@ -1686,25 +1650,6 @@ function setupCoverImageUrl() {
       userRequestedCoverRemoval = false;
     });
   });
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      currentUploadedCoverData = null;
-      uploadedCoverUrl = '';
-      userRequestedCoverRemoval = true;
-      if (urlInput) urlInput.value = '';
-      if (fileInput) fileInput.value = '';
-      resetPreviewState();
-    });
-  }
-
-  if (replaceBtn) {
-    replaceBtn.addEventListener('click', () => {
-      currentCoverMode = 'upload';
-      syncMode('upload');
-      fileInput?.click();
-    });
-  }
 
   syncMode(currentCoverMode);
   resetPreviewState();
@@ -1863,7 +1808,7 @@ async function migrateEmbeddedArticleImages(content, articleId) {
     const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1];
     const fileName = `embedded-image-${Date.now()}-${index}.${extension}`;
     const alt = (image.getAttribute('alt') || 'Article image').slice(0, 500);
-    const url = await uploadImageToR2(blob, {
+    const url = await uploadImageToStorage(blob, {
       kind: 'articles',
       fileName,
       onProgress: percent => {
@@ -2175,7 +2120,7 @@ async function handlePostSubmit(e) {
         selectedCover.coverImageName = selectedCover.coverImageName || `${slug}-cover.webp`;
         selectedCover.mode = 'upload';
       }
-      selectedCover.coverImage = await uploadImageToR2(coverBlob, {
+      selectedCover.coverImage = await uploadImageToStorage(coverBlob, {
         kind: 'covers',
         fileName: selectedCover.coverImageName,
         onProgress: percent => {
@@ -2208,7 +2153,7 @@ async function handlePostSubmit(e) {
       content = await migrateEmbeddedArticleImages(content, editingPostId || '');
       editor.innerHTML = content;
     } catch (error) {
-      showFeedback(feedbackEl, error?.message || 'Could not migrate embedded images to R2.', 'error');
+      showFeedback(feedbackEl, error?.message || 'Could not migrate embedded images to Firebase Storage.', 'error');
       submitBtn.disabled = false;
       submitBtn.textContent = editingPostId ? 'Save Changes' : 'Publish Article';
       return;

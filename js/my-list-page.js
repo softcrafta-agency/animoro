@@ -1,5 +1,6 @@
 import { setupMobileNav, createAnimeCard, createUpcomingAnimeCard } from './ui.js';
-import { getMyList, attachMyListToggle } from './my-list.js';
+import { getMyList, attachMyListToggle, readUserList } from './my-list.js';
+import { requireAuthenticatedPage } from './auth-guard.js';
 
 function ensureMetaTag(attribute, name, value) {
   const selector = `meta[${attribute}="${name}"]`;
@@ -62,5 +63,21 @@ function renderMyListPage() {
   container.replaceChildren(fragment);
 }
 
+async function initializeMyListPage() {
+  const user = await requireAuthenticatedPage();
+  if (!user) return;
+
+  try {
+    await readUserList(user);
+    renderMyListPage();
+  } catch (error) {
+    console.error('Could not load the authenticated user My List:', error);
+    const container = document.getElementById('myListContainer');
+    if (container) {
+      container.innerHTML = '<div class="empty-state" role="alert"><p class="empty-state-desc">Unable to load your list right now. Please refresh the page and try again.</p></div>';
+    }
+  }
+}
+
 document.addEventListener('animoro-my-list-change', renderMyListPage);
-document.addEventListener('DOMContentLoaded', renderMyListPage);
+document.addEventListener('DOMContentLoaded', initializeMyListPage, { once: true });

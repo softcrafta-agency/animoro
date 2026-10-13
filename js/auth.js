@@ -263,6 +263,12 @@ export async function loginAdmin(email, password) {
   return cred.user;
 }
 
+export async function logoutUser() {
+  if (auth) {
+    await signOut(auth);
+  }
+}
+
 /**
  * Handle admin logout
  */
