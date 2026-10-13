@@ -1,12 +1,168 @@
-import { 
-  signInWithEmailAndPassword, 
-  signOut, 
+import {
+  signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateProfile,
+  fetchSignInMethodsForEmail,
+  linkWithCredential,
+  EmailAuthProvider,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db, isConfigured } from './firebase-init.js';
 import { auth } from './auth-init.js';
+
+export function getCurrentUser() {
+  return auth?.currentUser || null;
+}
+
+export function watchAuthState(callback) {
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
+  return onAuthStateChanged(auth, callback);
+}
+
+export async function ensureUserRecord(user, overrides = {}) {
+  if (!user || !db || !isConfigured) return null;
+  const uid = user.uid;
+  const userRef = doc(db, 'users', uid);
+  const profile = {
+    uid,
+    email: user.email || '',
+    displayName: user.displayName || overrides.displayName || user.email || 'Animoro User',
+    photoURL: user.photoURL || overrides.photoURL || '',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  };
+  await setDoc(userRef, profile, { merge: true });
+  return profile;
+}
+
+export async function registerWithEmail({ displayName, email, password }) {
+  if (!isConfigured || !auth) {
+    throw new Error('Firebase is not configured yet. Add the VITE_FIREBASE_* values in your environment and redeploy.');
+  }
+
+  const trimmedEmail = String(email || '').trim();
+  const trimmedName = String(displayName || '').trim();
+  if (!trimmedEmail || !password) {
+    throw new Error('Email and password are required.');
+  }
+  if (password.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+
+  const credential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
+  if (trimmedName) {
+    await updateProfile(credential.user, { displayName: trimmedName });
+  }
+  await ensureUserRecord(credential.user, {
+    displayName: trimmedName || credential.user.displayName || 'Animoro User',
+    email: trimmedEmail,
+    emailVerified: credential.user.emailVerified,
+    authProvider: 'email-password',
+  });
+
+  if (!credential.user.emailVerified) {
+    await sendEmailVerification(credential.user);
+  }
+  return credential.user;
+}
+
+export async function loginWithEmail(email, password) {
+  if (!isConfigured || !auth) {
+    throw new Error('Firebase is not configured yet. Add the VITE_FIREBASE_* values in your environment and redeploy.');
+  }
+
+  const user = await signInWithEmailAndPassword(auth, String(email || '').trim(), password);
+  await ensureUserRecord(user.user, {
+    authProvider: 'email-password',
+  });
+  return user.user;
+}
+
+export async function loginWithGoogle() {
+  if (!isConfigured || !auth) {
+    throw new Error('Firebase is not configured yet. Add the VITE_FIREBASE_* values in your environment and redeploy.');
+  }
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const result = await signInWithPopup(auth, provider);
+  await ensureUserRecord(result.user, {
+    displayName: result.user.displayName || 'Animoro User',
+    photoURL: result.user.photoURL || '',
+    authProvider: 'google',
+  });
+  return result.user;
+}
+
+export async function requestPasswordReset(email) {
+  if (!isConfigured || !auth) {
+    throw new Error('Firebase is not configured yet. Add the VITE_FIREBASE_* values in your environment and redeploy.');
+  }
+  await sendPasswordResetEmail(auth, String(email || '').trim());
+}
+
+export async function sendVerificationEmail(user = getCurrentUser()) {
+  if (!user) return null;
+  if (user.emailVerified) return user;
+  await sendEmailVerification(user);
+  return user;
+}
+
+export async function updateUserProfile({ displayName, photoURL }) {
+  const user = getCurrentUser();
+  if (!user || !auth) return null;
+  const profile = {};
+  if (displayName !== undefined) profile.displayName = displayName;
+  if (photoURL !== undefined) profile.photoURL = photoURL;
+  if (Object.keys(profile).length) {
+    await updateProfile(user, profile);
+  }
+  await ensureUserRecord(user, profile);
+  return user;
+}
+
+export async function linkEmailPasswordAccount({ email, password, currentPassword }) {
+  const user = getCurrentUser();
+  if (!user || !auth) {
+    throw new Error('You must be signed in before linking an email/password account.');
+  }
+
+  const credential = EmailAuthProvider.credential(email, currentPassword || password);
+  try {
+    await linkWithCredential(user, credential);
+    return user;
+  } catch (error) {
+    if (error?.code === 'auth/provider-already-linked' || error?.code === 'auth/email-already-in-use') {
+      throw new Error('This email is already associated with another sign-in method.');
+    }
+    throw error;
+  }
+}
+
+export async function getSignInMethods(email) {
+  if (!auth) return [];
+  return fetchSignInMethodsForEmail(auth, String(email || '').trim());
+}
+
+export async function syncUserProfile(user = getCurrentUser()) {
+  if (!user) return null;
+  return ensureUserRecord(user, {
+    displayName: user.displayName || 'Animoro User',
+    photoURL: user.photoURL || '',
+    email: user.email || '',
+    authProvider: user.providerData?.[0]?.providerId || 'unknown',
+  });
+}
 
 /**
  * Check if the given authenticated user is authorized as an administrator.

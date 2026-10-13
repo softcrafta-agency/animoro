@@ -1,16 +1,31 @@
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
+import { auth } from './auth-init.js';
+import { db, isConfigured } from './firebase-init.js';
+
 const MY_LIST_STORAGE_KEY = 'animoro_my_list';
 
-export function getMyList() {
+export function getListStorageKey(uid = auth?.currentUser?.uid) {
+  return uid ? `animoro_my_list_${uid}` : MY_LIST_STORAGE_KEY;
+}
+
+function readStoredList(key) {
   try {
-    const stored = window.localStorage.getItem(MY_LIST_STORAGE_KEY);
+    const stored = window.localStorage.getItem(key);
     if (!stored) return [];
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
     const seen = new Set();
     return parsed.filter(item => {
-      const key = getListKey(item);
-      if (seen.has(key)) return false;
-      seen.add(key);
+      const keyValue = getListKey(item);
+      if (seen.has(keyValue)) return false;
+      seen.add(keyValue);
       return true;
     });
   } catch (error) {
@@ -19,8 +34,13 @@ export function getMyList() {
   }
 }
 
+export function getMyList() {
+  const key = getListStorageKey();
+  return readStoredList(key);
+}
+
 export function saveMyList(items) {
-  window.localStorage.setItem(MY_LIST_STORAGE_KEY, JSON.stringify(items));
+  window.localStorage.setItem(getListStorageKey(), JSON.stringify(items));
 }
 
 export function getListKey(item) {
@@ -55,12 +75,116 @@ export function isInMyList(item) {
   return list.some(entry => getListKey(entry) === key);
 }
 
-export function toggleMyList(item) {
+export function migrateGuestListToUser(uid) {
+  if (!uid) return [];
+  const guestList = readStoredList(MY_LIST_STORAGE_KEY);
+  if (!guestList.length) return readStoredList(getListStorageKey(uid));
+  const userKey = getListStorageKey(uid);
+  const userList = readStoredList(userKey);
+  const merged = [...userList, ...guestList].filter((item, index, items) => {
+    const key = getListKey(item);
+    return items.findIndex(entry => getListKey(entry) === key) === index;
+  });
+  window.localStorage.setItem(userKey, JSON.stringify(merged));
+  window.localStorage.removeItem(MY_LIST_STORAGE_KEY);
+  return merged;
+}
+
+export async function readUserList(user = auth?.currentUser) {
+  if (!user || !isConfigured || !db) {
+    return getMyList();
+  }
+
+  try {
+    const snapshot = await getDocs(collection(db, 'users', user.uid, 'myList'));
+    const list = snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
+    const normalized = list.map(item => ({
+      ...buildListRecord({
+        ...item,
+        slug: item.animeId || item.slug || item.id,
+        kind: item.kind || 'anime',
+      }),
+      status: item.status || '',
+      addedAt: item.addedAt,
+      updatedAt: item.updatedAt,
+    }));
+    saveMyList(normalized);
+    return normalized;
+  } catch (error) {
+    console.warn('Could not read the authenticated My List from Firestore:', error);
+    return getMyList();
+  }
+}
+
+export async function writeUserList(user = auth?.currentUser, items = getMyList()) {
+  if (!user || !isConfigured || !db) {
+    saveMyList(items);
+    return items;
+  }
+
+  const normalized = items
+    .map(item => buildListRecord(item))
+    .filter((item, index, list) => list.findIndex(candidate => getListKey(candidate) === getListKey(item)) === index);
+
+  const current = await readUserList(user);
+  const currentKeys = new Set(current.map(item => getListKey(item)));
+
+  for (const item of normalized) {
+    const documentId = getListKey(item);
+    const payload = {
+      animeId: item.slug,
+      kind: item.kind,
+      title: item.title,
+      slug: item.slug,
+      coverImage: item.coverImage || '',
+      status: item.status || 'plan_to_watch',
+      addedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      genres: item.genres || [],
+      releaseYear: item.releaseYear || '',
+      type: item.type || '',
+      season: item.season || '',
+      rating: item.rating ?? '',
+      shortDescription: item.shortDescription || '',
+      japaneseTitle: item.japaneseTitle || '',
+    };
+    if (!currentKeys.has(documentId)) {
+      await setDoc(doc(db, 'users', user.uid, 'myList', documentId), payload);
+    } else {
+      await setDoc(doc(db, 'users', user.uid, 'myList', documentId), payload, { merge: true });
+    }
+  }
+
+  const allIds = new Set(normalized.map(item => getListKey(item)));
+  const existingDocs = await getDocs(collection(db, 'users', user.uid, 'myList'));
+  for (const document of existingDocs.docs) {
+    if (!allIds.has(document.id)) {
+      await deleteDoc(doc(db, 'users', user.uid, 'myList', document.id));
+    }
+  }
+
+  saveMyList(normalized);
+  return normalized;
+}
+
+export async function toggleMyList(item) {
+  const user = auth?.currentUser;
+  if (user && isConfigured && db) {
+    const list = await readUserList(user);
+    const record = buildListRecord(item);
+    const key = getListKey(record);
+    const exists = list.some(entry => getListKey(entry) === key);
+    const nextList = exists
+      ? list.filter(entry => getListKey(entry) !== key)
+      : [...list, record];
+    await writeUserList(user, nextList);
+    return { exists: !exists, list: nextList };
+  }
+
   const list = getMyList();
   const record = buildListRecord(item);
   const key = getListKey(record);
   const exists = list.some(entry => getListKey(entry) === key);
-
   const nextList = exists
     ? list.filter(entry => getListKey(entry) !== key)
     : [...list, record];
@@ -81,8 +205,8 @@ export function attachMyListToggle(button, item) {
   };
 
   syncButton();
-  button.addEventListener('click', () => {
-    const result = toggleMyList(item);
+  button.addEventListener('click', async () => {
+    const result = await toggleMyList(item);
     syncButton();
     document.dispatchEvent(new CustomEvent('animoro-my-list-change', {
       detail: { item, inList: result.exists, list: result.list }

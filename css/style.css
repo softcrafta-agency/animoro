@@ -263,6 +263,33 @@ input, textarea, select {
   gap: 12px;
 }
 
+.header-signin-btn,
+.mobile-signin-btn {
+  height: 38px;
+  border-radius: 999px;
+  padding: 0 16px;
+  border: 1px solid rgba(225, 29, 72, 0.35);
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.18), rgba(139, 92, 246, 0.12));
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 0 0 rgba(225, 29, 72, 0.15);
+}
+
+.header-signin-btn:hover,
+.mobile-signin-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-crimson);
+  box-shadow: 0 10px 25px rgba(225, 29, 72, 0.18);
+}
+
+.header-signin-btn.is-user {
+  background: rgba(15, 118, 110, 0.12);
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
 .theme-toggle-btn {
   width: 38px;
   height: 38px;
