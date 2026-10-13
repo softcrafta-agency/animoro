@@ -538,8 +538,8 @@
       .content {
         flex-direction: column;
         text-align: center;
-        padding-top: 30px;
-        gap: 10px;
+        padding: 28px 0 30px;
+        gap: 8px;
       }
 
       .text-content {
@@ -566,10 +566,24 @@
       }
 
       .character-area {
-        width: 320px;
-        height: 430px;
-        transform: scale(.82);
-        margin-top: -40px;
+        width: min(100%, 340px);
+        height: clamp(280px, 48vw, 390px);
+        margin-top: 0;
+      }
+
+      .character {
+        animation-name: mobileFloat;
+        transform-origin: center bottom;
+      }
+
+      @keyframes mobileFloat {
+        0%, 100% {
+          transform: translateY(0) scale(.72);
+        }
+
+        50% {
+          transform: translateY(-8px) scale(.72);
+        }
       }
 
       .moon {
@@ -581,38 +595,94 @@
     }
 
     @media (max-width: 450px) {
+      .navbar {
+        padding-top: 18px;
+        padding-bottom: 18px;
+      }
+
+      .logo {
+        gap: 8px;
+        font-size: 21px;
+      }
+
+      .logo img {
+        width: 40px;
+        height: 40px;
+      }
+
       .nav-link {
         display: none;
       }
 
+      .moon {
+        width: 150px;
+        height: 150px;
+        right: -140px;
+        top: 27%;
+      }
+
+      .content {
+        width: min(90%, 360px);
+        padding: 18px 0 24px;
+        gap: 0;
+      }
+
+      .small-label {
+        margin-bottom: 14px;
+        font-size: 11px;
+      }
+
       .error-code {
-        font-size: 105px;
+        font-size: clamp(88px, 29vw, 105px);
+        letter-spacing: -7px;
+        margin-left: -6px;
       }
 
       h1 {
-        font-size: 30px;
+        margin-top: 20px;
+        font-size: clamp(26px, 8vw, 30px);
+        letter-spacing: -1.4px;
       }
 
       .description {
-        max-width: 320px;
+        max-width: 32ch;
+        line-height: 1.65;
       }
 
       .buttons {
         width: 100%;
+        max-width: 330px;
         flex-direction: column;
+        gap: 10px;
+        margin-top: 24px;
       }
 
       .btn {
         width: 100%;
+        min-height: 48px;
       }
 
       .character-area {
-        transform: scale(.7);
-        margin-top: -65px;
+        width: min(100%, 260px);
+        height: 240px;
+      }
+
+      .character {
+        animation-name: smallMobileFloat;
+      }
+
+      @keyframes smallMobileFloat {
+        0%, 100% {
+          transform: translateY(0) scale(.5);
+        }
+
+        50% {
+          transform: translateY(-6px) scale(.5);
+        }
       }
 
       footer {
-        padding-bottom: 15px;
+        padding-bottom: calc(15px + env(safe-area-inset-bottom));
       }
     }
 
