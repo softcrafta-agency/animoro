@@ -143,16 +143,20 @@ function renderAnimeDetails(anime) {
   setMeta('property', 'og:title', anime.seoTitle || anime.title || 'Anime');
   setMeta('property', 'og:description', anime.seoDescription || anime.synopsis || anime.title || 'Anime information on Animoro.');
   setMeta('property', 'og:url', canonicalUrl);
-  setMeta('name', 'twitter:card', anime.bannerImage ? 'summary_large_image' : 'summary');
+  const cover = safeImageUrl(anime.coverImage);
+  const bannerImage = safeImageUrl(anime.bannerImage);
+  const socialImage = bannerImage || cover;
+  setMeta('name', 'twitter:card', socialImage ? 'summary_large_image' : 'summary');
   setMeta('name', 'twitter:title', anime.seoTitle || anime.title || 'Anime');
   setMeta('name', 'twitter:description', anime.seoDescription || anime.synopsis || anime.title || 'Anime information on Animoro.');
-
-  const cover = safeImageUrl(anime.coverImage);
-  if (anime.coverImage) setMeta('property', 'og:image', anime.coverImage);
+  if (socialImage) {
+    setMeta('property', 'og:image', socialImage);
+    setMeta('name', 'twitter:image', socialImage);
+  }
   setCanonical(canonicalUrl);
 
-  if (banner && safeImageUrl(anime.bannerImage)) {
-    banner.style.backgroundImage = `linear-gradient(90deg, rgba(10, 12, 18, .92), rgba(10, 12, 18, .28)), url("${safeImageUrl(anime.bannerImage)}")`;
+  if (bannerImage) {
+    banner.style.backgroundImage = `linear-gradient(90deg, rgba(10, 12, 18, .92), rgba(10, 12, 18, .28)), url("${bannerImage}")`;
     banner.hidden = false;
   }
 

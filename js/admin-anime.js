@@ -16,7 +16,7 @@ import { normalizeAnimeSlug } from './anime-url.js';
 import { ImageUploadField } from './image-upload-field.js';
 
 const ANIME_FIELDS = [
-  'Title', 'Slug', 'AlternativeTitles', 'Synopsis', 'CoverImage', 'BannerImage',
+  'Title', 'Slug', 'AlternativeTitles', 'Synopsis', 'SeoTitle', 'SeoDescription', 'CoverImage', 'BannerImage',
   'Genres', 'Type', 'Status', 'ReleaseYear', 'Studio', 'Episodes', 'Season',
   'Source', 'Rating', 'Characters', 'Tags', 'ReleaseDay', 'ReleaseTime',
   'Timezone', 'NextEpisode', 'Visibility'
@@ -152,6 +152,8 @@ async function saveAnime(event) {
       slug,
       alternativeTitles: parseList(valueOf('animeAlternativeTitles')),
       synopsis: valueOf('animeSynopsis').trim(),
+      seoTitle: valueOf('animeSeoTitle').trim(),
+      seoDescription: valueOf('animeSeoDescription').trim(),
       coverImage: normalizeImageUrl(valueOf('animeCoverImage')),
       bannerImage: normalizeImageUrl(valueOf('animeBannerImage')),
       genres: parseList(valueOf('animeGenres')),

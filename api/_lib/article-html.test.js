@@ -136,7 +136,8 @@ test('preserves supported editor formatting and safe YouTube embeds while filter
     '<iframe src="https://evil.example.test/embed/abcdefghijk"></iframe>'
   );
 
-  assert.match(content, /<h1 id="overview">Overview<\/h1>/);
+  assert.match(content, /<h2 id="overview">Overview<\/h2>/);
+  assert.doesNotMatch(content, /<h1\b/);
   assert.match(content, /font-size:20px/);
   assert.match(content, /color:#facc15/);
   assert.match(content, /background-color:#1e293b/);

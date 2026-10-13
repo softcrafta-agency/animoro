@@ -67,6 +67,9 @@ async function initCategoryPage() {
   ensureMetaTag('property', 'og:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
   ensureMetaTag('property', 'og:url', canonicalUrl);
   ensureMetaTag('property', 'og:image', 'https://www.animoro.in/logo.png');
+  ensureMetaTag('name', 'twitter:card', 'summary_large_image');
+  ensureMetaTag('name', 'twitter:title', `${categoryName} — Animoro`);
+  ensureMetaTag('name', 'twitter:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
   ensureCanonical(canonicalUrl);
 
   if (!container) return;

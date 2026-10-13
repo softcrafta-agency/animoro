@@ -234,6 +234,10 @@ export function sanitizeArticleContent(value) {
           decoding: 'async',
         },
       }),
+      h1: (tagName, attributes) => ({
+        tagName: 'h2',
+        attribs: attributes,
+      }),
       iframe: (tagName, attributes) => ({
         tagName,
         attribs: {
