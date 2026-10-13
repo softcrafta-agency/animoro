@@ -16,6 +16,9 @@ export default defineConfig(() => {
         input: {
           main: path.resolve(__dirname, 'index.html'),
           notFound: path.resolve(__dirname, '404.html'),
+          login: path.resolve(__dirname, 'login.html'),
+          register: path.resolve(__dirname, 'register.html'),
+          account: path.resolve(__dirname, 'account.html'),
           blogs: path.resolve(__dirname, 'blogs.html'),
           blog: path.resolve(__dirname, 'blog.html'),
           anime: path.resolve(__dirname, 'anime.html'),
