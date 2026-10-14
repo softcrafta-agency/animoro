@@ -90,7 +90,7 @@ test('accepts Firebase Storage download URLs as posters', () => {
   assert.equal(record.payload.poster, 'https://firebasestorage.googleapis.com/v0/b/animoro/o/images%2Fupcoming%2Fposter.webp?alt=media&token=abc123');
 });
 
-test('validates the eight supplied records and reports each non-image poster field', async () => {
+test('validates the eight corrected records with empty posters and preserved official websites', async () => {
   const records = JSON.parse(await readFile(new URL('../anime.json', import.meta.url), 'utf8'));
   const expectedTitles = [
     'Jujutsu Kaisen Season 3',
@@ -103,12 +103,7 @@ test('validates the eight supplied records and reports each non-image poster fie
     'Witch Hat Atelier',
   ];
   assert.deepEqual(records.map(record => record.animeTitle), expectedTitles);
-
-  const withoutPosterPageUrls = records.map(record => {
-    const { posterImageUrl, ...rest } = record;
-    return rest;
-  });
-  const validRecords = withoutPosterPageUrls.map((record, index) => validateUpcomingImportRecord(record, index + 1));
+  const validRecords = records.map((record, index) => validateUpcomingImportRecord(record, index + 1));
   assert.ok(validRecords.every(record => record.valid));
   assert.deepEqual(validRecords.map(record => record.payload.releaseStatus), [
     'Airing', 'Airing', 'Completed', 'Airing', 'Completed', 'Airing', 'Airing', 'Airing',
@@ -116,9 +111,9 @@ test('validates the eight supplied records and reports each non-image poster fie
   assert.ok(validRecords.every(record => record.payload.status === 'published'));
   assert.ok(validRecords.every(record => record.payload.releaseYear === '2026'));
   assert.ok(validRecords.every(record => record.payload.episodes === 'TBA' || typeof record.payload.episodes === 'string'));
-
-  const rejected = records.map((record, index) => validateUpcomingImportRecord(record, index + 1));
-  assert.ok(rejected.every(record => !record.valid));
-  assert.ok(rejected.every(record => record.errors.length === 1 && record.errors[0].field === 'posterImageUrl'));
-  assert.ok(rejected.every(record => /not an official website page/.test(record.errors[0].message)));
+  assert.ok(validRecords.every(record => record.payload.poster === ''));
+  assert.ok(records.every(record => record.posterImageUrl === ''));
+  assert.ok(records.every(record => record.officialWebsite.startsWith('https://')));
+  assert.ok(records.every(record => record.shortDescription && record.fullDescription && record.genres.length));
+  assert.ok(records.every(record => record.animeSlug && record.releaseDate && record.studio));
 });
