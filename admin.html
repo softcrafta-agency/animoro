@@ -334,6 +334,7 @@
             <div class="table-toolbar">
               <h3 style="font-family:var(--font-display);font-size:1.1rem;">Upcoming Anime</h3>
               <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <button type="button" id="openUpcomingImportButton" class="action-btn-sm upcoming-import-open-button">Import JSON</button>
                 <input type="text" id="upcomingSearchInput" class="table-search-input" placeholder="Search upcoming anime..." />
                 <select id="upcomingStatusFilter" class="form-select"><option value="all">All Status</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select>
                 <select id="upcomingReleaseStatusFilter" class="form-select"><option value="all">All Release Status</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Delayed">Delayed</option><option value="TBA">TBA</option></select>
@@ -502,6 +503,62 @@
         <button id="confirmDeletePostBtn" class="btn-cta" style="background: #ef4444; border-color: #ef4444; padding: 8px 16px;">Delete Permanently</button>
       </div>
     </div>
+  </div>
+
+  <div class="modal-backdrop upcoming-import-modal" id="upcomingImportModal" hidden>
+    <section class="modal-card upcoming-import-card" role="dialog" aria-modal="true" aria-labelledby="upcomingImportTitle">
+      <div class="upcoming-import-header">
+        <div>
+          <h2 id="upcomingImportTitle">Bulk Import Upcoming Anime</h2>
+          <p>Choose a JSON file to validate and preview before saving to Firestore.</p>
+        </div>
+        <button type="button" id="cancelUpcomingImportButton" class="action-btn-sm" aria-label="Cancel import">Cancel</button>
+      </div>
+      <div class="upcoming-import-body">
+        <input id="upcomingImportFile" type="file" accept=".json,application/json" hidden />
+        <div class="upcoming-import-dropzone" id="upcomingImportDropzone">
+          <strong>Drag and drop a JSON file here</strong>
+          <span>Accepted format: .json (maximum 5 MB)</span>
+          <button type="button" id="upcomingImportBrowseButton" class="action-btn-sm">Browse Files</button>
+          <span id="upcomingImportFileLabel" class="upcoming-import-file-label">No file selected</span>
+        </div>
+        <div id="upcomingImportMessage" class="form-feedback" role="status" aria-live="polite" hidden></div>
+        <div class="upcoming-import-actions">
+          <button type="button" id="previewUpcomingImportButton" class="btn-cta">Preview Records</button>
+        </div>
+
+        <div id="upcomingImportPreview" hidden>
+          <div id="upcomingImportSummary" class="upcoming-import-summary" aria-live="polite"></div>
+          <div id="upcomingImportValidationPanel" class="upcoming-import-validation" hidden>
+            <h3>Validation issues</h3>
+            <ul id="upcomingImportErrors"></ul>
+          </div>
+          <div class="table-responsive upcoming-import-table-wrap">
+            <table class="admin-table upcoming-import-table">
+              <thead><tr><th>#</th><th>Anime Title</th><th>Slug</th><th>Release Year</th><th>Release Status</th><th>Publication Status</th><th>Action</th></tr></thead>
+              <tbody id="upcomingImportPreviewBody"></tbody>
+            </table>
+          </div>
+          <fieldset class="upcoming-import-modes">
+            <legend>Import mode</legend>
+            <label><input type="radio" name="upcomingImportMode" value="skip" checked /> Skip Duplicates <span>(default)</span></label>
+            <label><input type="radio" name="upcomingImportMode" value="update" /> Update Existing Records</label>
+          </fieldset>
+          <p id="upcomingImportPlanText" class="upcoming-import-plan"></p>
+          <label class="upcoming-import-confirm"><input type="checkbox" id="confirmUpcomingImportCheck" /> I reviewed this plan and explicitly confirm these Firestore writes.</label>
+          <button type="button" id="confirmUpcomingImportButton" class="btn-cta" disabled>Import Records</button>
+        </div>
+
+        <div id="upcomingImportResults" class="upcoming-import-results" hidden>
+          <h3>Import progress and results</h3>
+          <progress id="upcomingImportProgress" max="1" value="0" hidden></progress>
+          <p id="upcomingImportProgressLabel"></p>
+          <p id="upcomingImportResultSummary"></p>
+          <ul id="upcomingImportFailureList"></ul>
+          <button type="button" id="retryUpcomingImportButton" class="action-btn-sm" hidden>Retry Failed Records</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script type="module" src="/js/admin.js"></script>
