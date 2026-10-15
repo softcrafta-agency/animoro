@@ -1,6 +1,13 @@
 import { setupMobileNav, createAnimeCard, createUpcomingAnimeCard } from './ui.js';
 import { getMyList, attachMyListToggle, readUserList } from './my-list.js';
-import { requireAuthenticatedPage } from './auth-guard.js';
+import { watchAuthState } from './auth.js';
+import { auth } from './auth-init.js';
+import { isConfigured } from './firebase-init.js';
+
+const AUTH_TIMEOUT_MS = 10000;
+const LIST_TIMEOUT_MS = 12000;
+let initializationPromise = null;
+let authListenerAttached = false;
 
 function ensureMetaTag(attribute, name, value) {
   const selector = `meta[${attribute}="${name}"]`;
@@ -23,7 +30,7 @@ function ensureCanonical(url) {
   canonical.href = url;
 }
 
-function renderMyListPage() {
+function renderMyListPage(list = getMyList()) {
   const canonicalUrl = new URL('/my-list.html', 'https://www.animoro.in').toString();
   document.title = 'My List — Saved Anime | Animoro';
   ensureMetaTag('name', 'description', 'Save and manage your favorite anime in your personal Animoro list.');
@@ -33,11 +40,9 @@ function renderMyListPage() {
   ensureMetaTag('property', 'og:url', canonicalUrl);
   ensureCanonical(canonicalUrl);
 
-  setupMobileNav();
   const container = document.getElementById('myListContainer');
   if (!container) return;
 
-  const list = getMyList();
   if (!list.length) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -63,20 +68,97 @@ function renderMyListPage() {
   container.replaceChildren(fragment);
 }
 
-async function initializeMyListPage() {
-  const user = await requireAuthenticatedPage();
-  if (!user) return;
+function withTimeout(promise, timeoutMs, operation) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      const error = new Error(`${operation} timed out.`);
+      error.code = 'my-list/timeout';
+      reject(error);
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+}
+
+function showSignedOutState(container) {
+  const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+  container.innerHTML = `
+    <div class="empty-state" role="status" style="grid-column: 1 / -1;">
+      <h3 style="font-size: 1.7rem; margin-bottom: 12px;">Sign in to view your list</h3>
+      <p class="empty-state-desc">Your saved anime will be here after you sign in.</p>
+      <a href="/login.html?redirect=${redirect}" class="btn-cta" style="margin-top: 16px;">Sign in</a>
+    </div>
+  `;
+}
+
+function showLoadError(container, error) {
+  const message = error?.code === 'permission-denied' || error?.code === 'firestore/permission-denied'
+    ? 'We could not access your saved list. Please check your sign-in and try again.'
+    : error?.code === 'my-list/timeout'
+      ? 'Loading your list took too long. Check your connection and try again.'
+      : 'We could not load your list. Check your connection and try again.';
+
+  container.innerHTML = `
+    <div class="empty-state" role="alert" style="grid-column: 1 / -1;">
+      <p class="empty-state-desc">${message}</p>
+      <button type="button" class="btn-cta" data-my-list-retry style="margin-top: 16px;">Retry</button>
+    </div>
+  `;
+  container.querySelector('[data-my-list-retry]')?.addEventListener('click', initializeMyListPage, { once: true });
+}
+
+function watchForSignOut() {
+  if (authListenerAttached) return;
+  authListenerAttached = true;
+  let hasAuthenticatedUser = true;
+  watchAuthState((currentUser) => {
+    if (currentUser) {
+      hasAuthenticatedUser = true;
+      return;
+    }
+    if (!hasAuthenticatedUser) return;
+    const requested = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(`/login.html?redirect=${encodeURIComponent(requested)}`);
+  });
+}
+
+async function loadMyListPage() {
+  const container = document.getElementById('myListContainer');
+  if (!container) return;
+
+  setupMobileNav();
+  if (!isConfigured || !auth) {
+    document.documentElement.classList.remove('auth-checking');
+    showLoadError(container, new Error('Authentication is unavailable.'));
+    return;
+  }
 
   try {
-    await readUserList(user);
-    renderMyListPage();
-  } catch (error) {
-    console.error('Could not load the authenticated user My List:', error);
-    const container = document.getElementById('myListContainer');
-    if (container) {
-      container.innerHTML = '<div class="empty-state" role="alert"><p class="empty-state-desc">Unable to load your list right now. Please refresh the page and try again.</p></div>';
+    await withTimeout(auth.authStateReady(), AUTH_TIMEOUT_MS, 'Authentication');
+    document.documentElement.classList.remove('auth-checking');
+    const user = auth.currentUser;
+    if (!user) {
+      showSignedOutState(container);
+      return;
     }
+
+    watchForSignOut();
+    const list = await withTimeout(readUserList(user), LIST_TIMEOUT_MS, 'Loading your list');
+    renderMyListPage(list);
+  } catch (error) {
+    document.documentElement.classList.remove('auth-checking');
+    console.error('Could not load the authenticated user My List:', error);
+    showLoadError(container, error);
   }
+}
+
+function initializeMyListPage() {
+  if (initializationPromise) return initializationPromise;
+  initializationPromise = loadMyListPage().finally(() => {
+    initializationPromise = null;
+  });
+  return initializationPromise;
 }
 
 document.addEventListener('animoro-my-list-change', renderMyListPage);
