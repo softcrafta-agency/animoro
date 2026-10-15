@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   serverTimestamp,
   setDoc,
@@ -63,9 +64,21 @@ export function clearPendingMyListItem() {
   window.sessionStorage.removeItem('animoro_pending_my_list_item');
 }
 
-export async function applyPendingMyListAction(user = auth?.currentUser) {
+async function resolveAuthenticatedUser(user) {
+  if (auth) await auth.authStateReady();
+  const currentUser = auth?.currentUser || null;
+  if (user && currentUser && user.uid !== currentUser.uid) {
+    const error = new Error('The signed-in account changed before the list operation completed.');
+    error.code = 'auth/user-mismatch';
+    throw error;
+  }
+  return currentUser || (!auth ? user || null : null);
+}
+
+export async function applyPendingMyListAction(user) {
   const pending = getPendingMyListItem();
   if (!pending) return null;
+  user = await resolveAuthenticatedUser(user);
   if (!user) return null;
 
   const existing = await readUserList(user);
@@ -105,6 +118,26 @@ export function buildListRecord(item) {
   };
 }
 
+function buildListDocumentPayload(item) {
+  return {
+    animeId: item.slug,
+    kind: item.kind,
+    title: item.title,
+    slug: item.slug,
+    coverImage: item.coverImage || '',
+    status: item.status || 'plan_to_watch',
+    addedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    genres: item.genres || [],
+    releaseYear: item.releaseYear || '',
+    type: item.type || '',
+    season: item.season || '',
+    rating: item.rating ?? '',
+    shortDescription: item.shortDescription || '',
+    japaneseTitle: item.japaneseTitle || '',
+  };
+}
+
 export function isInMyList(item) {
   const list = getMyList();
   const key = getListKey(item);
@@ -126,7 +159,8 @@ export function migrateGuestListToUser(uid) {
   return merged;
 }
 
-export async function readUserList(user = auth?.currentUser) {
+export async function readUserList(user) {
+  user = await resolveAuthenticatedUser(user);
   if (!user || !isConfigured || !db) {
     return getMyList();
   }
@@ -152,7 +186,9 @@ export async function readUserList(user = auth?.currentUser) {
   }
 }
 
-export async function writeUserList(user = auth?.currentUser, items = getMyList()) {
+export async function writeUserList(user, items) {
+  user = await resolveAuthenticatedUser(user);
+  items = items || getMyList();
   if (!user || !isConfigured || !db) {
     saveMyList(items);
     return items;
@@ -167,23 +203,7 @@ export async function writeUserList(user = auth?.currentUser, items = getMyList(
 
   for (const item of normalized) {
     const documentId = getListKey(item);
-    const payload = {
-      animeId: item.slug,
-      kind: item.kind,
-      title: item.title,
-      slug: item.slug,
-      coverImage: item.coverImage || '',
-      status: item.status || 'plan_to_watch',
-      addedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      genres: item.genres || [],
-      releaseYear: item.releaseYear || '',
-      type: item.type || '',
-      season: item.season || '',
-      rating: item.rating ?? '',
-      shortDescription: item.shortDescription || '',
-      japaneseTitle: item.japaneseTitle || '',
-    };
+    const payload = buildListDocumentPayload(item);
     if (!currentKeys.has(documentId)) {
       await setDoc(doc(db, 'users', user.uid, 'myList', documentId), payload);
     } else {
@@ -204,42 +224,54 @@ export async function writeUserList(user = auth?.currentUser, items = getMyList(
 }
 
 export async function toggleMyList(item) {
-  const user = auth?.currentUser;
+  const user = await resolveAuthenticatedUser();
   if (!user) {
-    const list = getMyList();
-    const record = buildListRecord(item);
-    const key = getListKey(record);
-    const exists = list.some(entry => getListKey(entry) === key);
-    const nextList = exists
-      ? list.filter(entry => getListKey(entry) !== key)
-      : [...list, record];
-
-    saveMyList(nextList);
-    return { exists: !exists, list: nextList };
+    const error = new Error('Sign in before saving anime to your list.');
+    error.code = 'auth/no-current-user';
+    throw error;
   }
 
-  if (user && isConfigured && db) {
-    const list = await readUserList(user);
-    const record = buildListRecord(item);
-    const key = getListKey(record);
-    const exists = list.some(entry => getListKey(entry) === key);
-    const nextList = exists
-      ? list.filter(entry => getListKey(entry) !== key)
-      : [...list, record];
-    await writeUserList(user, nextList);
-    return { exists: !exists, list: nextList };
+  if (!isConfigured || !db) {
+    const error = new Error('Firebase is unavailable. Please try again later.');
+    error.code = 'firebase/not-configured';
+    throw error;
   }
 
-  const list = getMyList();
   const record = buildListRecord(item);
+  const documentId = getListKey(record);
+  const itemRef = doc(db, 'users', user.uid, 'myList', documentId);
+  const snapshot = await getDoc(itemRef);
+  const list = getMyList();
+  const exists = snapshot.exists();
+
+  if (exists) {
+    await deleteDoc(itemRef);
+  } else {
+    await setDoc(itemRef, buildListDocumentPayload(record));
+  }
+
   const key = getListKey(record);
-  const exists = list.some(entry => getListKey(entry) === key);
   const nextList = exists
     ? list.filter(entry => getListKey(entry) !== key)
-    : [...list, record];
-
+    : [...list.filter(entry => getListKey(entry) !== key), record];
   saveMyList(nextList);
   return { exists: !exists, list: nextList };
+}
+
+function getMyListActionErrorMessage(error) {
+  if (error?.code === 'auth/no-current-user') {
+    return 'Please sign in to save anime to your list.';
+  }
+  if (error?.code === 'permission-denied') {
+    return 'Your account could not access this list. Please verify your sign-in and try again.';
+  }
+  if (['unavailable', 'deadline-exceeded', 'network-request-failed', 'auth/network-request-failed'].includes(error?.code)) {
+    return 'Network error. Check your connection and try again.';
+  }
+  if (error?.code === 'firebase/not-configured') {
+    return 'Saving is unavailable right now. Please try again later.';
+  }
+  return 'Unable to update your list. Please try again.';
 }
 
 export function redirectToLoginForPendingAction(item) {
@@ -251,6 +283,8 @@ export function redirectToLoginForPendingAction(item) {
 export function attachMyListToggle(button, item) {
   if (!button) return;
   button.type = 'button';
+  let status = null;
+
   const syncButton = () => {
     const inList = isInMyList(item);
     button.classList.toggle('is-active', inList);
@@ -259,12 +293,26 @@ export function attachMyListToggle(button, item) {
     button.dataset.myListState = String(inList);
   };
 
+  const setStatus = message => {
+    if (!status) {
+      status = document.createElement('span');
+      status.className = 'my-list-action-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.style.cssText = 'display:block;color:var(--text-muted);font-size:0.85rem;margin-top:6px;';
+      button.insertAdjacentElement('afterend', status);
+    }
+    status.textContent = message;
+  };
+
   syncButton();
   button.addEventListener('click', async () => {
-    if (!auth?.currentUser) {
-      redirectToLoginForPendingAction(item);
-      return;
-    }
+    if (button.disabled) return;
+    const wasInList = button.dataset.myListState === 'true';
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = wasInList ? 'Removing…' : 'Saving…';
+    if (status) status.textContent = '';
 
     try {
       const result = await toggleMyList(item);
@@ -274,9 +322,14 @@ export function attachMyListToggle(button, item) {
       }));
     } catch (error) {
       console.error('Could not update the authenticated My List:', error);
-      button.textContent = 'Unable to update list';
-      button.title = error?.message || 'Please try again.';
-      window.setTimeout(syncButton, 3000);
+      syncButton();
+      setStatus(getMyListActionErrorMessage(error));
+      if (error?.code === 'auth/no-current-user') {
+        redirectToLoginForPendingAction(item);
+      }
+    } finally {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
     }
   });
 }
