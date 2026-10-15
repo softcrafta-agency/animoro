@@ -82,13 +82,10 @@ export async function loginWithEmail(email, password) {
   }
 
   const user = await signInWithEmailAndPassword(auth, String(email || '').trim(), password);
-  await ensureUserRecord(user.user, {
-    authProvider: 'email-password',
-  });
   return user.user;
 }
 
-export async function loginWithGoogle() {
+export async function loginWithGoogle({ syncProfile = true } = {}) {
   if (!isConfigured || !auth) {
     throw new Error('Firebase is not configured yet. Add the VITE_FIREBASE_* values in your environment and redeploy.');
   }
@@ -96,11 +93,13 @@ export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   const result = await signInWithPopup(auth, provider);
-  await ensureUserRecord(result.user, {
-    displayName: result.user.displayName || 'Animoro User',
-    photoURL: result.user.photoURL || '',
-    authProvider: 'google',
-  });
+  if (syncProfile) {
+    await ensureUserRecord(result.user, {
+      displayName: result.user.displayName || 'Animoro User',
+      photoURL: result.user.photoURL || '',
+      authProvider: 'google',
+    });
+  }
   return result.user;
 }
 

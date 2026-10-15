@@ -7,9 +7,8 @@ import {
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { setupMobileNav, createUpcomingAnimeCard } from './ui.js';
-import { attachMyListToggle } from './my-list.js';
+import { attachMyListToggle, showPendingMyListActionNotice } from './my-list.js';
 import { getUpcomingAnimeCanonicalUrl, getUpcomingAnimePath } from './upcoming-url.js';
-import { requireAuthenticatedPage } from './auth-guard.js';
 
 let allPublishedUpcoming = [];
 let activeFilters = {
@@ -23,6 +22,10 @@ let activeFilters = {
 
 function initUpcomingPage() {
   setupMobileNav();
+  showPendingMyListActionNotice(
+    document.getElementById('upcomingDetail'),
+    () => window.location.reload()
+  );
   bindFilterControls();
   const path = getRequestedUpcomingSlug();
   if (path) {
@@ -74,6 +77,7 @@ async function loadUpcomingDetail(slug, preview = false) {
   const detailRoot = document.getElementById('upcomingDetail');
   const directoryRoot = document.getElementById('upcomingAnimeSections');
   if (!detailRoot) return;
+  if (directoryRoot) directoryRoot.hidden = true;
 
   if (!isConfigured || !db) {
     detailRoot.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Upcoming anime details are unavailable until Firebase is configured.</p></div>';
@@ -104,7 +108,6 @@ async function loadUpcomingDetail(slug, preview = false) {
     }
 
     const anime = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-    if (directoryRoot) directoryRoot.hidden = true;
     renderUpcomingDetail(anime);
   } catch (error) {
     handleFirestoreError(error, 'fetch', `upcomingAnime/${slug}`);
@@ -467,13 +470,8 @@ function setMeta(attribute, name, content) {
   element.content = content;
 }
 
-async function initializeUpcomingPage() {
-  const authenticatedUser = await requireAuthenticatedPage();
-  if (authenticatedUser) initUpcomingPage();
-}
-
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeUpcomingPage, { once: true });
+  document.addEventListener('DOMContentLoaded', initUpcomingPage, { once: true });
 } else {
-  initializeUpcomingPage();
+  initUpcomingPage();
 }

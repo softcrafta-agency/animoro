@@ -26,7 +26,7 @@
         <p>Sign in to save anime to your personal My List.</p>
       </div>
 
-      <div id="authFeedback" class="form-feedback" aria-live="polite"></div>
+      <div id="authFeedback" class="form-feedback" aria-live="polite" hidden></div>
 
       <button type="button" id="googleSignInBtn" class="btn-google-auth">
         <span class="google-mark" aria-hidden="true">G</span>
@@ -65,7 +65,11 @@
 
   <script type="module">
     import { loginWithEmail, loginWithGoogle, requestPasswordReset, watchAuthState } from '/js/auth.js';
-    import { applyPendingMyListAction, getPendingMyListItem } from '/js/my-list.js';
+    import {
+      applyPendingMyListAction,
+      getPendingMyListItem,
+      rememberPendingMyListActionError,
+    } from '/js/my-list.js';
     import { getPostAuthRedirect } from '/js/auth-guard.js';
 
     const feedback = document.getElementById('authFeedback');
@@ -84,23 +88,27 @@
     const setFeedback = (message, type = 'error') => {
       feedback.textContent = message;
       feedback.className = 'form-feedback ' + (type === 'success' ? 'success' : 'error');
-      feedback.hidden = false;
+      feedback.hidden = !message;
     };
 
     const redirectAfterAuth = () => {
       window.location.replace(getPostAuthRedirect('/my-list.html'));
     };
 
-    const finalizeAuth = async () => {
-      try {
-        const pending = getPendingMyListItem();
-        if (pending) await applyPendingMyListAction();
-      } catch (error) {
-        console.error('Could not resume the pending My List action:', error);
-        setFeedback('You are signed in, but the requested My List item could not be saved. Please try again from the anime page.');
-        return;
-      }
-      redirectAfterAuth();
+    let finalizeAuthPromise = null;
+    const finalizeAuth = () => {
+      if (finalizeAuthPromise) return finalizeAuthPromise;
+      finalizeAuthPromise = (async () => {
+        try {
+          const pending = getPendingMyListItem();
+          if (pending) await applyPendingMyListAction();
+        } catch (error) {
+          console.error('Could not resume the pending My List action:', error);
+          rememberPendingMyListActionError(error);
+        }
+        redirectAfterAuth();
+      })();
+      return finalizeAuthPromise;
     };
 
     let initialAuthStateResolved = false;
@@ -155,7 +163,7 @@
       googleBtn.disabled = true;
       googleBtn.textContent = 'Connecting...';
       try {
-        await loginWithGoogle();
+        await loginWithGoogle({ syncProfile: false });
         setFeedback('Google sign-in successful. Redirecting…', 'success');
         await finalizeAuth();
       } catch (error) {

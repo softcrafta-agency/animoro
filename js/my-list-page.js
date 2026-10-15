@@ -1,5 +1,10 @@
 import { setupMobileNav, createAnimeCard, createUpcomingAnimeCard } from './ui.js';
-import { getMyList, attachMyListToggle, readUserList } from './my-list.js';
+import {
+  getMyList,
+  attachMyListToggle,
+  readUserList,
+  showPendingMyListActionNotice,
+} from './my-list.js';
 import { watchAuthState } from './auth.js';
 import { auth } from './auth-init.js';
 import { isConfigured } from './firebase-init.js';
@@ -144,6 +149,7 @@ async function loadMyListPage() {
     }
 
     watchForSignOut();
+    showPendingMyListActionNotice(container, list => renderMyListPage(list));
     const list = await withTimeout(readUserList(user), LIST_TIMEOUT_MS, 'Loading your list');
     renderMyListPage(list);
   } catch (error) {

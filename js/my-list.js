@@ -11,6 +11,7 @@ import { auth } from './auth-init.js';
 import { db, isConfigured } from './firebase-init.js';
 
 const MY_LIST_STORAGE_KEY = 'animoro_my_list';
+const PENDING_MY_LIST_ERROR_KEY = 'animoro_pending_my_list_error';
 
 export function getListStorageKey(uid = auth?.currentUser?.uid) {
   return uid ? `animoro_my_list_${uid}` : MY_LIST_STORAGE_KEY;
@@ -64,6 +65,25 @@ export function clearPendingMyListItem() {
   window.sessionStorage.removeItem('animoro_pending_my_list_item');
 }
 
+export function rememberPendingMyListActionError(error) {
+  try {
+    window.sessionStorage.setItem(PENDING_MY_LIST_ERROR_KEY, error?.code || 'unknown');
+  } catch (storageError) {
+    console.error('Could not save the pending My List error for the destination page:', storageError);
+  }
+}
+
+export function consumePendingMyListActionError() {
+  try {
+    const code = window.sessionStorage.getItem(PENDING_MY_LIST_ERROR_KEY);
+    window.sessionStorage.removeItem(PENDING_MY_LIST_ERROR_KEY);
+    return code;
+  } catch (error) {
+    console.error('Could not read the pending My List error:', error);
+    return null;
+  }
+}
+
 async function resolveAuthenticatedUser(user) {
   if (auth) await auth.authStateReady();
   const currentUser = auth?.currentUser || null;
@@ -81,13 +101,23 @@ export async function applyPendingMyListAction(user) {
   user = await resolveAuthenticatedUser(user);
   if (!user) return null;
 
-  const existing = await readUserList(user);
   const record = buildListRecord(pending);
   const key = getListKey(record);
-  const alreadyInList = existing.some(item => getListKey(item) === key);
-  const next = alreadyInList ? existing : [...existing, record];
+  if (!isConfigured || !db) {
+    const error = new Error('Firebase is unavailable. Please try again later.');
+    error.code = 'firebase/not-configured';
+    throw error;
+  }
 
-  if (!alreadyInList) await writeUserList(user, next);
+  const itemRef = doc(db, 'users', user.uid, 'myList', key);
+  const snapshot = await getDoc(itemRef);
+  const cachedList = getMyList();
+  const next = cachedList.some(item => getListKey(item) === key)
+    ? cachedList
+    : [...cachedList, record];
+
+  if (!snapshot.exists()) await setDoc(itemRef, buildListDocumentPayload(record));
+  saveMyList(next);
   clearPendingMyListItem();
   return next;
 }
@@ -258,20 +288,65 @@ export async function toggleMyList(item) {
   return { exists: !exists, list: nextList };
 }
 
-function getMyListActionErrorMessage(error) {
-  if (error?.code === 'auth/no-current-user') {
+export function getMyListActionErrorMessage(error) {
+  const code = typeof error === 'string' ? error : error?.code;
+  if (code === 'auth/no-current-user') {
     return 'Please sign in to save anime to your list.';
   }
-  if (error?.code === 'permission-denied') {
+  if (code === 'permission-denied' || code === 'firestore/permission-denied') {
     return 'Your account could not access this list. Please verify your sign-in and try again.';
   }
-  if (['unavailable', 'deadline-exceeded', 'network-request-failed', 'auth/network-request-failed'].includes(error?.code)) {
+  if (['unavailable', 'deadline-exceeded', 'network-request-failed', 'auth/network-request-failed'].includes(code)) {
     return 'Network error. Check your connection and try again.';
   }
-  if (error?.code === 'firebase/not-configured') {
+  if (code === 'firebase/not-configured') {
     return 'Saving is unavailable right now. Please try again later.';
   }
   return 'Unable to update your list. Please try again.';
+}
+
+export function showPendingMyListActionNotice(target, onSuccess = () => {}) {
+  const errorCode = consumePendingMyListActionError();
+  if (!target || !errorCode) return;
+
+  const notice = document.createElement('div');
+  notice.className = 'empty-state';
+  notice.setAttribute('role', 'alert');
+  notice.style.cssText = 'margin:0 0 24px;';
+
+  const message = document.createElement('p');
+  message.className = 'empty-state-desc';
+  message.textContent = getMyListActionErrorMessage(errorCode);
+
+  const retryButton = document.createElement('button');
+  retryButton.type = 'button';
+  retryButton.className = 'btn-cta';
+  retryButton.style.marginTop = '16px';
+  retryButton.textContent = 'Retry save';
+  retryButton.addEventListener('click', async () => {
+    retryButton.disabled = true;
+    retryButton.setAttribute('aria-busy', 'true');
+    retryButton.textContent = 'Saving…';
+    try {
+      const list = await applyPendingMyListAction();
+      message.textContent = 'Anime saved to your list.';
+      notice.setAttribute('role', 'status');
+      retryButton.remove();
+      await onSuccess(list);
+    } catch (error) {
+      console.error('Could not retry the pending My List action:', error);
+      message.textContent = getMyListActionErrorMessage(error);
+    } finally {
+      if (retryButton.isConnected) {
+        retryButton.disabled = false;
+        retryButton.removeAttribute('aria-busy');
+        retryButton.textContent = 'Retry save';
+      }
+    }
+  });
+
+  notice.append(message, retryButton);
+  target.insertAdjacentElement('beforebegin', notice);
 }
 
 export function redirectToLoginForPendingAction(item) {
