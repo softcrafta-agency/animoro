@@ -94,11 +94,15 @@ export async function loginWithGoogle({ syncProfile = true } = {}) {
   provider.setCustomParameters({ prompt: 'select_account' });
   const result = await signInWithPopup(auth, provider);
   if (syncProfile) {
-    await ensureUserRecord(result.user, {
-      displayName: result.user.displayName || 'Animoro User',
-      photoURL: result.user.photoURL || '',
-      authProvider: 'google',
-    });
+    try {
+      await ensureUserRecord(result.user, {
+        displayName: result.user.displayName || 'Animoro User',
+        photoURL: result.user.photoURL || '',
+        authProvider: 'google',
+      });
+    } catch (profileError) {
+      console.warn('Could not sync user profile to Firestore:', profileError);
+    }
   }
   return result.user;
 }

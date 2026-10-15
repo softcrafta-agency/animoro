@@ -41,8 +41,8 @@ export function getMyList() {
   return readStoredList(key);
 }
 
-export function saveMyList(items) {
-  window.localStorage.setItem(getListStorageKey(), JSON.stringify(items));
+export function saveMyList(items, uid = auth?.currentUser?.uid) {
+  window.localStorage.setItem(getListStorageKey(uid), JSON.stringify(items));
 }
 
 export function getPendingMyListItem() {
@@ -123,7 +123,8 @@ export async function applyPendingMyListAction(user) {
 }
 
 export function getListKey(item) {
-  const slug = item?.slug || item?.id || item?.title || 'item';
+  const rawSlug = item?.slug || item?.id || item?.title || 'item';
+  const slug = String(rawSlug).replace(/\//g, '-');
   const kind = item?.kind || 'anime';
   return `${kind}:${slug}`;
 }
@@ -294,7 +295,7 @@ export function getMyListActionErrorMessage(error) {
     return 'Please sign in to save anime to your list.';
   }
   if (code === 'permission-denied' || code === 'firestore/permission-denied') {
-    return 'Your account could not access this list. Please verify your sign-in and try again.';
+    return 'You do not have permission to modify this list.';
   }
   if (['unavailable', 'deadline-exceeded', 'network-request-failed', 'auth/network-request-failed'].includes(code)) {
     return 'Network error. Check your connection and try again.';
@@ -381,6 +382,8 @@ export function attachMyListToggle(button, item) {
   };
 
   syncButton();
+  document.addEventListener('animoro-my-list-change', syncButton);
+
   button.addEventListener('click', async () => {
     if (button.disabled) return;
     const wasInList = button.dataset.myListState === 'true';
@@ -406,5 +409,21 @@ export function attachMyListToggle(button, item) {
       button.disabled = false;
       button.removeAttribute('aria-busy');
     }
+  });
+}
+
+if (auth && isConfigured) {
+  auth.authStateReady().then(() => {
+    if (auth.currentUser) {
+      readUserList(auth.currentUser).then(list => {
+        document.dispatchEvent(new CustomEvent('animoro-my-list-change', {
+          detail: { list }
+        }));
+      }).catch(err => {
+        console.warn('Initial list sync failed:', err);
+      });
+    }
+  }).catch(err => {
+    console.warn('Auth readiness check failed:', err);
   });
 }

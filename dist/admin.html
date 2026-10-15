@@ -11,13 +11,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-B1Evy_uB.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/auth-BZPeYNwN.js">
+  <script type="module" crossorigin src="/assets/admin-kizqNvaK.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/auth-CGlbWdbv.js">
   <link rel="modulepreload" crossorigin href="/assets/anime-url-Bwj29Ekj.js">
-  <link rel="modulepreload" crossorigin href="/assets/ui-N0h6dvm7.js">
-  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-D2ywtlO_.js">
+  <link rel="modulepreload" crossorigin href="/assets/my-list-ximmLVQX.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-CgFLJBhM.js">
+  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-DqH1Q9Rq.js">
   <link rel="stylesheet" crossorigin href="/assets/auth-dRCX3dAm.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-BqRekHr-.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-DC5AA_Zr.css">
 </head>
 <body class="admin-body">
 
@@ -271,6 +272,8 @@
               <div class="form-group"><label class="form-label" for="animeSlug">Slug</label><input class="form-input" id="animeSlug" maxlength="200" required /></div>
               <div class="form-group"><label class="form-label" for="animeAlternativeTitles">Alternative Titles (comma separated)</label><input class="form-input" id="animeAlternativeTitles" /></div>
               <div class="form-group"><label class="form-label" for="animeSynopsis">Synopsis</label><textarea class="form-textarea" id="animeSynopsis" maxlength="5000"></textarea></div>
+              <div class="form-group"><label class="form-label" for="animeSeoTitle">SEO Title (Optional)</label><input class="form-input" id="animeSeoTitle" maxlength="200" /></div>
+              <div class="form-group"><label class="form-label" for="animeSeoDescription">SEO Description (Optional)</label><textarea class="form-textarea" id="animeSeoDescription" maxlength="1000"></textarea></div>
               <div class="form-group"><label class="form-label" for="animeCoverImage">Cover Image URL</label><input class="form-input" id="animeCoverImage" type="url" /></div>
               <div class="form-group"><label class="form-label" for="animeBannerImage">Banner Image URL</label><input class="form-input" id="animeBannerImage" type="url" /></div>
               <div class="form-group"><label class="form-label" for="animeGenres">Genres (comma separated)</label><input class="form-input" id="animeGenres" /></div>
@@ -315,7 +318,7 @@
               <div class="form-group"><label class="form-label" for="upcomingReleaseDate">Release Date</label><input class="form-input" id="upcomingReleaseDate" placeholder="YYYY-MM-DD, Month YYYY, or TBA" /></div>
               <div class="form-group"><label class="form-label" for="upcomingReleaseYear">Release Year</label><input class="form-input" id="upcomingReleaseYear" type="number" min="2025" max="2100" /></div>
               <div class="form-group"><label class="form-label" for="upcomingSeason">Season</label><select class="form-select" id="upcomingSeason"><option value="TBA">TBA</option><option value="Winter">Winter</option><option value="Spring">Spring</option><option value="Summer">Summer</option><option value="Fall">Fall</option></select></div>
-              <div class="form-group"><label class="form-label" for="upcomingReleaseStatus">Release Status</label><select class="form-select" id="upcomingReleaseStatus"><option value="TBA">TBA</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Delayed">Delayed</option></select></div>
+              <div class="form-group"><label class="form-label" for="upcomingReleaseStatus">Release Status</label><select class="form-select" id="upcomingReleaseStatus"><option value="TBA">TBA</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Airing">Airing</option><option value="Completed">Completed</option><option value="Delayed">Delayed</option></select></div>
               <div class="form-group"><label class="form-label" for="upcomingType">Type</label><select class="form-select" id="upcomingType"><option value="TV">TV</option><option value="Movie">Movie</option><option value="OVA">OVA</option><option value="ONA">ONA</option><option value="Special">Special</option></select></div>
               <div class="form-group"><label class="form-label" for="upcomingGenres">Genres</label><input class="form-input" id="upcomingGenres" placeholder="Action, Fantasy" /></div>
               <div class="form-group"><label class="form-label" for="upcomingStudio">Studio</label><input class="form-input" id="upcomingStudio" /></div>
@@ -337,9 +340,10 @@
             <div class="table-toolbar">
               <h3 style="font-family:var(--font-display);font-size:1.1rem;">Upcoming Anime</h3>
               <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <button type="button" id="openUpcomingImportButton" class="action-btn-sm upcoming-import-open-button">Import JSON</button>
                 <input type="text" id="upcomingSearchInput" class="table-search-input" placeholder="Search upcoming anime..." />
                 <select id="upcomingStatusFilter" class="form-select"><option value="all">All Status</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select>
-                <select id="upcomingReleaseStatusFilter" class="form-select"><option value="all">All Release Status</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Delayed">Delayed</option><option value="TBA">TBA</option></select>
+                <select id="upcomingReleaseStatusFilter" class="form-select"><option value="all">All Release Status</option><option value="Announced">Announced</option><option value="Upcoming">Upcoming</option><option value="Airing Soon">Airing Soon</option><option value="Airing">Airing</option><option value="Completed">Completed</option><option value="Delayed">Delayed</option><option value="TBA">TBA</option></select>
                 <select id="upcomingYearFilter" class="form-select"><option value="all">All Years</option><option value="2026">2026</option><option value="2027">2027</option><option value="other">Other</option></select>
                 <select id="upcomingSeasonFilter" class="form-select"><option value="all">All Seasons</option><option value="Winter">Winter</option><option value="Spring">Spring</option><option value="Summer">Summer</option><option value="Fall">Fall</option><option value="TBA">TBA</option></select>
                 <select id="upcomingSortFilter" class="form-select"><option value="release-date">Nearest release date</option><option value="recently-added">Recently Added</option><option value="recently-updated">Recently Updated</option><option value="az">A–Z</option></select>
@@ -505,6 +509,62 @@
         <button id="confirmDeletePostBtn" class="btn-cta" style="background: #ef4444; border-color: #ef4444; padding: 8px 16px;">Delete Permanently</button>
       </div>
     </div>
+  </div>
+
+  <div class="modal-backdrop upcoming-import-modal" id="upcomingImportModal" hidden>
+    <section class="modal-card upcoming-import-card" role="dialog" aria-modal="true" aria-labelledby="upcomingImportTitle">
+      <div class="upcoming-import-header">
+        <div>
+          <h2 id="upcomingImportTitle">Bulk Import Upcoming Anime</h2>
+          <p>Choose a JSON file to validate and preview before saving to Firestore.</p>
+        </div>
+        <button type="button" id="cancelUpcomingImportButton" class="action-btn-sm" aria-label="Cancel import">Cancel</button>
+      </div>
+      <div class="upcoming-import-body">
+        <input id="upcomingImportFile" type="file" accept=".json,application/json" hidden />
+        <div class="upcoming-import-dropzone" id="upcomingImportDropzone">
+          <strong>Drag and drop a JSON file here</strong>
+          <span>Accepted format: .json (maximum 5 MB)</span>
+          <button type="button" id="upcomingImportBrowseButton" class="action-btn-sm">Browse Files</button>
+          <span id="upcomingImportFileLabel" class="upcoming-import-file-label">No file selected</span>
+        </div>
+        <div id="upcomingImportMessage" class="form-feedback" role="status" aria-live="polite" hidden></div>
+        <div class="upcoming-import-actions">
+          <button type="button" id="previewUpcomingImportButton" class="btn-cta">Preview Records</button>
+        </div>
+
+        <div id="upcomingImportPreview" hidden>
+          <div id="upcomingImportSummary" class="upcoming-import-summary" aria-live="polite"></div>
+          <div id="upcomingImportValidationPanel" class="upcoming-import-validation" hidden>
+            <h3>Validation issues</h3>
+            <ul id="upcomingImportErrors"></ul>
+          </div>
+          <div class="table-responsive upcoming-import-table-wrap">
+            <table class="admin-table upcoming-import-table">
+              <thead><tr><th>#</th><th>Anime Title</th><th>Slug</th><th>Release Year</th><th>Release Status</th><th>Publication Status</th><th>Action</th></tr></thead>
+              <tbody id="upcomingImportPreviewBody"></tbody>
+            </table>
+          </div>
+          <fieldset class="upcoming-import-modes">
+            <legend>Import mode</legend>
+            <label><input type="radio" name="upcomingImportMode" value="skip" checked /> Skip Duplicates <span>(default)</span></label>
+            <label><input type="radio" name="upcomingImportMode" value="update" /> Update Existing Records</label>
+          </fieldset>
+          <p id="upcomingImportPlanText" class="upcoming-import-plan"></p>
+          <label class="upcoming-import-confirm"><input type="checkbox" id="confirmUpcomingImportCheck" /> I reviewed this plan and explicitly confirm these Firestore writes.</label>
+          <button type="button" id="confirmUpcomingImportButton" class="btn-cta" disabled>Import Records</button>
+        </div>
+
+        <div id="upcomingImportResults" class="upcoming-import-results" hidden>
+          <h3>Import progress and results</h3>
+          <progress id="upcomingImportProgress" max="1" value="0" hidden></progress>
+          <p id="upcomingImportProgressLabel"></p>
+          <p id="upcomingImportResultSummary"></p>
+          <ul id="upcomingImportFailureList"></ul>
+          <button type="button" id="retryUpcomingImportButton" class="action-btn-sm" hidden>Retry Failed Records</button>
+        </div>
+      </div>
+    </section>
   </div>
 
 </body>

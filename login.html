@@ -163,7 +163,7 @@
       googleBtn.disabled = true;
       googleBtn.textContent = 'Connecting...';
       try {
-        await loginWithGoogle({ syncProfile: false });
+        await loginWithGoogle();
         setFeedback('Google sign-in successful. Redirecting…', 'success');
         await finalizeAuth();
       } catch (error) {
