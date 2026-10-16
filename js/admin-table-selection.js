@@ -27,14 +27,17 @@ export function createAdminTableSelection({
   selectAllId,
   selectedCountId,
   bulkDeleteButtonId,
+  bulkEditButtonId,
   paginationId,
   onBulkDelete,
+  onBulkEdit,
   onSelectionChange,
 }) {
   const tbody = document.getElementById(tbodyId);
   const selectAll = document.getElementById(selectAllId);
   const countLabel = document.getElementById(selectedCountId);
   const bulkButton = document.getElementById(bulkDeleteButtonId);
+  const bulkEditButton = bulkEditButtonId ? document.getElementById(bulkEditButtonId) : null;
   const pagination = document.getElementById(paginationId);
   if (!tbody || !selectAll || !countLabel || !bulkButton || !pagination) return null;
 
@@ -66,6 +69,10 @@ export function createAdminTableSelection({
   bulkButton.addEventListener('click', () => {
     if (!selectedIds.size || deleteRunning) return;
     onBulkDelete?.([...selectedIds]);
+  });
+  bulkEditButton?.addEventListener('click', () => {
+    if (!selectedIds.size || deleteRunning) return;
+    onBulkEdit?.([...selectedIds]);
   });
 
   function render(records, createRow, colSpan, emptyMessage) {
@@ -131,6 +138,7 @@ export function createAdminTableSelection({
   function updateSelectionControls() {
     countLabel.textContent = `${selectedIds.size} selected`;
     bulkButton.disabled = selectedIds.size === 0 || deleteRunning;
+    if (bulkEditButton) bulkEditButton.disabled = selectedIds.size === 0 || deleteRunning;
     const selectedVisible = visibleIds.filter(id => selectedIds.has(id)).length;
     selectAll.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
     selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;

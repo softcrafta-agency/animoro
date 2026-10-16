@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  limit,
   getDocs,
   query,
   serverTimestamp,
@@ -19,6 +20,7 @@ import {
   validateUpcomingImportRecord as validateUpcomingImportRecordInput,
 } from './upcoming-import-validation.js';
 import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
+import { setupAdminBulkEdit } from './admin-bulk-edit.js';
 
 let upcomingSlugManuallyEdited = false;
 let upcomingPosterField = null;
@@ -27,6 +29,32 @@ let upcomingTableSelection = null;
 const IMPORT_BATCH_SIZE = 400;
 const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
 const IMPORT_MAX_RECORDS = 1000;
+const UPCOMING_BULK_EDIT_FIELDS = [
+  { key: 'title', label: 'Anime Title', required: true, maxLength: 200 },
+  { key: 'japaneseTitle', label: 'Japanese Title' },
+  { key: 'slug', label: 'Anime Slug', required: true, maxLength: 200 },
+  { key: 'poster', label: 'Poster Image URL', type: 'url' },
+  { key: 'shortDescription', label: 'Short Description', type: 'textarea', maxLength: 400 },
+  { key: 'description', label: 'Full Description', type: 'textarea', maxLength: 8000 },
+  { key: 'releaseDate', label: 'Release Date' },
+  { key: 'releaseYear', label: 'Release Year', type: 'number', min: 2025, max: 2100 },
+  { key: 'season', label: 'Season', type: 'select', options: ['TBA', 'Winter', 'Spring', 'Summer', 'Fall'].map(value => ({ value, label: value })) },
+  { key: 'releaseStatus', label: 'Release Status', type: 'select', options: ['TBA', 'Announced', 'Upcoming', 'Airing Soon', 'Airing', 'Completed', 'Delayed'].map(value => ({ value, label: value })) },
+  { key: 'type', label: 'Type', type: 'select', options: ['TV', 'Movie', 'OVA', 'ONA', 'Special'].map(value => ({ value, label: value })) },
+  { key: 'genres', label: 'Genres (comma separated)' },
+  { key: 'studio', label: 'Studio' },
+  { key: 'source', label: 'Source', type: 'select', options: ['Manga', 'Light Novel', 'Original', 'Game', 'Web Manga', 'Other'].map(value => ({ value, label: value })) },
+  { key: 'episodes', label: 'Episodes' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'ageRating', label: 'Age Rating' },
+  { key: 'trailerUrl', label: 'Trailer URL', type: 'url' },
+  { key: 'officialUrl', label: 'Official Website', type: 'url' },
+  { key: 'malUrl', label: 'MyAnimeList URL', type: 'url' },
+  { key: 'anilistUrl', label: 'AniList URL', type: 'url' },
+  { key: 'crunchyrollUrl', label: 'Crunchyroll URL', type: 'url' },
+  { key: 'featured', label: 'Featured Upcoming Anime', type: 'checkbox' },
+  { key: 'status', label: 'Status', type: 'select', options: ['draft', 'published', 'archived'].map(value => ({ value, label: value })) },
+];
 let importRecords = [];
 let importFile = null;
 let importMode = 'skip';
@@ -38,11 +66,21 @@ export function setupUpcomingManager() {
   const form = document.getElementById('upcomingManagerForm');
   if (!form) return;
   setupUpcomingImport();
+  const openUpcomingBulkEdit = setupAdminBulkEdit({
+    title: 'Bulk Edit Upcoming Anime',
+    fields: UPCOMING_BULK_EDIT_FIELDS,
+    saveRecord: saveUpcomingBulkRecord,
+    onComplete: async updatedIds => {
+      await loadUpcomingEntries();
+      upcomingTableSelection?.removeSelectedIds(updatedIds);
+    },
+  });
   upcomingTableSelection = createAdminTableSelection({
     collectionName: 'upcomingAnime',
     tbodyId: 'upcomingAdminTableBody',
     selectAllId: 'upcomingSelectAll',
     selectedCountId: 'upcomingSelectedCount',
+    bulkEditButtonId: 'upcomingBulkEditButton',
     bulkDeleteButtonId: 'upcomingBulkDeleteButton',
     paginationId: 'upcomingPagination',
     onBulkDelete: ids => openBulkDeleteConfirmation({
@@ -58,6 +96,7 @@ export function setupUpcomingManager() {
         upcomingTableSelection?.clearSelection();
       },
     }),
+    onBulkEdit: ids => openUpcomingBulkEdit(upcomingEntries.filter(item => ids.includes(item.id))),
   });
 
   upcomingPosterField = new ImageUploadField(document.getElementById('upcomingPoster'), {
@@ -904,6 +943,83 @@ async function saveUpcomingAnime(event) {
   } finally {
     submitButton.disabled = false;
   }
+}
+
+async function saveUpcomingBulkRecord(item, draft) {
+  const user = auth?.currentUser;
+  if (!db || !isConfigured || !user || !await verifyAdminStatus(user)) {
+    throw new Error('Admin permission and a configured Firebase connection are required.');
+  }
+  const title = draft.title.trim();
+  const slug = normalizeAnimeSlug(draft.slug.trim() || title);
+  if (!title || !slug) throw new Error('Enter an anime title and a valid slug.');
+  let matches;
+  try {
+    matches = await getDocs(query(
+      collection(db, 'upcomingAnime'),
+      where('slug', '==', slug),
+      limit(2),
+    ));
+  } catch (error) {
+    handleFirestoreError(error, 'check-slug', 'upcomingAnime');
+    throw error;
+  }
+  if (matches.docs.some(document => document.id !== item.id)) {
+    throw new Error(`The slug "${slug}" is already used by another upcoming anime record.`);
+  }
+  const poster = normalizeImageUrl(draft.poster);
+  const optionalUrls = ['trailerUrl', 'officialUrl', 'malUrl', 'anilistUrl', 'crunchyrollUrl'];
+  optionalUrls.forEach(key => {
+    const value = draft[key].trim();
+    if (!value) return;
+    let url;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new Error(`${key} must be a complete HTTP(S) URL.`);
+    }
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+      throw new Error(`${key} must use HTTP or HTTPS and cannot contain credentials.`);
+    }
+  });
+  if (!['draft', 'published', 'archived'].includes(draft.status)) {
+    throw new Error('Choose a valid publication status.');
+  }
+
+  const payload = {
+    title,
+    japaneseTitle: draft.japaneseTitle.trim(),
+    slug,
+    poster,
+    shortDescription: draft.shortDescription.trim(),
+    description: draft.description.trim(),
+    releaseDate: draft.releaseDate.trim() || null,
+    releaseYear: draft.releaseYear.trim() || null,
+    season: draft.season,
+    releaseStatus: draft.releaseStatus,
+    type: draft.type,
+    genres: parseList(draft.genres),
+    studio: draft.studio.trim(),
+    source: draft.source,
+    episodes: draft.episodes.trim() || 'TBA',
+    duration: draft.duration.trim(),
+    ageRating: draft.ageRating.trim(),
+    trailerUrl: draft.trailerUrl.trim(),
+    officialUrl: draft.officialUrl.trim(),
+    malUrl: draft.malUrl.trim(),
+    anilistUrl: draft.anilistUrl.trim(),
+    crunchyrollUrl: draft.crunchyrollUrl.trim(),
+    featured: Boolean(draft.featured),
+    status: draft.status,
+    updatedAt: serverTimestamp(),
+  };
+  try {
+    await updateDoc(doc(db, 'upcomingAnime', item.id), payload);
+  } catch (error) {
+    handleFirestoreError(error, 'update', `upcomingAnime/${item.id}`);
+    throw error;
+  }
+  return payload;
 }
 
 function populateUpcomingForm(item) {

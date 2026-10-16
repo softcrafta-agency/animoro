@@ -4,21 +4,52 @@ import {
   doc, 
   deleteDoc, 
   updateDoc, 
+  limit,
   orderBy, 
   query,
+  serverTimestamp,
   where
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
+import { auth } from './auth-init.js';
+import { verifyAdminStatus } from './auth.js';
 import { formatDate, formatViews } from './ui.js';
-import { getArticlePath } from './article-url.js';
+import { getArticlePath, normalizeArticleSlug } from './article-url.js';
+import { normalizeAnimeSlug } from './anime-url.js';
+import { sanitizeArticleEditorHtml } from './article-content.js';
+import { setupAdminBulkEdit } from './admin-bulk-edit.js';
 import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
 
 let adminPostsList = [];
 let currentFilter = 'all';
 let currentSearch = '';
 let postsTableSelection = null;
+let postsStatsCallback = () => {};
+const POST_BULK_EDIT_FIELDS = [
+  { key: 'title', label: 'Article Title', required: true, maxLength: 200 },
+  { key: 'slug', label: 'URL Slug', required: true, maxLength: 200 },
+  { key: 'excerpt', label: 'Summary / Excerpt', type: 'textarea', maxLength: 1000 },
+  { key: 'content', label: 'Article Body (HTML)', type: 'html', required: true, maxLength: 100000, rows: 12, hint: 'Article HTML is sanitized before it is saved.' },
+  { key: 'coverImage', label: 'Cover Image URL', type: 'url', hint: 'Use a direct HTTP(S) image URL. Existing uploaded images are not deleted.' },
+  { key: 'category', label: 'Category', type: 'select', options: [
+    'Anime News', 'Reviews', 'Rankings', 'Guides', 'Recommendations', 'Manga', 'Seasonal Anime',
+  ].map(value => ({ value, label: value })) },
+  { key: 'animeTitle', label: 'Related Anime' },
+  { key: 'animeSlug', label: 'Anime Page Slug' },
+  { key: 'seoTitle', label: 'SEO Title', maxLength: 200 },
+  { key: 'seoDescription', label: 'SEO Description', type: 'textarea', maxLength: 1000 },
+  { key: 'authorName', label: 'Author Name' },
+  { key: 'status', label: 'Status', type: 'select', options: [
+    { value: 'published', label: 'Published' },
+    { value: 'draft', label: 'Draft' },
+  ] },
+  { key: 'featured', label: 'Featured in Hero Slider', type: 'checkbox' },
+  { key: 'featuredOrder', label: 'Slider Display Order', type: 'number', min: 1, max: 10, defaultValue: '1' },
+  { key: 'tags', label: 'Tags (comma separated)' },
+];
 
 export async function loadAdminPosts(onStatsLoaded = () => {}) {
+  postsStatsCallback = onStatsLoaded;
   const tbody = document.getElementById('adminPostsTableBody');
   if (!tbody) return;
 
@@ -110,11 +141,21 @@ export async function loadAdminPosts(onStatsLoaded = () => {}) {
 }
 
 export function setupPostsTableControls() {
+  const openPostsBulkEdit = setupAdminBulkEdit({
+    title: 'Bulk Edit Articles',
+    fields: POST_BULK_EDIT_FIELDS,
+    saveRecord: savePostBulkRecord,
+    onComplete: async updatedIds => {
+      await loadAdminPosts(postsStatsCallback);
+      postsTableSelection?.removeSelectedIds(updatedIds);
+    },
+  });
   postsTableSelection = createAdminTableSelection({
     collectionName: 'posts',
     tbodyId: 'adminPostsTableBody',
     selectAllId: 'postsSelectAll',
     selectedCountId: 'postsSelectedCount',
+    bulkEditButtonId: 'postsBulkEditButton',
     bulkDeleteButtonId: 'postsBulkDeleteButton',
     paginationId: 'postsPagination',
     onBulkDelete: ids => openBulkDeleteConfirmation({
@@ -131,6 +172,7 @@ export function setupPostsTableControls() {
         return { deletedCount, missingCount };
       },
     }),
+    onBulkEdit: ids => openPostsBulkEdit(adminPostsList.filter(post => ids.includes(post.id))),
   });
   const filterBtns = document.querySelectorAll('.post-filter-btn');
   filterBtns.forEach(btn => {
@@ -151,6 +193,103 @@ export function setupPostsTableControls() {
       renderPostsTable();
     });
   }
+}
+
+async function savePostBulkRecord(post, draft) {
+  const user = auth?.currentUser;
+  if (!db || !isConfigured || !user || !await verifyAdminStatus(user)) {
+    throw new Error('Admin permission and a configured Firebase connection are required.');
+  }
+  const title = draft.title.trim();
+  const slug = normalizeArticleSlug(draft.slug.trim() || title);
+  if (!title || title.length > 200 || !slug || slug.length > 200) {
+    throw new Error('Enter an article title and a valid URL slug (maximum 200 characters).');
+  }
+  let slugMatches;
+  try {
+    slugMatches = await getDocs(query(collection(db, 'posts'), where('slug', '==', slug), limit(2)));
+  } catch (error) {
+    handleFirestoreError(error, 'check-slug', 'posts');
+    throw error;
+  }
+  if (slugMatches.docs.some(document => document.id !== post.id)) {
+    throw new Error(`The slug "${slug}" is already used by another article.`);
+  }
+
+  const content = draft.content === (post.content || '')
+    ? post.content
+    : sanitizeArticleEditorHtml(draft.content).trim();
+  if (!content || content.length > 100000 || /data:image\//i.test(content)) {
+    throw new Error('Article body must contain sanitized content under 100,000 characters without embedded data images.');
+  }
+  let coverImage = draft.coverImage.trim();
+  if (coverImage) {
+    let coverUrl;
+    try {
+      coverUrl = new URL(coverImage);
+    } catch {
+      throw new Error('Enter a complete cover image URL.');
+    }
+    if (!['http:', 'https:'].includes(coverUrl.protocol) || coverUrl.username || coverUrl.password) {
+      throw new Error('Cover image URLs must use HTTP or HTTPS and cannot contain credentials.');
+    }
+    coverImage = coverUrl.toString();
+  }
+  const category = draft.category;
+  if (
+    category !== post.category &&
+    !POST_BULK_EDIT_FIELDS.find(field => field.key === 'category').options.some(option => option.value === category)
+  ) {
+    throw new Error('Choose a valid article category.');
+  }
+  if (!['published', 'draft'].includes(draft.status)) throw new Error('Choose Published or Draft status.');
+  const featuredOrder = Number(draft.featuredOrder);
+  if (!Number.isInteger(featuredOrder) || featuredOrder < 1 || featuredOrder > 10) {
+    throw new Error('Slider display order must be a whole number from 1 to 10.');
+  }
+
+  const plainText = new DOMParser().parseFromString(content, 'text/html').body.textContent || '';
+  let excerpt = draft.excerpt.trim();
+  if (!excerpt) {
+    excerpt = plainText.substring(0, 200).trim();
+    if (plainText.length > 200) excerpt += '...';
+  }
+  const payload = {
+    title,
+    slug,
+    excerpt: excerpt.substring(0, 1000),
+    content,
+    coverImage,
+    category,
+    animeTitle: draft.animeTitle.trim(),
+    animeSlug: draft.animeSlug.trim() ? normalizeAnimeSlug(draft.animeSlug.trim()) : '',
+    seoTitle: draft.seoTitle.trim(),
+    seoDescription: draft.seoDescription.trim(),
+    authorName: draft.authorName.trim() || 'Animoro Editor',
+    status: draft.status,
+    featured: Boolean(draft.featured),
+    featuredOrder,
+    tags: draft.tags.split(',').map(tag => tag.trim().replace(/^#/, '')).filter(Boolean),
+    updatedAt: serverTimestamp(),
+    publishedAt: draft.status === 'published'
+      ? (post.status === 'published' ? post.publishedAt || post.createdAt || serverTimestamp() : serverTimestamp())
+      : null,
+  };
+  if (coverImage !== (post.coverImage || '')) {
+    payload.coverImageType = coverImage ? 'image/url' : null;
+    payload.coverImageName = null;
+    payload.coverImageSize = null;
+    payload.coverImageWidth = null;
+    payload.coverImageHeight = null;
+  }
+
+  try {
+    await updateDoc(doc(db, 'posts', post.id), payload);
+  } catch (error) {
+    handleFirestoreError(error, 'update', `posts/${post.id}`);
+    throw error;
+  }
+  return payload;
 }
 
 export function renderPostsTable() {

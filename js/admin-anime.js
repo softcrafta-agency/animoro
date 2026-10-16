@@ -19,6 +19,7 @@ import { normalizeAnimeSlug } from './anime-url.js';
 import { commitAnimeImportBatches } from './anime-import-batches.js';
 import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
 import { setupAnimeListManager } from './admin-anime-lists.js';
+import { setupAdminBulkEdit } from './admin-bulk-edit.js';
 import { ImageUploadField } from './image-upload-field.js';
 import {
   markAnimeImportDuplicates,
@@ -35,6 +36,44 @@ const ANIME_FIELDS = [
 const ANIME_IMPORT_BATCH_SIZE = 400;
 const ANIME_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
 const ANIME_IMPORT_MAX_RECORDS = 1000;
+const ANIME_BULK_EDIT_FIELDS = [
+  { key: 'title', label: 'Title', required: true, maxLength: 200 },
+  { key: 'slug', label: 'Slug', required: true, maxLength: 200 },
+  { key: 'alternativeTitles', label: 'Alternative Titles (comma separated)' },
+  { key: 'synopsis', label: 'Synopsis', type: 'textarea', maxLength: 5000 },
+  { key: 'seoTitle', label: 'SEO Title', maxLength: 200 },
+  { key: 'seoDescription', label: 'SEO Description', type: 'textarea', maxLength: 1000 },
+  { key: 'coverImage', label: 'Cover Image URL', type: 'url' },
+  { key: 'bannerImage', label: 'Banner Image URL', type: 'url' },
+  { key: 'genres', label: 'Genres (comma separated)' },
+  { key: 'type', label: 'Type' },
+  { key: 'status', label: 'Series Status', type: 'select', options: [
+    { value: '', label: 'Not specified' },
+    { value: 'upcoming', label: 'Upcoming' },
+    { value: 'airing', label: 'Airing' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'hiatus', label: 'Hiatus' },
+  ] },
+  { key: 'releaseYear', label: 'Release Year', type: 'number', min: 1900, max: 2200 },
+  { key: 'studio', label: 'Studio' },
+  { key: 'episodes', label: 'Episodes', type: 'number', min: 0 },
+  { key: 'season', label: 'Season' },
+  { key: 'source', label: 'Source' },
+  { key: 'rating', label: 'Rating', type: 'number', min: 0, max: 10, step: 0.1 },
+  { key: 'characters', label: 'Characters (comma separated)' },
+  { key: 'tags', label: 'Tags (comma separated)' },
+  { key: 'releaseDay', label: 'Release Day', type: 'select', options: [
+    { value: '', label: 'Not scheduled' },
+    ...['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(value => ({ value, label: value })),
+  ] },
+  { key: 'releaseTime', label: 'Release Time', type: 'time' },
+  { key: 'timezone', label: 'Release Timezone (IANA)' },
+  { key: 'nextEpisode', label: 'Next Episode', type: 'number', min: 1 },
+  { key: 'visibility', label: 'Publication', type: 'select', options: [
+    { value: 'draft', label: 'Draft' },
+    { value: 'published', label: 'Published' },
+  ] },
+];
 let slugManuallyEdited = false;
 const animeImageFields = [];
 let animeImportRecords = [];
@@ -61,17 +100,28 @@ export function setupAnimeManager() {
     slugManuallyEdited = true;
   });
   document.getElementById('cancelAnimeEditButton')?.addEventListener('click', resetAnimeForm);
+  const openAnimeBulkEdit = setupAdminBulkEdit({
+    title: 'Bulk Edit Anime',
+    fields: ANIME_BULK_EDIT_FIELDS,
+    saveRecord: saveAnimeBulkRecord,
+    onComplete: async updatedIds => {
+      await loadAnimeEntries();
+      animeTableSelection?.removeSelectedIds(updatedIds);
+    },
+  });
   animeTableSelection = createAdminTableSelection({
     collectionName: 'anime',
     tbodyId: 'animeAdminTableBody',
     selectAllId: 'animeSelectAll',
     selectedCountId: 'animeSelectedCount',
+    bulkEditButtonId: 'animeBulkEditButton',
     bulkDeleteButtonId: 'animeBulkDeleteButton',
     paginationId: 'animePagination',
     onSelectionChange: ids => {
       const addButton = document.getElementById('animeAddToListButton');
       if (addButton) addButton.disabled = ids.length === 0;
     },
+    onBulkEdit: ids => openAnimeBulkEdit(animeEntries.filter(anime => ids.includes(anime.id))),
     onBulkDelete: ids => openBulkDeleteConfirmation({
       collectionName: 'anime',
       ids,
@@ -609,6 +659,81 @@ async function saveAnime(event) {
   } finally {
     submit.disabled = false;
   }
+}
+
+async function saveAnimeBulkRecord(anime, draft) {
+  const user = auth?.currentUser;
+  if (!db || !isConfigured || !user || !await verifyAdminStatus(user)) {
+    throw new Error('Admin permission and a configured Firebase connection are required.');
+  }
+
+  const title = draft.title.trim();
+  const slug = normalizeAnimeSlug(draft.slug.trim() || title);
+  if (!title || title.length > 200 || !slug) {
+    throw new Error('Enter a title and a valid slug (maximum 200 characters).');
+  }
+  let matches;
+  try {
+    matches = await getDocs(query(collection(db, 'anime'), where('slug', '==', slug), limit(2)));
+  } catch (error) {
+    handleFirestoreError(error, 'check-slug', 'anime');
+    throw error;
+  }
+  if (matches.docs.some(document => document.id !== anime.id)) {
+    throw new Error(`The slug "${slug}" is already used by another anime record.`);
+  }
+  if (Boolean(draft.releaseDay) !== Boolean(draft.releaseTime)) {
+    throw new Error('Enter both a release day and time, or leave both blank.');
+  }
+  if (draft.timezone) {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: draft.timezone.trim() });
+    } catch {
+      throw new Error('Enter a valid IANA timezone, such as Asia/Kolkata.');
+    }
+  }
+
+  const payload = {
+    title,
+    slug,
+    alternativeTitles: parseList(draft.alternativeTitles),
+    synopsis: draft.synopsis.trim(),
+    seoTitle: draft.seoTitle.trim(),
+    seoDescription: draft.seoDescription.trim(),
+    coverImage: normalizeImageUrl(draft.coverImage),
+    bannerImage: normalizeImageUrl(draft.bannerImage),
+    genres: parseList(draft.genres),
+    type: draft.type.trim(),
+    status: draft.status,
+    releaseYear: numberFromDraft(draft.releaseYear),
+    studio: draft.studio.trim(),
+    episodes: numberFromDraft(draft.episodes),
+    season: draft.season.trim(),
+    source: draft.source.trim(),
+    rating: numberFromDraft(draft.rating),
+    characters: parseList(draft.characters),
+    tags: parseList(draft.tags),
+    releaseDay: draft.releaseDay,
+    releaseTime: draft.releaseTime,
+    timezone: draft.timezone.trim(),
+    nextEpisode: numberFromDraft(draft.nextEpisode),
+    visibility: draft.visibility,
+    updatedAt: serverTimestamp(),
+  };
+  try {
+    await updateDoc(doc(db, 'anime', anime.id), payload);
+  } catch (error) {
+    handleFirestoreError(error, 'update', `anime/${anime.id}`);
+    throw error;
+  }
+  return payload;
+}
+
+function numberFromDraft(value) {
+  if (value.trim() === '') return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) throw new Error('Enter a valid number.');
+  return number;
 }
 
 function populateAnimeForm(anime) {
