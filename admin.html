@@ -258,7 +258,10 @@
       <section class="admin-tab-pane" id="tab-anime" style="display: none;">
         <div class="anime-admin-layout">
           <div class="editor-card">
-            <h3 style="font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 16px;" id="animeFormHeading">Add Anime</h3>
+            <div class="anime-form-heading-row">
+              <h3 style="font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 16px;" id="animeFormHeading">Add Anime</h3>
+              <button type="button" id="openAnimeImportButton" class="action-btn-sm upcoming-import-open-button">Bulk JSON Import</button>
+            </div>
             <div id="animeManagerFeedback" class="form-feedback" role="status"></div>
             <form id="animeManagerForm">
               <input type="hidden" id="animeDocumentId" />
@@ -556,6 +559,54 @@
           <p id="upcomingImportResultSummary"></p>
           <ul id="upcomingImportFailureList"></ul>
           <button type="button" id="retryUpcomingImportButton" class="action-btn-sm" hidden>Retry Failed Records</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop upcoming-import-modal" id="animeImportModal" hidden>
+    <section class="modal-card upcoming-import-card anime-import-card" role="dialog" aria-modal="true" aria-labelledby="animeImportTitle">
+      <div class="upcoming-import-header">
+        <div>
+          <h2 id="animeImportTitle">Bulk JSON Import</h2>
+          <p>Paste anime JSON or upload a file, then validate and preview the records before writing.</p>
+        </div>
+        <button type="button" id="closeAnimeImportButton" class="action-btn-sm" aria-label="Close import">Close</button>
+      </div>
+      <div class="upcoming-import-body">
+        <label class="form-label" for="animeImportJson">JSON array of anime objects</label>
+        <textarea id="animeImportJson" class="form-textarea anime-import-editor" spellcheck="false" aria-describedby="animeImportSchemaHint" placeholder='[{"title":"Example Anime","slug":"example-anime"}]'></textarea>
+        <p id="animeImportSchemaHint" class="anime-import-hint">Required fields: title and slug. Optional fields may be null. Lists accept arrays or comma-separated strings.</p>
+        <input id="animeImportFile" type="file" accept=".json,application/json" hidden />
+        <div class="upcoming-import-dropzone anime-import-dropzone" id="animeImportDropzone">
+          <strong>Upload a .json file or paste JSON above</strong>
+          <span>Maximum file size 5 MB; maximum 1,000 records.</span>
+          <button type="button" id="browseAnimeImportButton" class="action-btn-sm">Choose JSON File</button>
+          <span id="animeImportFileLabel" class="upcoming-import-file-label">No file selected</span>
+        </div>
+        <div id="animeImportMessage" class="form-feedback" role="status" aria-live="polite" hidden></div>
+        <div class="upcoming-import-actions anime-import-actions">
+          <button type="button" id="validateAnimeImportButton" class="action-btn-sm">Validate JSON</button>
+          <button type="button" id="previewAnimeImportButton" class="btn-cta">Preview Records</button>
+        </div>
+        <div id="animeImportPreview" hidden>
+          <div id="animeImportSummary" class="upcoming-import-summary" aria-live="polite"></div>
+          <div id="animeImportErrorPanel" class="upcoming-import-validation" hidden>
+            <h3>Record validation issues</h3>
+            <ul id="animeImportErrors"></ul>
+          </div>
+          <div class="table-responsive upcoming-import-table-wrap">
+            <table class="admin-table upcoming-import-table anime-import-table">
+              <thead><tr><th>#</th><th>Title</th><th>Slug</th><th>Status</th><th>Result</th></tr></thead>
+              <tbody id="animeImportPreviewBody"></tbody>
+            </table>
+          </div>
+          <button type="button" id="importAnimeRecordsButton" class="btn-cta" disabled>Import Valid Records</button>
+        </div>
+        <div id="animeImportResults" class="upcoming-import-results" hidden>
+          <h3>Import summary</h3>
+          <p id="animeImportResultSummary"></p>
+          <ul id="animeImportFailures"></ul>
         </div>
       </div>
     </section>

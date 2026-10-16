@@ -1471,10 +1471,63 @@ html[data-theme='light'] .article-image-library-card {
   color: var(--text-primary);
 }
 
+.anime-form-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.anime-form-heading-row h3 {
+  margin-right: auto;
+}
+
+.anime-import-card {
+  max-width: 1050px;
+}
+
+.anime-import-editor {
+  min-height: 220px;
+  margin-bottom: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.anime-import-hint {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.anime-import-dropzone {
+  min-height: 120px;
+}
+
+.anime-import-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.anime-import-table {
+  min-width: 650px;
+}
+
+.anime-import-row-invalid td,
+.anime-import-row-duplicate td {
+  color: #fbbf24;
+}
+
 html[data-theme='light'] .upcoming-import-dropzone,
 html[data-theme='light'] .upcoming-import-validation,
 html[data-theme='light'] .upcoming-import-results {
   background: var(--bg-card);
+}
+
+html[data-theme='light'] .anime-import-editor {
+  color: var(--text-primary);
 }
 
 /* Responsive Admin */
