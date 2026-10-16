@@ -17,6 +17,8 @@ import { auth } from './auth-init.js';
 import { verifyAdminStatus } from './auth.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 import { commitAnimeImportBatches } from './anime-import-batches.js';
+import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
+import { setupAnimeListManager } from './admin-anime-lists.js';
 import { ImageUploadField } from './image-upload-field.js';
 import {
   markAnimeImportDuplicates,
@@ -38,6 +40,8 @@ const animeImageFields = [];
 let animeImportRecords = [];
 let animeImportRunning = false;
 let animeImportCompleted = false;
+let animeEntries = [];
+let animeTableSelection = null;
 
 export function setupAnimeManager() {
   const form = document.getElementById('animeManagerForm');
@@ -57,6 +61,44 @@ export function setupAnimeManager() {
     slugManuallyEdited = true;
   });
   document.getElementById('cancelAnimeEditButton')?.addEventListener('click', resetAnimeForm);
+  animeTableSelection = createAdminTableSelection({
+    collectionName: 'anime',
+    tbodyId: 'animeAdminTableBody',
+    selectAllId: 'animeSelectAll',
+    selectedCountId: 'animeSelectedCount',
+    bulkDeleteButtonId: 'animeBulkDeleteButton',
+    paginationId: 'animePagination',
+    onSelectionChange: ids => {
+      const addButton = document.getElementById('animeAddToListButton');
+      if (addButton) addButton.disabled = ids.length === 0;
+    },
+    onBulkDelete: ids => openBulkDeleteConfirmation({
+      collectionName: 'anime',
+      ids,
+      label: 'anime',
+      onComplete: async ({ failed }) => {
+        const failedIds = new Set(failed.map(item => item.id));
+        const removedIds = new Set(ids.filter(id => !failedIds.has(id)));
+        if (valueOf('animeDocumentId') && removedIds.has(valueOf('animeDocumentId'))) resetAnimeForm();
+        await loadAnimeEntries();
+        animeTableSelection?.clearSelection();
+      },
+    }),
+  });
+  document.getElementById('animeSearchInput')?.addEventListener('input', () => {
+    animeTableSelection?.resetPage();
+    renderAnimeRows(animeEntries);
+  });
+  document.getElementById('animeVisibilityFilter')?.addEventListener('change', () => {
+    animeTableSelection?.resetPage();
+    renderAnimeRows(animeEntries);
+  });
+  setupAnimeListManager({
+    getSelectedAnime: () => {
+      const ids = new Set(animeTableSelection?.getSelectedIds() || []);
+      return animeEntries.filter(anime => ids.has(anime.id));
+    },
+  });
   setupAnimeImport();
   loadAnimeEntries();
 }
@@ -70,10 +112,12 @@ export async function loadAnimeEntries() {
   }
 
   try {
-    const snapshot = await getDocs(query(collection(db, 'anime'), limit(100)));
-    renderAnimeRows(snapshot.docs.map(document => ({ id: document.id, ...document.data() })));
+    const snapshot = await getDocs(collection(db, 'anime'));
+    animeEntries = snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
+    renderAnimeRows(animeEntries);
   } catch (error) {
     handleFirestoreError(error, 'list', 'anime');
+    animeEntries = [];
     renderAnimeRows([], 'Could not load anime entries. Verify admin permissions.');
   }
 }
@@ -440,18 +484,14 @@ function formatAnimeImportFileSize(bytes) {
 function renderAnimeRows(entries, emptyMessage = 'No anime entries yet. Add one using the form.') {
   const tbody = document.getElementById('animeAdminTableBody');
   if (!tbody) return;
-  tbody.replaceChildren();
-
-  if (entries.length === 0) {
-    const row = tbody.insertRow();
-    const cell = row.insertCell();
-    cell.colSpan = 5;
-    cell.textContent = emptyMessage;
-    return;
-  }
-
-  entries.forEach(anime => {
-    const row = tbody.insertRow();
+  const search = (document.getElementById('animeSearchInput')?.value || '').trim().toLowerCase();
+  const visibility = document.getElementById('animeVisibilityFilter')?.value || 'all';
+  const filtered = entries.filter(anime => {
+    const matchesSearch = !search || [anime.title, anime.slug].some(value => String(value || '').toLowerCase().includes(search));
+    return matchesSearch && (visibility === 'all' || (anime.visibility || 'draft') === visibility);
+  });
+  const createRow = anime => {
+    const row = document.createElement('tr');
     const titleCell = row.insertCell();
     titleCell.textContent = anime.title || 'Untitled anime';
     const slugCell = row.insertCell();
@@ -474,7 +514,10 @@ function renderAnimeRows(entries, emptyMessage = 'No anime entries yet. Add one 
     deleteButton.textContent = 'Delete';
     deleteButton.addEventListener('click', () => deleteAnimeEntry(anime));
     actionsCell.append(editButton, deleteButton);
-  });
+    return row;
+  };
+  if (animeTableSelection) animeTableSelection.render(filtered, createRow, 5, emptyMessage);
+  else tbody.replaceChildren(...filtered.map(createRow));
 }
 
 async function saveAnime(event) {

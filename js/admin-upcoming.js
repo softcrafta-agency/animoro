@@ -18,9 +18,12 @@ import { ImageUploadField } from './image-upload-field.js';
 import {
   validateUpcomingImportRecord as validateUpcomingImportRecordInput,
 } from './upcoming-import-validation.js';
+import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
 
 let upcomingSlugManuallyEdited = false;
 let upcomingPosterField = null;
+let upcomingEntries = [];
+let upcomingTableSelection = null;
 const IMPORT_BATCH_SIZE = 400;
 const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
 const IMPORT_MAX_RECORDS = 1000;
@@ -35,6 +38,27 @@ export function setupUpcomingManager() {
   const form = document.getElementById('upcomingManagerForm');
   if (!form) return;
   setupUpcomingImport();
+  upcomingTableSelection = createAdminTableSelection({
+    collectionName: 'upcomingAnime',
+    tbodyId: 'upcomingAdminTableBody',
+    selectAllId: 'upcomingSelectAll',
+    selectedCountId: 'upcomingSelectedCount',
+    bulkDeleteButtonId: 'upcomingBulkDeleteButton',
+    paginationId: 'upcomingPagination',
+    onBulkDelete: ids => openBulkDeleteConfirmation({
+      collectionName: 'upcomingAnime',
+      ids,
+      label: 'upcoming anime records',
+      onComplete: async ({ failed }) => {
+        const failedIds = new Set(failed.map(item => item.id));
+        const removedIds = new Set(ids.filter(id => !failedIds.has(id)));
+        const editingId = document.getElementById('upcomingDocumentId').value;
+        if (removedIds.has(editingId)) resetUpcomingForm();
+        await loadUpcomingEntries();
+        upcomingTableSelection?.clearSelection();
+      },
+    }),
+  });
 
   upcomingPosterField = new ImageUploadField(document.getElementById('upcomingPoster'), {
     kind: 'upcoming',
@@ -61,19 +85,37 @@ export function setupUpcomingManager() {
   document.getElementById('cancelUpcomingEditButton')?.addEventListener('click', resetUpcomingForm);
 
   const searchInput = document.getElementById('upcomingSearchInput');
-  searchInput?.addEventListener('input', renderUpcomingRows);
+  searchInput?.addEventListener('input', () => {
+    upcomingTableSelection?.resetPage();
+    renderUpcomingRows();
+  });
 
   const statusFilter = document.getElementById('upcomingStatusFilter');
-  statusFilter?.addEventListener('change', renderUpcomingRows);
+  statusFilter?.addEventListener('change', () => {
+    upcomingTableSelection?.resetPage();
+    renderUpcomingRows();
+  });
 
   const releaseStatusFilter = document.getElementById('upcomingReleaseStatusFilter');
-  releaseStatusFilter?.addEventListener('change', renderUpcomingRows);
+  releaseStatusFilter?.addEventListener('change', () => {
+    upcomingTableSelection?.resetPage();
+    renderUpcomingRows();
+  });
 
-  document.getElementById('upcomingYearFilter')?.addEventListener('change', renderUpcomingRows);
-  document.getElementById('upcomingSeasonFilter')?.addEventListener('change', renderUpcomingRows);
+  document.getElementById('upcomingYearFilter')?.addEventListener('change', () => {
+    upcomingTableSelection?.resetPage();
+    renderUpcomingRows();
+  });
+  document.getElementById('upcomingSeasonFilter')?.addEventListener('change', () => {
+    upcomingTableSelection?.resetPage();
+    renderUpcomingRows();
+  });
 
   const sortFilter = document.getElementById('upcomingSortFilter');
-  sortFilter?.addEventListener('change', renderUpcomingRows);
+  sortFilter?.addEventListener('change', () => {
+    upcomingTableSelection?.resetPage();
+    renderUpcomingRows();
+  });
 
   loadUpcomingEntries();
 }
@@ -636,14 +678,16 @@ async function loadUpcomingEntries() {
 
   try {
     const snapshot = await getDocs(query(collection(db, 'upcomingAnime')));
-    renderUpcomingRows(snapshot.docs.map(document => ({ id: document.id, ...document.data() })));
+    upcomingEntries = snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
+    renderUpcomingRows(upcomingEntries);
   } catch (error) {
     handleFirestoreError(error, 'list', 'upcomingAnime');
+    upcomingEntries = [];
     renderUpcomingRows([], 'Unable to load upcoming anime.');
   }
 }
 
-function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entries yet.') {
+function renderUpcomingRows(entries = upcomingEntries, emptyMessage = 'No upcoming anime entries yet.') {
   const tbody = document.getElementById('upcomingAdminTableBody');
   if (!tbody) return;
 
@@ -676,22 +720,13 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
     return getReleaseSortValue(a.releaseDate) - getReleaseSortValue(b.releaseDate);
   });
 
-  tbody.replaceChildren();
-  if (!filtered.length) {
-    const row = tbody.insertRow();
-    const cell = row.insertCell();
-    cell.colSpan = 10;
-    cell.textContent = emptyMessage;
-    return;
-  }
-
   function getReleaseSortValue(value) {
     const timestamp = value ? new Date(value).getTime() : Number.NaN;
     return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
   }
 
-  filtered.forEach(item => {
-    const row = tbody.insertRow();
+  const createRow = item => {
+    const row = document.createElement('tr');
     const posterCell = row.insertCell();
     const poster = document.createElement('img');
     poster.src = item.poster || '/favicon.svg';
@@ -766,7 +801,10 @@ function renderUpcomingRows(entries = [], emptyMessage = 'No upcoming anime entr
     deleteButton.addEventListener('click', () => deleteUpcomingEntry(item));
 
     actionsCell.append(editButton, publishButton, previewButton, deleteButton);
-  });
+    return row;
+  };
+  if (upcomingTableSelection) upcomingTableSelection.render(filtered, createRow, 10, emptyMessage);
+  else tbody.replaceChildren(...filtered.map(createRow));
 }
 
 async function saveUpcomingAnime(event) {

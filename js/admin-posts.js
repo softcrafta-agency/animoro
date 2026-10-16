@@ -11,10 +11,12 @@ import {
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { formatDate, formatViews } from './ui.js';
 import { getArticlePath } from './article-url.js';
+import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
 
 let adminPostsList = [];
 let currentFilter = 'all';
 let currentSearch = '';
+let postsTableSelection = null;
 
 export async function loadAdminPosts(onStatsLoaded = () => {}) {
   const tbody = document.getElementById('adminPostsTableBody');
@@ -108,12 +110,35 @@ export async function loadAdminPosts(onStatsLoaded = () => {}) {
 }
 
 export function setupPostsTableControls() {
+  postsTableSelection = createAdminTableSelection({
+    collectionName: 'posts',
+    tbodyId: 'adminPostsTableBody',
+    selectAllId: 'postsSelectAll',
+    selectedCountId: 'postsSelectedCount',
+    bulkDeleteButtonId: 'postsBulkDeleteButton',
+    paginationId: 'postsPagination',
+    onBulkDelete: ids => openBulkDeleteConfirmation({
+      collectionName: 'posts',
+      ids,
+      label: 'articles',
+      onComplete: async ({ deletedCount, missingCount, failed }) => {
+        const failedIds = new Set(failed.map(item => item.id));
+        const removedIds = new Set(ids.filter(id => !failedIds.has(id)));
+        adminPostsList = adminPostsList.filter(post => !removedIds.has(post.id));
+        renderPostsTable();
+        renderFeaturedSliderManager();
+        postsTableSelection?.clearSelection();
+        return { deletedCount, missingCount };
+      },
+    }),
+  });
   const filterBtns = document.querySelectorAll('.post-filter-btn');
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilter = btn.getAttribute('data-filter');
+      postsTableSelection?.resetPage();
       renderPostsTable();
     });
   });
@@ -122,6 +147,7 @@ export function setupPostsTableControls() {
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       currentSearch = e.target.value.toLowerCase().trim();
+      postsTableSelection?.resetPage();
       renderPostsTable();
     });
   }
@@ -149,21 +175,17 @@ export function renderPostsTable() {
   }
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
-          No articles match the current filter or search criteria.
-        </td>
-      </tr>
-    `;
+    postsTableSelection?.render([], () => document.createElement('tr'), 8, 'No articles match the current filter or search criteria.');
+    if (!postsTableSelection) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">No articles match the current filter or search criteria.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = filtered.map(post => {
+  const renderPostRow = post => {
     const isPublished = post.status === 'published';
     const articlePath = getArticlePath(post);
-    return `
-      <tr data-id="${post.id}">
+    const row = document.createElement('tr');
+    row.dataset.id = post.id;
+    row.innerHTML = `
         <td>
           <img class="table-thumb" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=120&q=80'}" alt="${post.title}" width="120" height="90" loading="lazy" decoding="async" />
         </td>
@@ -212,8 +234,11 @@ export function renderPostsTable() {
         </td>
       </tr>
     `;
-  }).join('');
+    return row;
+  };
 
+  postsTableSelection?.render(filtered, renderPostRow, 8, 'No articles match the current filter or search criteria.');
+  if (!postsTableSelection) tbody.replaceChildren(...filtered.map(renderPostRow));
   attachTableEventHandlers();
 }
 
@@ -343,6 +368,7 @@ async function executeDelete(postId) {
   try {
     await deleteDoc(doc(db, 'posts', postId));
     adminPostsList = adminPostsList.filter(p => p.id !== postId);
+    postsTableSelection?.removeSelectedIds([postId]);
     renderPostsTable();
     renderFeaturedSliderManager();
   } catch (err) {

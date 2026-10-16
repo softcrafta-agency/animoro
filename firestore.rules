@@ -147,6 +147,14 @@ service cloud.firestore {
       allow create, update, delete: if isSuperOrDocAdmin();
     }
 
+    match /animeLists/{listId} {
+      allow get, list, create, update, delete: if isSuperOrDocAdmin();
+
+      match /members/{animeId} {
+        allow get, list, create, update, delete: if isSuperOrDocAdmin();
+      }
+    }
+
     match /upcomingAnime/{animeId} {
       allow get, list: if (resource.data.status == 'published') || isSuperOrDocAdmin();
       allow create, update: if isSuperOrDocAdmin() && hasNoInlinePoster(incoming());

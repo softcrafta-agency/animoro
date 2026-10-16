@@ -1471,6 +1471,162 @@ html[data-theme='light'] .article-image-library-card {
   color: var(--text-primary);
 }
 
+.admin-selection-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+}
+
+.admin-selection-hint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.admin-selection-toolbar > .admin-selection-hint {
+  margin-right: auto;
+}
+
+.admin-selection-toolbar > div,
+.anime-table-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-row-select-cell,
+.admin-selectable-table th:first-child {
+  width: 42px;
+  text-align: center;
+}
+
+.admin-row-select-cell input,
+.admin-selectable-table th input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent-crimson);
+  cursor: pointer;
+}
+
+.admin-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.admin-table-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-bulk-delete-modal[hidden],
+#animeListsModal[hidden] {
+  display: none;
+}
+
+.admin-bulk-delete-modal {
+  z-index: 1200;
+}
+
+.admin-bulk-delete-card {
+  width: min(500px, 100%);
+}
+
+.admin-bulk-delete-card h3 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+}
+
+.admin-bulk-delete-card p {
+  margin: 8px 0;
+  color: var(--text-secondary);
+}
+
+.admin-danger-button {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+}
+
+.admin-bulk-delete-failures {
+  max-height: 180px;
+  overflow: auto;
+  padding-left: 20px;
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
+.anime-lists-card {
+  max-width: 760px;
+}
+
+.anime-list-create-row,
+.anime-list-select-row {
+  margin-bottom: 20px;
+}
+
+.anime-list-create-row > div,
+.anime-list-select-row > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.anime-list-create-row .form-input,
+.anime-list-select-row .form-select {
+  min-width: 0;
+  flex: 1;
+}
+
+.anime-list-contents {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.anime-list-contents h3 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+}
+
+.anime-list-contents ul {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.anime-list-contents li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.anime-list-contents li > span {
+  overflow-wrap: anywhere;
+}
+
+.anime-list-contents .admin-table-pagination {
+  padding-inline: 0;
+}
+
 .anime-form-heading-row {
   display: flex;
   align-items: flex-start;
@@ -1775,6 +1931,32 @@ html[data-theme='light'] .anime-import-editor {
 
   .anime-admin-layout > * {
     min-width: 0;
+  }
+
+  .admin-selection-toolbar {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .admin-selection-toolbar > .admin-selection-hint {
+    flex: 1 1 100%;
+    order: 3;
+  }
+
+  .anime-table-filters,
+  .anime-table-filters .table-search-input,
+  .anime-table-filters .form-select {
+    width: 100%;
+  }
+
+  .anime-list-create-row > div,
+  .anime-list-select-row > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .anime-list-contents li {
+    align-items: flex-start;
   }
 
   .admin-content pre {

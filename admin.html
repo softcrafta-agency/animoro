@@ -232,11 +232,17 @@
               <input type="text" id="postsSearchInput" class="table-search-input" placeholder="Search articles..." />
             </div>
           </div>
+          <div class="admin-selection-toolbar">
+            <span id="postsSelectedCount" aria-live="polite">0 selected</span>
+            <span class="admin-selection-hint">Select all applies to the current page only.</span>
+            <button type="button" id="postsBulkDeleteButton" class="action-btn-sm delete" disabled>Bulk Delete</button>
+          </div>
 
           <div class="table-responsive">
-            <table class="admin-table">
+            <table class="admin-table admin-selectable-table">
               <thead>
                 <tr>
+                  <th><input type="checkbox" id="postsSelectAll" aria-label="Select all articles on this page" /></th>
                   <th>Cover</th>
                   <th>Title & Slug</th>
                   <th>Category</th>
@@ -251,6 +257,10 @@
                 <!-- Loaded dynamically by js/admin-posts.js -->
               </tbody>
             </table>
+          </div>
+          <div class="admin-table-pagination" id="postsPagination">
+            <span data-page-status aria-live="polite">No records</span>
+            <div><button type="button" class="action-btn-sm" data-page-previous disabled>Previous</button><button type="button" class="action-btn-sm" data-page-next disabled>Next</button></div>
           </div>
         </div>
       </section>
@@ -293,8 +303,23 @@
             </form>
           </div>
           <div class="data-table-container">
-            <div class="table-toolbar"><h3 style="font-family:var(--font-display);font-size:1.1rem;">Anime Entries</h3></div>
-            <div class="table-responsive"><table class="admin-table"><thead><tr><th>Title</th><th>Slug</th><th>Publication</th><th>Release</th><th>Actions</th></tr></thead><tbody id="animeAdminTableBody"><tr><td colspan="5">Loading anime entries...</td></tr></tbody></table></div>
+            <div class="table-toolbar">
+              <h3 style="font-family:var(--font-display);font-size:1.1rem;">Anime Entries</h3>
+              <div class="anime-table-filters">
+                <input type="text" id="animeSearchInput" class="table-search-input" placeholder="Search anime..." aria-label="Search anime" />
+                <select id="animeVisibilityFilter" class="form-select" aria-label="Filter anime by publication"><option value="all">All publication</option><option value="published">Published</option><option value="draft">Draft</option></select>
+              </div>
+            </div>
+            <div class="admin-selection-toolbar">
+              <span id="animeSelectedCount" aria-live="polite">0 selected</span>
+              <span class="admin-selection-hint">Select all applies to the current page only.</span>
+              <div><button type="button" id="animeManageListsButton" class="action-btn-sm">Anime Lists</button><button type="button" id="animeAddToListButton" class="action-btn-sm" disabled>Add to List</button><button type="button" id="animeBulkDeleteButton" class="action-btn-sm delete" disabled>Bulk Delete</button></div>
+            </div>
+            <div class="table-responsive"><table class="admin-table admin-selectable-table"><thead><tr><th><input type="checkbox" id="animeSelectAll" aria-label="Select all anime on this page" /></th><th>Title</th><th>Slug</th><th>Publication</th><th>Release</th><th>Actions</th></tr></thead><tbody id="animeAdminTableBody"><tr><td colspan="6">Loading anime entries...</td></tr></tbody></table></div>
+            <div class="admin-table-pagination" id="animePagination">
+              <span data-page-status aria-live="polite">No records</span>
+              <div><button type="button" class="action-btn-sm" data-page-previous disabled>Previous</button><button type="button" class="action-btn-sm" data-page-next disabled>Next</button></div>
+            </div>
           </div>
         </div>
       </section>
@@ -346,7 +371,16 @@
                 <select id="upcomingSortFilter" class="form-select"><option value="release-date">Nearest release date</option><option value="recently-added">Recently Added</option><option value="recently-updated">Recently Updated</option><option value="az">A–Z</option></select>
               </div>
             </div>
-            <div class="table-responsive"><table class="admin-table"><thead><tr><th>Poster</th><th>Anime Title</th><th>Release Date</th><th>Season</th><th>Type</th><th>Release Status</th><th>Status</th><th>Featured</th><th>Last Updated</th><th>Actions</th></tr></thead><tbody id="upcomingAdminTableBody"><tr><td colspan="10">Loading upcoming anime...</td></tr></tbody></table></div>
+            <div class="admin-selection-toolbar">
+              <span id="upcomingSelectedCount" aria-live="polite">0 selected</span>
+              <span class="admin-selection-hint">Select all applies to the current page only.</span>
+              <button type="button" id="upcomingBulkDeleteButton" class="action-btn-sm delete" disabled>Bulk Delete</button>
+            </div>
+            <div class="table-responsive"><table class="admin-table admin-selectable-table"><thead><tr><th><input type="checkbox" id="upcomingSelectAll" aria-label="Select all upcoming anime on this page" /></th><th>Poster</th><th>Anime Title</th><th>Release Date</th><th>Season</th><th>Type</th><th>Release Status</th><th>Status</th><th>Featured</th><th>Last Updated</th><th>Actions</th></tr></thead><tbody id="upcomingAdminTableBody"><tr><td colspan="11">Loading upcoming anime...</td></tr></tbody></table></div>
+            <div class="admin-table-pagination" id="upcomingPagination">
+              <span data-page-status aria-live="polite">No records</span>
+              <div><button type="button" class="action-btn-sm" data-page-previous disabled>Previous</button><button type="button" class="action-btn-sm" data-page-next disabled>Next</button></div>
+            </div>
           </div>
         </div>
       </section>
@@ -506,6 +540,45 @@
         <button id="confirmDeletePostBtn" class="btn-cta" style="background: #ef4444; border-color: #ef4444; padding: 8px 16px;">Delete Permanently</button>
       </div>
     </div>
+  </div>
+
+  <div class="modal-backdrop admin-bulk-delete-modal" id="adminBulkDeleteModal" hidden>
+    <section class="modal-card admin-bulk-delete-card" role="dialog" aria-modal="true" aria-labelledby="adminBulkDeleteTitle">
+      <h3 id="adminBulkDeleteTitle">Confirm Bulk Delete</h3>
+      <p id="adminBulkDeleteCount"></p>
+      <p class="admin-selection-hint">Only the selected records in this section will be deleted. Shared images and user accounts are not affected.</p>
+      <p id="adminBulkDeleteProgress" role="status" aria-live="polite"></p>
+      <p id="adminBulkDeleteSummary" role="status"></p>
+      <ul id="adminBulkDeleteFailures" class="admin-bulk-delete-failures"></ul>
+      <div class="modal-actions">
+        <button type="button" id="cancelAdminBulkDelete" class="action-btn-sm">Cancel</button>
+        <button type="button" id="confirmAdminBulkDelete" class="btn-cta admin-danger-button">Delete selected</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop upcoming-import-modal" id="animeListsModal" hidden>
+    <section class="modal-card upcoming-import-card anime-lists-card" role="dialog" aria-modal="true" aria-labelledby="animeListsTitle">
+      <div class="upcoming-import-header">
+        <div><h2 id="animeListsTitle">Manage Anime Lists</h2><p id="animeListSelectedHint"></p></div>
+        <button type="button" id="closeAnimeListsButton" class="action-btn-sm" aria-label="Close anime lists">Close</button>
+      </div>
+      <div class="upcoming-import-body">
+        <div class="anime-list-create-row">
+          <label class="form-label" for="newAnimeListName">Create a named list</label>
+          <div><input type="text" class="form-input" id="newAnimeListName" maxlength="60" placeholder="e.g. Weekend Watchlist" /><button type="button" id="createAnimeListButton" class="action-btn-sm">Create List</button></div>
+        </div>
+        <div class="anime-list-select-row">
+          <label class="form-label" for="animeListSelect">Existing list</label>
+          <div><select id="animeListSelect" class="form-select"><option value="">Select a list</option></select><button type="button" id="addAnimeToListConfirmButton" class="btn-cta" disabled>Add Selected Anime</button><button type="button" id="viewAnimeListButton" class="action-btn-sm" disabled>View List</button></div>
+        </div>
+        <div id="animeListMessage" class="form-feedback" role="status" aria-live="polite" hidden></div>
+        <div id="animeListContents" class="anime-list-contents" hidden>
+          <h3 id="animeListContentsTitle"></h3>
+          <ul id="animeListMembers"></ul>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div class="modal-backdrop upcoming-import-modal" id="upcomingImportModal" hidden>
