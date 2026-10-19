@@ -33,6 +33,9 @@ let currentUploadedCoverData = null;
 let currentCoverMode = 'upload';
 let existingCoverData = null;
 let userRequestedCoverRemoval = false;
+let coverUrlPreviewState = 'empty';
+let coverUrlPreviewValue = '';
+let coverUrlWasUploaded = false;
 const MAX_COMPRESSED_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_ARTICLE_DOCUMENT_BYTES = 900 * 1024;
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -40,6 +43,7 @@ const COVER_MAX_DIMENSION = 1600;
 const ARTICLE_FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36];
 let lastEditorRange = null;
 let editorDialogAction = null;
+let editorDialogImageField = null;
 let editorAutosaveTimer = null;
 let editorIsDirty = false;
 let editorInitialSnapshot = '';
@@ -334,9 +338,12 @@ function validateEditorUrl(value, { image = false } = {}) {
   const candidate = String(value || '').trim();
   if (!candidate || candidate.startsWith('//')) return '';
   try {
-    const url = new URL(candidate, window.location.origin);
-    if (url.username || url.password) return '';
-    const allowed = image ? ['http:', 'https:'] : ['http:', 'https:', 'mailto:'];
+    if (image && !/^https:\/\//i.test(candidate)) return '';
+    const url = image
+      ? new URL(candidate)
+      : new URL(candidate, window.location.origin);
+    if (url.username || url.password || (image && !url.hostname)) return '';
+    const allowed = image ? ['https:'] : ['http:', 'https:', 'mailto:'];
     return allowed.includes(url.protocol) ? candidate : '';
   } catch {
     return '';
@@ -350,6 +357,7 @@ function openEditorDialog(title, fields, onSubmit) {
   if (!dialog || !form || !fieldsContainer) return;
   document.getElementById('editorDialogTitle').textContent = title;
   fieldsContainer.replaceChildren();
+  editorDialogImageField = null;
   fields.forEach((field) => {
     const label = document.createElement('label');
     label.textContent = field.label;
@@ -383,13 +391,14 @@ function openEditorDialog(title, fields, onSubmit) {
     }
     fieldsContainer.appendChild(label);
     if (field.type === 'image-url') {
-      new ImageUploadField(input, { kind: 'articles' });
+      editorDialogImageField = new ImageUploadField(input, { kind: 'articles' });
     }
   });
 
   editorDialogAction = onSubmit;
   if (!dialog.open) dialog.showModal();
   fieldsContainer.querySelector('input, textarea, select')?.focus();
+  return editorDialogImageField;
 }
 
 function setupEditorDialog() {
@@ -400,6 +409,22 @@ function setupEditorDialog() {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!form.reportValidity()) return;
+    const altInput = form.querySelector('input[name="alt"]');
+    if (editorDialogImageField && altInput && !altInput.value.trim()) {
+      altInput.setCustomValidity('Enter alt text for this image.');
+      form.reportValidity();
+      altInput.setCustomValidity('');
+      return;
+    }
+    if (editorDialogImageField && !editorDialogImageField.isPreviewReady()) {
+      editorDialogImageField.setStatus(
+        editorDialogImageField.previewState === 'error'
+          ? 'Could not load this image. Check the URL and try another direct image URL.'
+          : 'Wait for the image preview to load before inserting it.',
+        'error'
+      );
+      return;
+    }
     const values = Object.fromEntries(new FormData(form));
     const checkbox = form.querySelector('input[type="checkbox"]');
     if (checkbox) values[checkbox.name] = checkbox.checked;
@@ -473,18 +498,24 @@ function showLinkDialog() {
 }
 
 function showImageUrlDialog() {
-  openEditorDialog('Insert image', [
+  let imageField;
+  imageField = openEditorDialog('Insert image', [
     { name: 'url', label: 'Image URL', type: 'image-url', placeholder: 'https://…', required: true },
     { name: 'alt', label: 'Alt text', placeholder: 'Describe the image for accessibility', required: true },
     { name: 'caption', label: 'Caption (optional)', placeholder: 'Image caption' },
   ], ({ url: rawUrl, alt, caption }) => {
     const url = validateEditorUrl(rawUrl, { image: true });
     if (!url) {
-      setEditorSaveStatus('Use a valid HTTP or HTTPS image URL.', 'error');
+      setEditorSaveStatus('Use a valid HTTPS image URL.', 'error');
       return;
     }
+    const width = imageField?.preview.naturalWidth || 0;
+    const height = imageField?.preview.naturalHeight || 0;
+    const dimensions = width > 0 && width <= 4000 && height > 0 && height <= 4000
+      ? ` width="${width}" height="${height}"`
+      : '';
     const captionHtml = caption.trim() ? `<figcaption>${escapeEditorHtml(caption.trim())}</figcaption>` : '';
-    insertEditorHtml(`<figure class="article-figure"><img src="${escapeEditorHtml(url)}" alt="${escapeEditorHtml(alt.trim())}" loading="lazy" decoding="async">${captionHtml}</figure><p><br></p>`, { block: true });
+    insertEditorHtml(`<figure class="article-figure"><img src="${escapeEditorHtml(url)}" alt="${escapeEditorHtml(alt.trim())}"${dimensions} loading="lazy" decoding="async">${captionHtml}</figure><p><br></p>`, { block: true });
   });
 }
 
@@ -1507,7 +1538,9 @@ function setupCoverImageUrl() {
     }
   }
 
-  function resetPreviewState(messageText = 'No cover image selected. Choose an upload or enter a direct URL.') {
+  function resetPreviewState(messageText = 'No cover image selected. Choose an upload or enter a direct URL.', state = 'empty') {
+    coverUrlPreviewState = state;
+    coverUrlPreviewValue = '';
     if (currentUploadedCoverData?.previewUrl) {
       URL.revokeObjectURL(currentUploadedCoverData.previewUrl);
     }
@@ -1532,6 +1565,7 @@ function setupCoverImageUrl() {
   function updateUrlPreview(url) {
     const trimmed = (url || '').trim();
     uploadedCoverUrl = trimmed;
+    coverUrlWasUploaded = false;
     userRequestedCoverRemoval = false;
 
     if (!trimmed) {
@@ -1543,27 +1577,39 @@ function setupCoverImageUrl() {
     try {
       parsedUrl = new URL(trimmed);
     } catch {
-      resetPreviewState('Enter a complete image URL starting with https://.');
+      resetPreviewState('Enter a complete image URL starting with https://.', 'invalid');
       return;
     }
 
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      resetPreviewState('The image URL must start with http:// or https://.');
+    const isUnchangedLegacyHttpUrl = existingCoverData?.coverImage === trimmed && parsedUrl.protocol === 'http:';
+    if ((!/^https:\/\//i.test(trimmed) && !(isUnchangedLegacyHttpUrl && /^http:\/\//i.test(trimmed))) ||
+        (parsedUrl.protocol !== 'https:' && !isUnchangedLegacyHttpUrl) ||
+        parsedUrl.username || parsedUrl.password) {
+      resetPreviewState('The image URL must be a safe HTTPS address.', 'invalid');
       return;
     }
 
     currentUploadedCoverData = null;
+    coverUrlPreviewState = 'loading';
+    coverUrlPreviewValue = trimmed;
     if (previewImg) {
-      previewImg.src = trimmed;
-      previewImg.style.display = 'block';
       previewImg.onload = () => {
+        if (urlInput?.value.trim() !== trimmed) return;
+        coverUrlPreviewState = 'loaded';
         if (placeholder) placeholder.style.display = 'none';
         setPreviewMeta({ name: 'Direct URL image', size: 0, width: previewImg.naturalWidth || 0, height: previewImg.naturalHeight || 0, imageSource: 'url' });
       };
       previewImg.onerror = () => {
-        console.warn('Could not preview image from:', trimmed);
-        resetPreviewState('This URL did not return an image. Use the direct image address, not a page or search-result URL.');
+        if (urlInput?.value.trim() !== trimmed) return;
+        resetPreviewState('This image could not be loaded. Use the direct image address, not a page or search-result URL.', 'error');
       };
+      previewImg.src = trimmed;
+      previewImg.style.display = 'block';
+      if (previewImg.complete && previewImg.naturalWidth > 0) {
+        coverUrlPreviewState = 'loaded';
+        if (placeholder) placeholder.style.display = 'none';
+        setPreviewMeta({ name: 'Direct URL image', size: 0, width: previewImg.naturalWidth, height: previewImg.naturalHeight, imageSource: 'url' });
+      }
     }
     if (placeholder) placeholder.style.display = 'none';
     if (coverSelectedMeta) {
@@ -1599,12 +1645,14 @@ function setupCoverImageUrl() {
     onUploaded: () => {
       currentUploadedCoverData = null;
       userRequestedCoverRemoval = false;
+      coverUrlWasUploaded = true;
       currentCoverMode = 'url';
       syncMode('url');
     },
     onCleared: () => {
       currentUploadedCoverData = null;
       uploadedCoverUrl = '';
+      coverUrlWasUploaded = false;
       userRequestedCoverRemoval = true;
       resetPreviewState();
     },
@@ -1614,6 +1662,7 @@ function setupCoverImageUrl() {
   clearBtn?.addEventListener('click', () => {
     currentUploadedCoverData = null;
     uploadedCoverUrl = '';
+    coverUrlWasUploaded = false;
     userRequestedCoverRemoval = true;
     if (urlInput) urlInput.value = '';
     if (fileInput) fileInput.value = '';
@@ -1847,6 +1896,19 @@ function isValidCoverValue(value) {
   }
 }
 
+function isValidExternalCoverUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return /^https:\/\//i.test(value) &&
+      parsed.protocol === 'https:' &&
+      Boolean(parsed.hostname) &&
+      !parsed.username &&
+      !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
 function buildCoverSelectionFromState() {
   if (userRequestedCoverRemoval) {
     return { mode: 'remove', coverImage: '', coverImageType: null, coverImageName: null, coverImageSize: null, coverImageWidth: null, coverImageHeight: null };
@@ -1965,17 +2027,13 @@ async function loadPostForEditing(postId) {
           const dims = post.coverImageWidth && post.coverImageHeight ? ` • ${post.coverImageWidth} × ${post.coverImageHeight}` : '';
           coverFileMeta.textContent = `${post.coverImageSize ? formatBytes(post.coverImageSize) : 'Compressed WebP'}${dims}`;
         }
+        if (placeholder) placeholder.style.display = 'none';
       } else {
         if (urlInput) urlInput.value = post.coverImage;
-        if (previewImg) {
-          previewImg.src = post.coverImage;
-          previewImg.style.display = 'block';
-        }
-        if (coverSelectedMeta) coverSelectedMeta.style.display = 'block';
-        if (coverFileName) coverFileName.textContent = 'Direct URL image';
-        if (coverFileMeta) coverFileMeta.textContent = 'Direct URL image';
+        const urlModeButton = document.querySelector('.cover-mode-toggle[data-cover-mode="url"]');
+        if (urlModeButton && !urlModeButton.classList.contains('active')) urlModeButton.click();
+        urlInput?.dispatchEvent(new Event('input', { bubbles: true }));
       }
-      if (placeholder) placeholder.style.display = 'none';
     }
 
     if (post.tags && Array.isArray(post.tags)) {
@@ -2053,8 +2111,16 @@ async function handlePostSubmit(e) {
     showFeedback(feedbackEl, "Article content must be 100,000 characters or less.", "error");
     return;
   }
-  if (selectedCover.mode === 'url' && !isValidCoverValue(coverImage)) {
-    showFeedback(feedbackEl, "Please enter a direct image URL starting with http:// or https://.", "error");
+  if (selectedCover.mode === 'url' && !isValidExternalCoverUrl(coverImage)) {
+    showFeedback(feedbackEl, "Please enter a valid HTTPS image URL.", "error");
+    return;
+  }
+  if (selectedCover.mode === 'url' && !coverUrlWasUploaded &&
+      (coverUrlPreviewValue !== coverImage || coverUrlPreviewState !== 'loaded')) {
+    const message = coverUrlPreviewState === 'error'
+      ? "The cover image could not be loaded. Check the URL and try another direct image address."
+      : "Wait for the cover image preview to load before saving.";
+    showFeedback(feedbackEl, message, "error");
     return;
   }
 

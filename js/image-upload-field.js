@@ -3,6 +3,20 @@ import { uploadImageToStorage } from './firebase-storage-upload.js';
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const DEFAULT_MAX_BYTES = 3 * 1024 * 1024;
 
+function isSafeImageUrl(value) {
+  try {
+    const candidate = String(value || '').trim();
+    const url = new URL(candidate);
+    return /^https:\/\//i.test(candidate) &&
+      url.protocol === 'https:' &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password;
+  } catch {
+    return false;
+  }
+}
+
 export class ImageUploadField {
   constructor(input, {
     kind = 'articles',
@@ -33,6 +47,8 @@ export class ImageUploadField {
     this.onUploaded = onUploaded;
     this.onCleared = onCleared;
     this.busy = false;
+    this.previewState = 'empty';
+    this.previewUrl = '';
     this.externalPreview = Boolean(previewElement);
     this.externalProgress = Boolean(progressElement);
 
@@ -168,10 +184,14 @@ export class ImageUploadField {
 
     this.input.addEventListener('input', () => this.refresh());
     this.preview.addEventListener('load', () => {
-      if (this.status.dataset.state === 'error') this.setStatus('', '');
+      if (this.previewUrl !== this.input.value.trim() || !this.preview.naturalWidth) return;
+      this.previewState = 'loaded';
+      if (this.status.dataset.state === 'error') this.setStatus('Image preview loaded.', 'success');
     });
     this.preview.addEventListener('error', () => {
-      if (this.input.value.trim()) this.setStatus('Could not load a preview for this image URL.', 'error');
+      if (this.previewUrl !== this.input.value.trim()) return;
+      this.previewState = 'error';
+      this.setStatus('Could not load a preview for this image URL.', 'error');
     });
   }
 
@@ -236,15 +256,35 @@ export class ImageUploadField {
     this.status.dataset.state = state;
   }
 
+  isPreviewReady(expectedUrl = this.input.value.trim()) {
+    return this.previewState === 'loaded' &&
+      this.previewUrl === expectedUrl &&
+      this.preview.naturalWidth > 0;
+  }
+
   refresh() {
     const url = this.input.value.trim();
     if (!url) {
+      this.previewState = 'empty';
+      this.previewUrl = '';
       this.preview.removeAttribute('src');
       if (!this.externalPreview) this.preview.hidden = true;
       if (this.status.dataset.state === 'error') this.setStatus('', '');
       return;
     }
+    if (!isSafeImageUrl(url)) {
+      this.previewState = 'invalid';
+      this.previewUrl = url;
+      this.preview.removeAttribute('src');
+      this.setStatus('Enter a valid HTTPS image URL.', 'error');
+      return;
+    }
+    this.previewState = 'loading';
+    this.previewUrl = url;
     this.preview.src = url;
     if (!this.externalPreview) this.preview.hidden = false;
+    if (this.preview.complete && this.preview.naturalWidth > 0) {
+      this.previewState = 'loaded';
+    }
   }
 }

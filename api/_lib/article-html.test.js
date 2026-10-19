@@ -151,3 +151,16 @@ test('preserves supported editor formatting and safe YouTube embeds while filter
   assert.match(content, /<iframe[^>]+src="https:\/\/www\.youtube-nocookie\.com\/embed\/abcdefghijk"/);
   assert.doesNotMatch(content, /evil\.example\.test|<iframe[^>]*src=""/);
 });
+
+test('preserves HTTPS image CDN URLs without extensions, dimensions, alt text, and captions', () => {
+  const content = sanitizeArticleContent(
+    '<figure class="article-figure"><img src="https://cdn.example.test/image?id=123" alt="Anime cover" width="1200" height="675"><figcaption>Cover artwork</figcaption></figure>' +
+    '<img src="javascript:alert(1)" alt="Unsafe">' +
+    '<img src="data:image/svg+xml;base64,PHN2Zy8+" alt="Active data image">'
+  );
+
+  assert.match(content, /src="https:\/\/cdn\.example\.test\/image\?id=123"/);
+  assert.match(content, /alt="Anime cover" width="1200" height="675"/);
+  assert.match(content, /<figcaption>Cover artwork<\/figcaption>/);
+  assert.doesNotMatch(content, /javascript:|data:image\/svg\+xml/);
+});
