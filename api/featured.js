@@ -19,6 +19,11 @@ function includesDeferredImages(request) {
   return new URL(request.url || '/', 'https://www.animoro.in').searchParams.get('images') === '1';
 }
 
+function getRequestedImageId(request) {
+  if (typeof request.query?.id === 'string') return request.query.id;
+  return new URL(request.url || '/', 'https://www.animoro.in').searchParams.get('id');
+}
+
 function sendJson(response, statusCode, payload, cacheControl = 'no-store', headOnly = false) {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.setHeader('Cache-Control', cacheControl);
@@ -110,8 +115,29 @@ export function createFeaturedHandler({ getServices = getAdminServices, logger =
     }
 
     try {
-      const { firestore } = getServices();
       const shouldIncludeDeferredImages = includesDeferredImages(request);
+      const requestedImageId = getRequestedImageId(request);
+      if (requestedImageId !== null && (
+        !shouldIncludeDeferredImages ||
+        !requestedImageId ||
+        requestedImageId.includes('/') ||
+        requestedImageId.length > 1500
+      )) {
+        return sendJson(response, 400, { error: 'Invalid featured image request.' });
+      }
+
+      const { firestore } = getServices();
+      if (requestedImageId !== null) {
+        const coverImage = await loadCoverImage(firestore, requestedImageId);
+        return sendJson(
+          response,
+          200,
+          { id: requestedImageId, coverImage },
+          FEATURED_CACHE_CONTROL,
+          request.method === 'HEAD'
+        );
+      }
+
       let featured = await loadFeaturedPosts(firestore, shouldIncludeDeferredImages);
       let latest = featured.length ? [] : await loadLatestPosts(firestore, shouldIncludeDeferredImages);
 

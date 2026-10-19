@@ -48,11 +48,15 @@ function createFirestore({ featured = [], latest = [] } = {}) {
           const requestedFeatured = constraints.some(query =>
             query[0] === 'where' && query[1] === 'featured'
           );
-          const requestedDocumentId = constraints.some(query =>
-            typeof query[1] === 'object'
+          const requestedDocumentId = constraints.find(query =>
+            query[0] === 'where' && typeof query[1] === 'object'
           );
           if (requestedDocumentId) {
-            return { docs: [featured[0] || latest[0]].filter(Boolean) };
+            return {
+              docs: [...featured, ...latest].filter(document =>
+                document.id === requestedDocumentId[3]
+              ),
+            };
           }
           return { docs: requestedFeatured ? featured : latest };
         },
@@ -120,6 +124,49 @@ test('returns remaining cover URLs separately after the initial hero image loads
     { id: 'featured-1', coverImage: 'https://images.example/cover.webp' },
     { id: 'featured-2', coverImage: 'https://images.example/second.webp' },
   ]);
+});
+
+test('returns only the requested cover image', async () => {
+  const { firestore } = createFirestore({
+    featured: [
+      createDocument('featured-1', { coverImage: 'https://images.example/cover.webp' }),
+      createDocument('featured-2', { coverImage: 'data:image/webp;base64,encoded-image' }),
+    ],
+  });
+  const response = createResponse();
+  const handler = createFeaturedHandler({ getServices: () => ({ firestore }) });
+
+  await handler({
+    method: 'GET',
+    url: '/api/featured?images=1&id=featured-2',
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.headers['cache-control'], 'public, max-age=0, s-maxage=60, must-revalidate');
+  assert.deepEqual(JSON.parse(response.body), {
+    id: 'featured-2',
+    coverImage: 'data:image/webp;base64,encoded-image',
+  });
+});
+
+test('rejects malformed featured image IDs before querying Firestore', async () => {
+  let didReadFirestore = false;
+  const handler = createFeaturedHandler({
+    getServices() {
+      didReadFirestore = true;
+      throw new Error('Firestore should not be queried for a malformed image ID.');
+    },
+  });
+  const response = createResponse();
+
+  await handler({
+    method: 'GET',
+    url: '/api/featured?images=1&id=../private',
+  }, response);
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.headers['cache-control'], 'no-store');
+  assert.equal(didReadFirestore, false);
 });
 
 test('loads a limited latest-post fallback when there are no featured stories', async () => {

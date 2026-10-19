@@ -68,13 +68,11 @@ async function initHeroSlider() {
   try {
     const featuredFeed = await getFeaturedFeed();
     let isFallbackToLatest = false;
-    let deferredSection = '';
     if (featuredFeed) {
       featuredSlides = featuredFeed.featured.length
         ? featuredFeed.featured
         : featuredFeed.latest;
       isFallbackToLatest = featuredFeed.featured.length === 0;
-      deferredSection = featuredFeed.deferredSection;
     } else {
       const { collection, db, getDocs, isConfigured, limit, query, where } =
         await getFirestoreDependencies();
@@ -128,7 +126,7 @@ async function initHeroSlider() {
     renderSlides(container, featuredSlides);
     setupSliderControls(container);
     if (featuredFeed?.imagesDeferred) {
-      loadDeferredSlideImagesWhenHeroReady(container, deferredSection);
+      startAutoSlideWhenHeroReady(container);
     } else {
       startAutoSlide(INITIAL_AUTO_SLIDE_DELAY_MS);
     }
@@ -208,62 +206,49 @@ function renderSlides(container, slides) {
   `;
 }
 
-async function loadDeferredSlideImages(container, section) {
-  const imageProperty = section === 'featured' ? 'featuredImages' : 'latestImages';
-  try {
-    const response = await fetch('/api/featured?images=1');
-    if (!response.ok) {
-      throw new Error(`Featured image feed returned HTTP ${response.status}.`);
-    }
-    const feed = await response.json();
-    const images = feed[imageProperty];
-    if (!Array.isArray(images)) {
-      throw new Error('Featured image feed returned an invalid response.');
-    }
+function loadDeferredSlideImage(post, image) {
+  if (post.imageRequest) return;
+  const slideIndex = featuredSlides.indexOf(post);
+  image.src = FALLBACK_COVER_IMAGE;
 
-    const coverImages = new Map(images.map(image => [image.id, image.coverImage]));
-    featuredSlides = featuredSlides.map(post => ({
-      ...post,
-      coverImage: post.coverImage || coverImages.get(post.id) || '',
-    }));
-  } catch (error) {
-    console.warn('Could not load all featured images; using the default cover image where needed.', error);
-  }
-
-  featuredSlides.forEach((post, index) => {
-    const image = container.querySelector(`.slider-slide[data-index="${index}"] .slide-bg`);
-    if (image && !image.getAttribute('src')) {
-      image.src = post.coverImage || FALLBACK_COVER_IMAGE;
-    }
-  });
+  post.imageRequest = fetch(
+    `/api/featured?images=1&id=${encodeURIComponent(post.id)}`,
+    { headers: { Accept: 'application/json' } }
+  )
+    .then(async response => {
+      if (!response.ok) {
+        throw new Error(`Featured image returned HTTP ${response.status}.`);
+      }
+      const result = await response.json();
+      if (result.id !== post.id || typeof result.coverImage !== 'string') {
+        throw new Error('Featured image returned an invalid response.');
+      }
+      post.coverImage = result.coverImage;
+      post.coverImageDeferred = false;
+      if (currentSlideIndex === slideIndex && image.isConnected) {
+        image.src = post.coverImage || FALLBACK_COVER_IMAGE;
+      }
+    })
+    .catch(error => {
+      console.warn(`Could not load the cover image for featured story ${post.id}.`, error);
+      post.coverImageDeferred = false;
+    });
 }
 
-function loadDeferredSlideImagesWhenHeroReady(container, section) {
+function startAutoSlideWhenHeroReady(container) {
   const firstImage = container.querySelector('.slider-slide.active .slide-bg');
   let started = false;
-  const loadImages = () => {
+  const start = () => {
     if (started) return;
     started = true;
-    const hydrate = () => {
-      loadDeferredSlideImages(container, section)
-        .finally(() => startAutoSlide(INITIAL_AUTO_SLIDE_DELAY_MS));
-    };
-
-    if (!firstImage || typeof firstImage.decode !== 'function') {
-      hydrate();
-      return;
-    }
-    firstImage.decode().then(hydrate, error => {
-      console.warn('Could not decode the initial featured image before loading the other slides.', error);
-      hydrate();
-    });
+    startAutoSlide(INITIAL_AUTO_SLIDE_DELAY_MS);
   };
 
   if (!firstImage || firstImage.complete) {
-    loadImages();
+    start();
   } else {
-    firstImage.addEventListener('load', loadImages, { once: true });
-    firstImage.addEventListener('error', loadImages, { once: true });
+    firstImage.addEventListener('load', start, { once: true });
+    firstImage.addEventListener('error', start, { once: true });
   }
 }
 
@@ -275,6 +260,14 @@ function goToSlide(index) {
   if (index >= featuredSlides.length) index = 0;
   if (index < 0) index = featuredSlides.length - 1;
   
+  const post = featuredSlides[index];
+  const image = document.querySelector(`.slider-slide[data-index="${index}"] .slide-bg`);
+  if (post.coverImageDeferred && image) {
+    loadDeferredSlideImage(post, image);
+  } else if (post.coverImage && image && image.getAttribute('src') !== post.coverImage) {
+    image.src = post.coverImage;
+  }
+
   slides.forEach((s, i) => s.classList.toggle('active', i === index));
   dots.forEach((d, i) => d.classList.toggle('active', i === index));
   currentSlideIndex = index;

@@ -127,11 +127,14 @@ export function createArticleHandler({
       }
 
       const post = { id: articleDocument.id, ...articleDocument.data() };
-      if (!await hasPublishedAnimeProfile(firestore, post)) {
+      const [hasAnimeProfile, relatedPosts] = await Promise.all([
+        hasPublishedAnimeProfile(firestore, post),
+        loadRelatedPosts(firestore, post, articleDocument.id),
+      ]);
+      if (!hasAnimeProfile) {
         post.animeSlug = '';
         post.animeTitle = '';
       }
-      const relatedPosts = await loadRelatedPosts(firestore, post, articleDocument.id);
       stage = 'load_template';
       const template = await loadTemplate();
       if (typeof template !== 'string' || !template) {

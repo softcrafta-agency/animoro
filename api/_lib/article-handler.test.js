@@ -92,6 +92,69 @@ test('resolves a published article slug from the rewritten Vercel request URL', 
   }
 });
 
+test('loads related posts and linked anime profile concurrently', async () => {
+  const article = {
+    title: 'Published Story',
+    slug: 'published-story',
+    status: 'published',
+    category: 'Anime News',
+    animeSlug: 'linked-anime',
+    content: '<p>Published article body.</p>',
+  };
+  const articleDocument = { id: 'article-1', data: () => article };
+  let postQueryCount = 0;
+  let relatedQueryStarted = false;
+  let animeQueryStarted = false;
+  let resolveRelatedQuery;
+  let resolveAnimeQuery;
+  const relatedQuery = new Promise(resolve => {
+    resolveRelatedQuery = resolve;
+  });
+  const animeQuery = new Promise(resolve => {
+    resolveAnimeQuery = resolve;
+  });
+  const firestore = {
+    collection(name) {
+      const queryIndex = name === 'posts' ? postQueryCount++ : 0;
+      return {
+        where() { return this; },
+        orderBy() { return this; },
+        limit() { return this; },
+        async get() {
+          if (name === 'posts' && queryIndex === 0) return { docs: [articleDocument] };
+          if (name === 'posts') {
+            relatedQueryStarted = true;
+            return relatedQuery;
+          }
+          animeQueryStarted = true;
+          return animeQuery;
+        },
+      };
+    },
+  };
+  const handler = createArticleHandler({
+    getServices: () => ({ firestore }),
+    loadTemplate: async () => template,
+  });
+  const response = createResponse();
+  const responsePromise = handler({
+    method: 'GET',
+    query: { slug: 'published-story' },
+  }, response);
+
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const bothQueriesStarted = relatedQueryStarted && animeQueryStarted;
+  resolveRelatedQuery({ docs: [] });
+  resolveAnimeQuery({
+    docs: [{ data: () => ({ visibility: 'published', slug: 'linked-anime' }) }],
+  });
+  await responsePromise;
+
+  assert.ok(bothQueriesStarted);
+  assert.equal(response.statusCode, 200);
+  assert.match(response.body, /Published article body\./);
+});
+
 test('returns 404 for missing and unpublished articles', async () => {
   for (const article of [null, {
     title: 'Draft',
