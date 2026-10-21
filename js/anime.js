@@ -2,6 +2,7 @@ import {
   collection,
   getDocs,
   limit,
+  orderBy,
   query,
   startAfter,
   where
@@ -11,6 +12,7 @@ import { getArticlePath } from './article-url.js';
 import { getAnimeCanonicalUrl, getAnimePath, normalizeAnimeSlug } from './anime-url.js';
 import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { attachMyListToggle } from './my-list.js';
+import { selectPopularAnime } from './anime-popular.js';
 
 const PAGE_SIZE = 24;
 const ARTICLE_SAMPLE_SIZE = 36;
@@ -21,9 +23,11 @@ async function initAnimePage() {
   setupMobileNav();
   const slug = getRequestedAnimeSlug();
   if (slug) {
+    const popularSection = document.getElementById('popularAnimeSection');
+    if (popularSection) popularSection.hidden = true;
     await loadAnimeDetails(slug);
   } else {
-    await loadAnimeDirectory(true);
+    await Promise.all([loadAnimeDirectory(true), loadPopularAnime()]);
   }
 }
 
@@ -41,6 +45,46 @@ function getRequestedAnimeSlug() {
   } catch (error) {
     console.warn('Invalid encoded anime slug in URL:', error);
     return '';
+  }
+}
+
+async function loadPopularAnime() {
+  const section = document.getElementById('popularAnimeSection');
+  const container = document.getElementById('popularAnimeContainer');
+  if (!section || !container) return;
+  if (!isConfigured || !db) {
+    renderMessage(container, 'Rated anime are unavailable until the catalogue is connected.');
+    return;
+  }
+
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, 'anime'),
+      where('visibility', '==', 'published'),
+      orderBy('rating', 'desc'),
+      limit(12)
+    ));
+    const entries = snapshot.docs.map(document => ({
+      id: document.id,
+      ...document.data(),
+    }));
+    const popular = selectPopularAnime(entries, 6);
+
+    if (!popular.length) {
+      renderMessage(container, 'No published anime with a catalogue rating are available yet. Browse the complete anime list below.');
+      return;
+    }
+
+    container.replaceChildren(...popular.map(anime => createAnimeCard(anime)));
+  } catch (error) {
+    handleFirestoreError(error, 'list', 'anime');
+    renderMessage(container, 'Unable to load the rated anime list. Please try again.');
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn-outline';
+    retry.textContent = 'Retry';
+    retry.addEventListener('click', loadPopularAnime);
+    container.querySelector('.empty-state')?.appendChild(retry);
   }
 }
 
@@ -288,7 +332,7 @@ function appendStructuredData(anime, canonicalUrl, path) {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
-      { '@type': 'ListItem', position: 2, name: 'Anime Database', item: 'https://www.animoro.in/anime.html' },
+      { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://www.animoro.in/anime.html' },
       { '@type': 'ListItem', position: 3, name: anime.title, item: new URL(path, 'https://www.animoro.in').toString() },
     ],
   });

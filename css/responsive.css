@@ -7,24 +7,15 @@
 }
 
 @media (min-width: 1025px) {
-  .article-reading-layout.has-toc.has-related {
-    grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) minmax(190px, 220px);
-  }
-
-  .article-reading-layout.has-toc:not(.has-related) {
+  .article-reading-layout.has-toc {
     grid-template-columns: minmax(190px, 220px) minmax(0, 820px);
   }
 
-  .article-reading-layout.has-related:not(.has-toc) {
-    grid-template-columns: minmax(0, 820px) minmax(190px, 220px);
-  }
-
-  .article-reading-layout:not(.has-toc):not(.has-related) {
+  .article-reading-layout:not(.has-toc) {
     grid-template-columns: minmax(0, 820px);
   }
 
-  .article-reading-layout.has-toc .article-toc-sidebar,
-  .article-reading-layout.has-related .article-related-sidebar {
+  .article-reading-layout.has-toc .article-toc-sidebar {
     position: sticky;
     top: 92px;
     max-height: calc(100vh - 112px);
@@ -32,17 +23,11 @@
   }
 }
 
-@media (min-width: 1025px) and (max-width: 1199px) {
-  .article-reading-layout.has-toc.has-related {
-    grid-template-columns: minmax(180px, 210px) minmax(0, 1fr);
-  }
-
-  .article-reading-layout.has-toc.has-related .article-related-sidebar {
-    grid-column: 2;
-  }
-}
-
 @media (max-width: 1024px) {
+  .article-related-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .article-reading-layout {
     grid-template-columns: minmax(0, 820px);
     gap: 18px;
@@ -63,7 +48,7 @@
   }
 
   .home-layout-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 48px;
   }
 
@@ -84,6 +69,15 @@
 }
 
 @media (max-width: 768px) {
+  .article-related-section {
+    width: calc(100% - 40px);
+  }
+
+  .article-related-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
   body.has-mobile-bottom-nav {
     padding-bottom: calc(68px + env(safe-area-inset-bottom));
   }
@@ -234,6 +228,30 @@
 }
 
 @media (max-width: 480px) {
+  .brand-logo .brand-badge {
+    display: none;
+  }
+
+  .brand-logo .brand-logo-text {
+    font-size: 1.1rem;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  .header-actions .search-toggle-btn {
+    display: none;
+  }
+
+  .article-related-section {
+    width: calc(100% - 32px);
+  }
+
+  .article-related-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .container {
     padding: 0 16px;
   }

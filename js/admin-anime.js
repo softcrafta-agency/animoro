@@ -753,7 +753,7 @@ function populateAnimeForm(anime) {
 }
 
 async function deleteAnimeEntry(anime) {
-  if (!db || !window.confirm(`Delete "${anime.title}" from the anime database?`)) return;
+  if (!db || !window.confirm(`Delete "${anime.title}" from the anime list?`)) return;
   try {
     await deleteDoc(doc(db, 'anime', anime.id));
     if (valueOf('animeDocumentId') === anime.id) resetAnimeForm();

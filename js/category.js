@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { createArticleCard, setupMobileNav } from './ui.js';
+import { escapeHtml } from './html-utils.js';
 
 const CATEGORY_DESCRIPTIONS = {
   'Anime News': 'Breaking news, seasonal announcements, studio updates, and production insights.',
@@ -62,7 +63,7 @@ async function initCategoryPage() {
   document.title = `${categoryName} — Animoro`;
   const metaDescription = document.querySelector('meta[name="description"]');
   if (metaDescription) metaDescription.setAttribute('content', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
-  ensureMetaTag('name', 'robots', 'index, follow');
+  ensureMetaTag('name', 'robots', 'noindex, follow');
   ensureMetaTag('property', 'og:title', `${categoryName} — Animoro`);
   ensureMetaTag('property', 'og:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
   ensureMetaTag('property', 'og:url', canonicalUrl);
@@ -82,8 +83,8 @@ async function initCategoryPage() {
   if (!isConfigured || !db) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <h3 class="empty-state-title">No articles found</h3>
-        <p class="empty-state-desc">Configure Firebase in the Admin panel to load stories in this category.</p>
+        <h3 class="empty-state-title">Articles are unavailable</h3>
+        <p class="empty-state-desc">The category service is not configured. Please try again later.</p>
       </div>
     `;
     return;
@@ -141,15 +142,18 @@ async function loadCategoryArticles(cursor = null) {
     }
 
     if (snap.empty && !cursor) {
+      ensureMetaTag('name', 'robots', 'noindex, follow');
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
           <div class="empty-state-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
           </div>
           <h3 class="empty-state-title">No stories yet</h3>
-          <p class="empty-state-desc">No articles published in ${categoryName} yet. Fresh content is coming soon.</p>
+          <p class="empty-state-desc">No articles published in ${escapeHtml(categoryName)} yet. Fresh content is coming soon.</p>
         </div>
       `;
+      if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+      return;
     } else if (snap.empty) {
       if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       return;
@@ -164,7 +168,10 @@ async function loadCategoryArticles(cursor = null) {
       });
     }
 
-    if (!cursor) container.innerHTML = '';
+    if (!cursor) {
+      container.innerHTML = '';
+      ensureMetaTag('name', 'robots', 'index, follow');
+    }
     const fragment = document.createDocumentFragment();
     posts.forEach(post => fragment.appendChild(createArticleCard(post.id, post)));
     container.appendChild(fragment);
@@ -175,12 +182,20 @@ async function loadCategoryArticles(cursor = null) {
     }
   } catch (error) {
     handleFirestoreError(error, 'list', 'posts');
-    container.innerHTML = `
-      <div class="empty-state" style="grid-column: 1 / -1;">
-        <h3 class="empty-state-title">Unable to load category</h3>
-        <p class="empty-state-desc">Please verify your Firestore index configuration.</p>
-      </div>
+    const errorState = document.createElement('div');
+    errorState.className = 'empty-state';
+    errorState.style.gridColumn = '1 / -1';
+    errorState.innerHTML = `
+      <h3 class="empty-state-title">Unable to load category</h3>
+      <p class="empty-state-desc">Please check the connection and try again.</p>
+      <button class="btn-outline" type="button">Retry</button>
     `;
+    errorState.querySelector('button')?.addEventListener('click', () => loadCategoryArticles(cursor));
+    if (cursor) {
+      container.appendChild(errorState);
+    } else {
+      container.replaceChildren(errorState);
+    }
   } finally {
     isLoadingCategory = false;
     if (loadMoreBtn) {

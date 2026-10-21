@@ -47,24 +47,85 @@ function getErrorDocument(statusCode, message) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>${title} | Animoro</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/responsive.css"></head><body><main class="container empty-state" style="margin: 10vh auto;max-width: 680px"><h1 class="empty-state-title">${title}</h1><p class="empty-state-desc">${message}</p><a class="btn-cta" href="/blogs.html">Browse Animoro articles</a></main></body></html>`;
 }
 
-async function loadRelatedPosts(firestore, currentPost, currentId) {
-  if (typeof currentPost.category !== 'string' || !currentPost.category.trim()) return [];
-
-  try {
-    const snapshot = await firestore.collection('posts')
-      .where('status', '==', 'published')
-      .where('category', '==', currentPost.category)
-      .orderBy('publishedAt', 'desc')
-      .limit(7)
-      .get();
-    return snapshot.docs
-      .filter(document => document.id !== currentId && document.data().status === 'published')
-      .map(document => ({ id: document.id, ...document.data() }))
-      .slice(0, 6);
-  } catch (error) {
-    console.error('Could not load related published articles.', error);
-    return [];
+export async function loadRelatedPosts(firestore, currentPost, currentId) {
+  const relatedQueries = [];
+  if (isValidAnimeSlug(currentPost.animeSlug)) {
+    relatedQueries.push({
+      priority: 4,
+      load: () => firestore.collection('posts')
+        .where('status', '==', 'published')
+        .where('animeSlug', '==', currentPost.animeSlug)
+        .limit(8)
+        .get(),
+    });
   }
+  const tags = Array.isArray(currentPost.tags)
+    ? currentPost.tags.filter(tag => typeof tag === 'string' && tag.trim()).slice(0, 10)
+    : [];
+  if (tags.length) {
+    relatedQueries.push({
+      priority: 3,
+      load: () => firestore.collection('posts')
+        .where('status', '==', 'published')
+        .where('tags', 'array-contains-any', tags)
+        .limit(8)
+        .get(),
+    });
+  }
+  if (typeof currentPost.category === 'string' && currentPost.category.trim()) {
+    relatedQueries.push({
+      priority: 2,
+      load: () => firestore.collection('posts')
+        .where('status', '==', 'published')
+        .where('category', '==', currentPost.category)
+        .orderBy('publishedAt', 'desc')
+        .limit(8)
+        .get(),
+    });
+  }
+
+  const candidates = new Map();
+  await Promise.all(relatedQueries.map(async ({ priority, load }) => {
+    try {
+      const snapshot = await load();
+      snapshot.docs.forEach(document => {
+        const post = document.data();
+        if (document.id === currentId || post.status !== 'published') return;
+        const existing = candidates.get(document.id);
+        if (!existing || priority > existing.priority) {
+          candidates.set(document.id, { id: document.id, ...post, priority });
+        }
+      });
+    } catch (error) {
+      console.warn('A related-article query could not be completed.', error);
+    }
+  }));
+
+  if (candidates.size < 4) {
+    try {
+      const snapshot = await firestore.collection('posts')
+        .where('status', '==', 'published')
+        .orderBy('publishedAt', 'desc')
+        .limit(8)
+        .get();
+      snapshot.docs.forEach(document => {
+        const post = document.data();
+        if (document.id === currentId || post.status !== 'published' || candidates.has(document.id)) return;
+        candidates.set(document.id, { id: document.id, ...post, priority: 1 });
+      });
+    } catch (error) {
+      console.error('Could not load recent published articles for related recommendations.', error);
+    }
+  }
+
+  return [...candidates.values()]
+    .sort((left, right) =>
+      right.priority - left.priority ||
+      new Date(right.publishedAt?.toDate?.() || right.publishedAt || 0) -
+        new Date(left.publishedAt?.toDate?.() || left.publishedAt || 0)
+    )
+    .slice(0, 4)
+    .map(({ priority, ...post }) => post);
 }
 
 async function hasPublishedAnimeProfile(firestore, post) {

@@ -63,7 +63,7 @@ function setupTabs() {
       const titles = {
         overview: 'Dashboard Overview',
         posts: 'Articles Management',
-        anime: 'Anime Database',
+        anime: 'Anime List',
         upcoming: 'Upcoming Anime',
         categories: 'Categories Manager',
         slider: 'Featured Slider Manager',

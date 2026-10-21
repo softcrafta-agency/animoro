@@ -395,7 +395,7 @@ function updateSeoTags(post, canonicalUrl) {
 }
 
 function setArticleStructuredData(post, canonicalUrl, title, description) {
-  const datePublished = toIsoDateTime(post.publishedAt || post.createdAt);
+  const datePublished = toIsoDateTime(post.publishedAt);
   const dateModified = toIsoDateTime(post.updatedAt);
   const image = getPublicImageUrl(post.coverImage);
   const schema = {
@@ -502,7 +502,7 @@ function renderArticle(container, post, canonicalUrl) {
   const category = typeof post.category === 'string' && post.category.trim()
     ? post.category.trim()
     : '';
-  const publishedDate = post.publishedAt || post.createdAt;
+  const publishedDate = post.publishedAt;
   const isoPublishedDate = toIsoDateTime(publishedDate);
   const visiblePublishedDate = formatDate(publishedDate);
   const authorName = typeof post.authorName === 'string' && post.authorName.trim()
@@ -559,11 +559,11 @@ function renderArticle(container, post, canonicalUrl) {
           <a class="share-btn" href="https://reddit.com/submit?url=${encodeURIComponent(currentUrl)}&title=${encodeURIComponent(post.title)}" target="_blank" rel="noopener noreferrer">Reddit</a>
         </div>
       </main>
-      <aside class="article-related-sidebar" id="articleRelatedSidebar" aria-label="Related articles" hidden>
-        <h2>Related Articles</h2>
-        <div class="article-related-list" id="relatedArticlesContainer"></div>
-      </aside>
     </div>
+    <section class="article-related-section" id="articleRelatedSection" aria-labelledby="articleRelatedHeading" hidden>
+      <h2 id="articleRelatedHeading">Related Articles</h2>
+      <div class="article-related-grid" id="relatedArticlesContainer"></div>
+    </section>
   `;
 
   const coverImg = container.querySelector('.article-cover-img');
@@ -717,15 +717,11 @@ function initReadingProgress(articleBody) {
 
 async function loadRelatedArticles(currentPost, currentId) {
   const container = document.getElementById('relatedArticlesContainer');
-  const sidebar = document.getElementById('articleRelatedSidebar');
-  const layout = document.getElementById('articleReadingLayout');
+  const section = document.getElementById('articleRelatedSection');
   const category = currentPost.category;
-  if (!container || !sidebar || !layout) return;
+  if (!container || !section) return;
 
-  const hideSidebar = () => {
-    sidebar.hidden = true;
-    layout.classList.remove('has-related');
-  };
+  const hideSection = () => { section.hidden = true; };
 
   try {
     const { db, collection, limit, query, where } = await getFirestoreRuntime();
@@ -733,14 +729,15 @@ async function loadRelatedArticles(currentPost, currentId) {
     const tags = Array.isArray(currentPost.tags)
       ? currentPost.tags.filter(tag => typeof tag === 'string' && tag.trim()).slice(0, 10)
       : [];
-    const queries = [
-      loadRelatedCandidates(query(
+    const queries = [];
+    if (typeof category === 'string' && category.trim()) {
+      queries.push(loadRelatedCandidates(query(
         collection(db, 'posts'),
         where('status', '==', 'published'),
-        where('category', '==', category || ''),
+        where('category', '==', category.trim()),
         limit(18)
-      )),
-    ];
+      )));
+    }
     if (isValidAnimeSlug(currentPost.animeSlug)) {
       queries.push(loadRelatedCandidates(query(
         collection(db, 'posts'),
@@ -760,11 +757,14 @@ async function loadRelatedArticles(currentPost, currentId) {
 
     const candidateGroups = await Promise.all(queries);
     const candidatePosts = new Map();
-    candidateGroups.flat().forEach(item => candidatePosts.set(item.id, item));
+    candidateGroups.flat().forEach(item => {
+      if (item.status === 'published' && item.id !== currentId) candidatePosts.set(item.id, item);
+    });
     const currentTags = new Set(tags.map(tag => tag.toLowerCase()));
     const currentTitleWords = new Set(
       String(currentPost.title || '').toLowerCase().split(/[^a-z0-9]+/).filter(word => word.length > 3)
     );
+    const seenRelatedSlugs = new Set();
     const related = [...candidatePosts.values()]
       .filter(post => post.id !== currentId)
       .map(post => {
@@ -778,29 +778,34 @@ async function loadRelatedArticles(currentPost, currentId) {
           (category && post.category === category ? 5 : 0) + (keywordMatch ? 1 : 0);
         return { post, score };
       })
-      .filter(item => item.score > 0)
+      .filter(item => item.score > 0 && isValidArticleSlug(item.post.slug) &&
+        typeof item.post.title === 'string' && item.post.title.trim())
       .sort((a, b) => b.score - a.score)
-      .slice(0, 6)
+      .filter(({ post }) => {
+        if (seenRelatedSlugs.has(post.slug)) return false;
+        seenRelatedSlugs.add(post.slug);
+        return true;
+      })
+      .slice(0, 4)
       .map(item => item.post);
 
     if (related.length === 0) {
-      hideSidebar();
+      hideSection();
       return;
     }
 
     container.replaceChildren();
     related.forEach(post => {
-      if (!isValidArticleSlug(post.slug) || typeof post.title !== 'string' || !post.title.trim()) return;
-
       const card = document.createElement('a');
       card.className = 'article-related-card';
       card.href = getArticlePath(post);
+      const titleText = post.title.trim();
 
       const imageSource = getCoverImageSource(post.coverImage);
       if (imageSource) {
         const image = document.createElement('img');
         image.src = imageSource;
-        image.alt = '';
+        image.alt = `${titleText} article cover`;
         image.width = 800;
         image.height = 450;
         image.loading = 'lazy';
@@ -814,10 +819,10 @@ async function loadRelatedArticles(currentPost, currentId) {
       copy.className = 'article-related-copy';
       const title = document.createElement('span');
       title.className = 'article-related-title';
-      title.textContent = post.title.trim();
+      title.textContent = titleText;
       copy.appendChild(title);
 
-      const dateValue = post.publishedAt || post.createdAt;
+      const dateValue = post.publishedAt;
       const dateTime = toIsoDateTime(dateValue);
       const visibleDate = formatDate(dateValue);
       if (dateTime && visibleDate) {
@@ -831,14 +836,13 @@ async function loadRelatedArticles(currentPost, currentId) {
       container.appendChild(card);
     });
     if (container.childElementCount) {
-      sidebar.hidden = false;
-      layout.classList.add('has-related');
+      section.hidden = false;
     } else {
-      hideSidebar();
+      hideSection();
     }
   } catch (err) {
     console.warn("Could not load related articles:", err);
-    hideSidebar();
+    hideSection();
   }
 }
 

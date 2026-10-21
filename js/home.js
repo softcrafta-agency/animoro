@@ -1,5 +1,14 @@
-import { createArticleCard, formatDate, setupMobileNav } from './ui.js';
+import {
+  createAnimeCard,
+  createArticleCard,
+  createUpcomingAnimeCard,
+  formatDate,
+  setupMobileNav,
+} from './ui.js';
 import { getArticlePath } from './article-url.js';
+import { escapeHtml, getSafeImageUrl } from './html-utils.js';
+import { selectPopularAnime } from './anime-popular.js';
+import { getUpcomingReleaseTimestamp } from './upcoming-date.js';
 
 export { createArticleCard, formatDate, formatViews, setupMobileNav } from './ui.js';
 
@@ -30,7 +39,10 @@ function getFirestoreDependencies() {
       query: firestore.query,
       startAfter: firestore.startAfter,
       where: firestore.where,
-    }));
+    })).catch(error => {
+      firestoreDependenciesPromise = null;
+      throw error;
+    });
   }
   return firestoreDependenciesPromise;
 }
@@ -132,11 +144,16 @@ async function initHeroSlider() {
     }
   } catch (error) {
     console.error('Featured story loading failed:', error);
-    renderSliderEmptyState(container, "Unable to load featured stories. Please verify your Firestore connection.");
+    featuredFeedPromise = null;
+    renderSliderEmptyState(
+      container,
+      'Unable to load featured stories. Please verify your connection and try again.',
+      () => initHeroSlider()
+    );
   }
 }
 
-function renderSliderEmptyState(container, message) {
+function renderSliderEmptyState(container, message, onRetry = null) {
   container.innerHTML = `
     <div class="empty-state" style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
       <div class="empty-state-icon">
@@ -146,8 +163,13 @@ function renderSliderEmptyState(container, message) {
       </div>
       <h3 class="empty-state-title">No Featured Stories</h3>
       <p class="empty-state-desc">${message}</p>
+      ${onRetry ? '<button class="btn-outline" id="retryFeaturedStoriesBtn" type="button">Retry loading stories</button>' : ''}
     </div>
   `;
+  if (onRetry) {
+    container.querySelector('#retryFeaturedStoriesBtn')
+      ?.addEventListener('click', onRetry);
+  }
 }
 
 function renderSlides(container, slides) {
@@ -155,27 +177,34 @@ function renderSlides(container, slides) {
     const articlePath = getArticlePath(post);
     const coverImage = post.coverImageDeferred
       ? ''
-      : post.coverImage || FALLBACK_COVER_IMAGE;
+      : getSafeImageUrl(post.coverImage, FALLBACK_COVER_IMAGE);
+    const title = escapeHtml(post.title || 'Untitled article');
+    const category = escapeHtml(post.category || '');
+    const excerpt = escapeHtml(post.excerpt || '');
+    const authorName = typeof post.authorName === 'string' && post.authorName.trim()
+      ? escapeHtml(post.authorName.trim())
+      : '';
+    const publishedAt = post.publishedAt;
     return `
     <div class="slider-slide ${idx === 0 ? 'active' : ''}" data-index="${idx}">
-      <img class="slide-bg" ${coverImage ? `src="${coverImage}"` : ''} alt="${post.title}" width="1600" height="900" loading="${idx === 0 ? 'eager' : 'lazy'}" fetchpriority="${idx === 0 ? 'high' : 'auto'}" decoding="async" />
+      <img class="slide-bg" ${coverImage ? `src="${escapeHtml(coverImage)}"` : ''} alt="${title}" width="1600" height="900" loading="${idx === 0 ? 'eager' : 'lazy'}" fetchpriority="${idx === 0 ? 'high' : 'auto'}" decoding="async" />
       <div class="slide-overlay"></div>
       <div class="slide-content">
         <span class="badge-featured">Featured Story</span>
-        <span class="badge-category">${post.category || 'Anime'}</span>
+        ${category ? `<span class="badge-category">${category}</span>` : ''}
         <h2 class="slide-title">
-          <a href="${articlePath}">${post.title}</a>
+          <a href="${articlePath}">${title}</a>
         </h2>
-        <p class="slide-excerpt">${post.excerpt || ''}</p>
+        ${excerpt ? `<p class="slide-excerpt">${excerpt}</p>` : ''}
         <div class="slide-meta">
-          <div class="slide-meta-item">
+          ${authorName ? `<div class="slide-meta-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <span>${post.authorName || 'Animoro Editor'}</span>
-          </div>
-          <div class="slide-meta-item">
+            <span>${authorName}</span>
+          </div>` : ''}
+          ${publishedAt ? `<div class="slide-meta-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            <span>${formatDate(post.publishedAt || post.createdAt)}</span>
-          </div>
+            <span>${escapeHtml(formatDate(publishedAt))}</span>
+          </div>` : ''}
         </div>
         <a href="${articlePath}" class="btn-cta">
           Read Article
@@ -226,7 +255,7 @@ function loadDeferredSlideImage(post, image) {
       post.coverImage = result.coverImage;
       post.coverImageDeferred = false;
       if (currentSlideIndex === slideIndex && image.isConnected) {
-        image.src = post.coverImage || FALLBACK_COVER_IMAGE;
+        image.src = getSafeImageUrl(post.coverImage, FALLBACK_COVER_IMAGE);
       }
     })
     .catch(error => {
@@ -357,8 +386,26 @@ async function initLatestArticles() {
   const loadMoreBtn = document.getElementById('loadMoreArticlesBtn');
   if (!container) return;
 
-  const { collection, db, getDocs, handleFirestoreError, isConfigured, limit, orderBy, query, where } =
-    await getFirestoreDependencies();
+  let runtime;
+  try {
+    runtime = await getFirestoreDependencies();
+  } catch (error) {
+    console.error('Could not initialize the homepage article list.', error);
+    container.innerHTML = `
+      <div class="empty-state" style="grid-column: 1 / -1;">
+        <h3 class="empty-state-title">Unable to load articles</h3>
+        <p class="empty-state-desc">Please check your connection and try again.</p>
+        <button class="btn-outline" id="retryLatestArticlesBtn" type="button">Retry loading articles</button>
+      </div>
+    `;
+    container.querySelector('#retryLatestArticlesBtn')
+      ?.addEventListener('click', () => {
+        latestArticlesPromise = null;
+        initLatestArticles();
+      });
+    return;
+  }
+  const { collection, db, getDocs, handleFirestoreError, isConfigured, limit, orderBy, query, where } = runtime;
   if (!isConfigured || !db) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -408,16 +455,20 @@ async function initLatestArticles() {
 
     if (loadMoreBtn) {
       loadMoreBtn.style.display = (!usedFallback && snapshot.docs.length === ARTICLES_PER_PAGE) ? 'inline-flex' : 'none';
-      loadMoreBtn.addEventListener('click', loadMoreArticles);
+      loadMoreBtn.onclick = loadMoreArticles;
     }
   } catch (error) {
     handleFirestoreError(error, 'list', 'posts');
+    latestArticlesPromise = null;
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <h3 class="empty-state-title">Unable to load articles</h3>
         <p class="empty-state-desc">Please check your Firebase connection and permissions.</p>
+        <button class="btn-outline" id="retryLatestArticlesBtn" type="button">Retry loading articles</button>
       </div>
     `;
+    container.querySelector('#retryLatestArticlesBtn')
+      ?.addEventListener('click', () => initLatestArticles());
   }
 }
 
@@ -448,23 +499,32 @@ function getLatestArticlesSnapshot() {
         );
         return { snapshot: await getDocs(fallbackQ), usedFallback: true };
       }
-    })();
+    })().catch(error => {
+      latestArticlesPromise = null;
+      throw error;
+    });
   }
   return latestArticlesPromise;
 }
 
 async function loadMoreArticles() {
   if (!lastArticleDoc || isLoadingMore) return;
-  const {
-    collection, db, getDocs, handleFirestoreError, isConfigured, limit,
-    orderBy, query, startAfter, where,
-  } = await getFirestoreDependencies();
-  if (!isConfigured || !db) return;
   isLoadingMore = true;
   const loadMoreBtn = document.getElementById('loadMoreArticlesBtn');
   if (loadMoreBtn) loadMoreBtn.textContent = 'Loading...';
 
+  let handleFirestoreError;
   try {
+    const runtime = await getFirestoreDependencies();
+    const {
+      collection, db, getDocs, isConfigured, limit,
+      orderBy, query, startAfter, where,
+    } = runtime;
+    handleFirestoreError = runtime.handleFirestoreError;
+    if (!isConfigured || !db) {
+      throw new Error('Firestore is not configured for homepage pagination.');
+    }
+
     const q = query(
       collection(db, 'posts'),
       where('status', '==', 'published'),
@@ -490,7 +550,15 @@ async function loadMoreArticles() {
       }
     }
   } catch (error) {
-    handleFirestoreError(error, 'list', 'posts');
+    if (handleFirestoreError) {
+      handleFirestoreError(error, 'list', 'posts');
+    } else {
+      console.error('Could not load more homepage articles.', error);
+    }
+    if (loadMoreBtn) {
+      loadMoreBtn.textContent = 'Retry loading stories';
+      loadMoreBtn.style.display = 'inline-flex';
+    }
   } finally {
     isLoadingMore = false;
   }
@@ -503,8 +571,15 @@ async function initTrendingArticles() {
   const container = document.getElementById('trendingList');
   if (!container) return;
 
-  const { collection, db, getDocs, handleFirestoreError, isConfigured, limit, orderBy, query, where } =
-    await getFirestoreDependencies();
+  let runtime;
+  try {
+    runtime = await getFirestoreDependencies();
+  } catch (error) {
+    console.error('Could not initialize homepage trending stories.', error);
+    renderTrendingError(container, () => initTrendingArticles());
+    return;
+  }
+  const { collection, db, getDocs, handleFirestoreError, isConfigured, limit, orderBy, query, where } = runtime;
   if (!isConfigured || !db) {
     container.innerHTML = `
       <div class="empty-state" style="padding: 32px 16px;">
@@ -550,17 +625,8 @@ async function initTrendingArticles() {
     }
     const docs = [
       ...recentDocs,
-      ...lifetimeDocs.filter(post => !recentIds.has(post.id))
+      ...lifetimeDocs.filter(post => !recentIds.has(post.id) && getPostViews(post.data()) > 0)
     ].slice(0, 5);
-
-    if (docs.length === 0) {
-      const fallbackSnapshot = await getDocs(query(
-        collection(db, 'posts'),
-        where('status', '==', 'published'),
-        limit(5)
-      ));
-      docs.push(...fallbackSnapshot.docs);
-    }
 
     if (docs.length === 0) {
       container.innerHTML = `
@@ -573,14 +639,20 @@ async function initTrendingArticles() {
 
     container.innerHTML = docs.map((doc, idx) => {
       const post = doc.data();
+      const title = escapeHtml(post.title || 'Untitled article');
+      const category = escapeHtml(post.category || '');
+      const coverImage = escapeHtml(getSafeImageUrl(
+        post.coverImage,
+        'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=200&q=80'
+      ));
       return `
         <div class="trending-item">
           <span class="trending-rank">0${idx + 1}</span>
-          <img class="trending-thumb" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=200&q=80'}" alt="${post.title}" width="200" height="150" loading="lazy" decoding="async" />
+          <img class="trending-thumb" src="${coverImage}" alt="${title}" width="200" height="150" loading="lazy" decoding="async" />
           <div class="trending-info">
-            <span class="trending-category">${post.category || 'Anime'}</span>
+            ${category ? `<span class="trending-category">${category}</span>` : ''}
             <h4 class="trending-title">
-              <a href="${getArticlePath(post)}">${post.title}</a>
+              <a href="${getArticlePath(post)}">${title}</a>
             </h4>
           </div>
         </div>
@@ -588,12 +660,114 @@ async function initTrendingArticles() {
     }).join('');
   } catch (error) {
     handleFirestoreError(error, 'list', 'posts');
-    container.innerHTML = `
-      <div class="empty-state" style="padding: 24px 16px;">
-        <p class="empty-state-desc">Trending stories will appear as readers discover Animoro.</p>
-      </div>
-    `;
+    renderTrendingError(container, () => initTrendingArticles());
   }
+}
+
+async function initPopularAnime() {
+  const container = document.getElementById('homePopularAnimeContainer');
+  if (!container) return;
+
+  try {
+    const runtime = await getFirestoreDependencies();
+    if (!runtime.isConfigured || !runtime.db) {
+      renderHomeDataMessage(container, 'The anime catalogue is not available right now.');
+      return;
+    }
+
+    const snapshot = await runtime.getDocs(runtime.query(
+      runtime.collection(runtime.db, 'anime'),
+      runtime.where('visibility', '==', 'published'),
+      runtime.orderBy('rating', 'desc'),
+      runtime.limit(12)
+    ));
+    const anime = selectPopularAnime(snapshot.docs.map(document => ({
+      id: document.id,
+      ...document.data(),
+    })), 6);
+
+    if (!anime.length) {
+      renderHomeDataMessage(container, 'No published anime with a catalogue rating are available yet.');
+      return;
+    }
+    container.replaceChildren(...anime.map(createAnimeCard));
+  } catch (error) {
+    console.error('Could not load the homepage popular anime list.', error);
+    renderHomeDataMessage(container, 'Unable to load the rated anime list. Please try again.', () => initPopularAnime());
+  }
+}
+
+async function initUpcomingAnime() {
+  const container = document.getElementById('homeUpcomingAnimeContainer');
+  if (!container) return;
+
+  try {
+    const runtime = await getFirestoreDependencies();
+    if (!runtime.isConfigured || !runtime.db) {
+      renderHomeDataMessage(container, 'Upcoming anime are not available right now.');
+      return;
+    }
+
+    const snapshot = await runtime.getDocs(runtime.query(
+      runtime.collection(runtime.db, 'upcomingAnime'),
+      runtime.where('status', '==', 'published'),
+      runtime.limit(30)
+    ));
+    const seenIds = new Set();
+    const upcoming = snapshot.docs
+      .map(document => ({ id: document.id, ...document.data() }))
+      .filter(item => {
+        if (item.status !== 'published' || seenIds.has(item.id)) return false;
+        seenIds.add(item.id);
+        return true;
+      })
+      .sort((left, right) => {
+        const leftDate = getUpcomingReleaseTimestamp(left.releaseDate);
+        const rightDate = getUpcomingReleaseTimestamp(right.releaseDate);
+        return leftDate - rightDate ||
+          String(left.title || '').localeCompare(String(right.title || ''));
+      })
+      .slice(0, 6);
+
+    if (!upcoming.length) {
+      renderHomeDataMessage(container, 'No upcoming anime have been published yet.');
+      return;
+    }
+    container.replaceChildren(...upcoming.map(createUpcomingAnimeCard));
+  } catch (error) {
+    console.error('Could not load the homepage upcoming anime list.', error);
+    renderHomeDataMessage(container, 'Unable to load upcoming anime. Please try again.', () => initUpcomingAnime());
+  }
+}
+
+function renderHomeDataMessage(container, message, onRetry = null) {
+  const state = document.createElement('div');
+  state.className = 'empty-state';
+  state.style.gridColumn = '1 / -1';
+  const text = document.createElement('p');
+  text.className = 'empty-state-desc';
+  text.textContent = message;
+  state.appendChild(text);
+  if (onRetry) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn-outline';
+    retry.textContent = 'Retry';
+    retry.addEventListener('click', onRetry);
+    state.appendChild(retry);
+  }
+  container.replaceChildren(state);
+}
+
+function renderTrendingError(container, onRetry) {
+  container.innerHTML = `
+    <div class="empty-state" style="padding: 24px 16px;">
+      <p class="empty-state-desc">Unable to load trending stories. Please try again.</p>
+      <button class="btn-outline" id="retryTrendingStoriesBtn" type="button">Retry</button>
+    </div>
+  `;
+  container.querySelector('#retryTrendingStoriesBtn')
+    ?.addEventListener('click', onRetry);
 }
 
 /**
@@ -610,6 +784,8 @@ function initHomepage() {
       requestAnimationFrame(() => {
         initLatestArticles();
         initTrendingArticles();
+        initPopularAnime();
+        initUpcomingAnime();
       });
     };
     const heroImage = document.querySelector('#heroSliderContainer .slider-slide.active .slide-bg');

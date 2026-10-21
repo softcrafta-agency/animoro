@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { createArticleHandler } from '../article.js';
+import { createArticleHandler, loadRelatedPosts } from '../article.js';
 
 const template = await readFile(new URL('../../blog.html', import.meta.url), 'utf8');
 
@@ -38,6 +38,60 @@ function createServices(article) {
   };
   return { firestore };
 }
+
+test('prioritizes anime and tag matches, deduplicates results, and excludes the current or unpublished posts', async () => {
+  const entries = [
+    { id: 'current', title: 'Current', slug: 'current', status: 'published', animeSlug: 'linked-anime', tags: ['action'], category: 'Reviews', publishedAt: new Date('2026-10-08') },
+    { id: 'anime-match', title: 'Anime Match', slug: 'anime-match', status: 'published', animeSlug: 'linked-anime', publishedAt: new Date('2026-10-01') },
+    { id: 'tag-match', title: 'Tag Match', slug: 'tag-match', status: 'published', tags: ['action'], publishedAt: new Date('2026-10-06') },
+    { id: 'tag-match-newer', title: 'Newer Tag Match', slug: 'newer-tag-match', status: 'published', tags: ['analysis'], publishedAt: new Date('2026-10-07') },
+    { id: 'category-match', title: 'Category Match', slug: 'category-match', status: 'published', category: 'Reviews', publishedAt: new Date('2026-10-04') },
+    { id: 'draft-match', title: 'Draft Match', slug: 'draft-match', status: 'draft', animeSlug: 'linked-anime' },
+  ];
+  const firestore = {
+    collection() {
+      const filters = [];
+      let maximum = Infinity;
+      return {
+        where(field, operator, value) {
+          filters.push({ field, operator, value });
+          return this;
+        },
+        orderBy() { return this; },
+        limit(value) { maximum = value; return this; },
+        async get() {
+          const specificFilter = filters.find(filter => filter.field !== 'status');
+          let matching = entries;
+          if (specificFilter?.field === 'animeSlug') {
+            matching = entries.filter(entry => entry.animeSlug === specificFilter.value || entry.id === 'draft-match' || entry.id === 'current');
+          } else if (specificFilter?.field === 'tags') {
+            matching = entries.filter(entry => entry.tags || entry.id === 'current');
+          } else if (specificFilter?.field === 'category') {
+            matching = entries.filter(entry => entry.category || entry.id === 'current');
+          } else {
+            matching = entries;
+          }
+          return { docs: matching.slice(0, maximum).map(entry => ({ id: entry.id, data: () => entry })) };
+        },
+      };
+    },
+  };
+
+  const related = await loadRelatedPosts(firestore, {
+    animeSlug: 'linked-anime',
+    tags: ['action', 'analysis'],
+    category: 'Reviews',
+  }, 'current');
+
+  assert.deepEqual(related.map(post => post.id), [
+    'anime-match',
+    'tag-match-newer',
+    'tag-match',
+    'category-match',
+  ]);
+  assert.equal(new Set(related.map(post => post.id)).size, related.length);
+  assert.ok(related.every(post => post.status === 'published'));
+});
 
 test('returns complete HTML and cache headers for a published article', async () => {
   const handler = createArticleHandler({

@@ -46,12 +46,15 @@ test('does not display missing author, category, or publication metadata', () =>
     title: 'Article Without Display Metadata',
     slug: 'article-without-display-metadata',
     content: '<p>Body text.</p>',
+    createdAt: new Date('2026-10-01T10:00:00Z'),
   });
   const breadcrumbs = html.match(/<nav aria-label="Breadcrumb" class="article-breadcrumbs">([\s\S]*?)<\/nav>/)?.[1] || '';
   const intro = html.match(/<header class="article-header">([\s\S]*?)<\/header>/)?.[1] || '';
 
   assert.doesNotMatch(breadcrumbs, /category\.html/);
   assert.doesNotMatch(intro, /class="badge-category"|class="article-author-details"|<time datetime=/);
+  assert.doesNotMatch(html, /"author":\{"@type":"Person"/);
+  assert.doesNotMatch(html, /"datePublished":/);
 });
 
 test('sanitizes executable article markup and safely serializes attacker-controlled metadata', () => {
@@ -93,13 +96,17 @@ test('renders related links only for valid published article slugs', () => {
       coverImage: 'https://images.example.test/related.webp',
       publishedAt: new Date('2026-10-05T10:00:00Z'),
     },
+    { id: 'article-2-copy', title: 'Duplicate slug', slug: 'related', status: 'published' },
     { id: 'article-3', title: 'Invalid', slug: 'not valid', status: 'published' },
+    { id: 'article-4', title: 'Unpublished', slug: 'unpublished', status: 'draft' },
   ]);
 
   assert.match(html, /<a class="article-related-card" href="\/blog\.html\/related">[\s\S]*?Related/);
+  assert.match(html, /<section class="article-related-section" id="articleRelatedSection"/);
+  assert.ok(html.indexOf('Published Story') < html.indexOf('articleRelatedSection'));
   assert.match(html, /class="article-related-card" href="\/blog\.html\/related"[\s\S]*?loading="lazy"/);
   assert.match(html, /<time datetime="2026-10-05T10:00:00\.000Z">Oct 5, 2026<\/time>/);
-  assert.doesNotMatch(html, /not%20valid|not valid/);
+  assert.doesNotMatch(html, /not%20valid|not valid|Duplicate slug|Unpublished/);
   assert.doesNotMatch(html, /ARTICLE_(?:SEO_METADATA|STRUCTURED_DATA|BODY|RELATED|CLIENT_DATA)/);
 });
 

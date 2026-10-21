@@ -61,6 +61,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "visibility", "order": "ASCENDING" },
+        { "fieldPath": "rating", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "anime",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibility", "order": "ASCENDING" },
         { "fieldPath": "releaseDay", "order": "ASCENDING" }
       ]
     },

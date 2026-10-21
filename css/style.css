@@ -75,7 +75,6 @@ body {
   display: flex;
   flex-direction: column;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
 }
 
 /* Background Texture */
@@ -2149,32 +2148,6 @@ html.auth-checking body {
   }
 }
 
-.article-related-sidebar {
-  min-width: 0;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-  padding: 14px;
-}
-
-.article-related-sidebar[hidden] {
-  display: none;
-}
-
-.article-related-sidebar h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 0.98rem;
-}
-
-.article-related-list {
-  display: grid;
-}
-
 .article-related-card {
   display: grid;
   grid-template-columns: 60px minmax(0, 1fr);
@@ -2226,6 +2199,64 @@ html.auth-checking body {
 .article-related-card time {
   color: var(--text-muted);
   font-size: 0.72rem;
+}
+
+.article-related-section {
+  width: calc(100% - 48px);
+  max-width: var(--container-max);
+  margin: 24px auto 64px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.article-related-section > h2 {
+  margin-bottom: 18px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.article-related-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.article-related-section .article-related-card,
+.article-related-section .article-related-card-no-image {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.article-related-section .article-related-card + .article-related-card {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.article-related-section .article-related-card img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.article-related-section .article-related-copy {
+  padding: 12px;
+}
+
+.article-related-section .article-related-title {
+  font-size: 0.92rem;
+}
+
+.anime-popular-section {
+  margin-bottom: 16px;
 }
 
 .article-tags-wrap {
@@ -2419,8 +2450,6 @@ html.auth-checking body {
 
 .article-content-container a:not(.share-btn):hover {
   color: var(--accent-crimson);
-  font-size: 0.9rem;
-  display: none;
 }
 
 .form-feedback.success {

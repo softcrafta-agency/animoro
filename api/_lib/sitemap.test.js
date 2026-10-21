@@ -55,6 +55,7 @@ test('escapes XML characters in public URLs and omits invalid lastmod values', (
   const xml = buildSitemap(
     [{
       id: 'post&<"one',
+      slug: 'safe-story',
       status: 'published',
       category: 'Drama & <Reviews>',
       updatedAt: 'not a date',
@@ -64,7 +65,7 @@ test('escapes XML characters in public URLs and omits invalid lastmod values', (
     []
   );
 
-  assert.match(xml, /blog\.html\/article/);
+  assert.match(xml, /blog\.html\/safe-story/);
   assert.match(xml, /category=Drama%20%26%20%3CReviews%3E/);
   assert.doesNotMatch(xml, /<lastmod>/);
   assert.doesNotMatch(xml, /<loc>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
@@ -100,13 +101,25 @@ test('generates unique slugs for published posts without replacing existing vali
   ]);
 });
 
-test('sitemap emits slug paths without exposing document IDs', () => {
+test('sitemap excludes published records without a stored public slug', () => {
   const xml = buildSitemap([
     { id: 'secret-document-id', title: 'Kagurabachi Anime News', status: 'published' },
+    { id: 'valid-post', title: 'Kagurabachi Anime News', slug: 'kagurabachi-news', status: 'published' },
   ], []);
 
-  assert.match(xml, /blog\.html\/kagurabachi-anime-news/);
+  assert.match(xml, /blog\.html\/kagurabachi-news/);
+  assert.doesNotMatch(xml, /kagurabachi-anime-news/);
   assert.doesNotMatch(xml, /secret-document-id|\?id=/);
+});
+
+test('excludes invalid stored slugs instead of emitting synthetic sitemap URLs', () => {
+  const xml = buildSitemap([
+    { id: 'invalid-article', title: 'Article without a valid slug', slug: '../invalid', status: 'published' },
+  ], [], [
+    { title: 'Anime without a slug', visibility: 'published', slug: '' },
+  ]);
+
+  assert.doesNotMatch(xml, /blog\.html\/article-without-a-valid-slug|anime\.html\/anime-without-a-slug/);
 });
 
 test('normalizes article titles into URL-safe slugs', () => {

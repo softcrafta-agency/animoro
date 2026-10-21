@@ -102,7 +102,7 @@ function getReadingTime(content) {
 }
 
 function getPublishedDate(post) {
-  return post.publishedAt || post.createdAt || null;
+  return post.publishedAt || null;
 }
 
 function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
@@ -119,7 +119,7 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
   const dateModified = toIsoDateTime(post.updatedAt);
   const authorName = typeof post.authorName === 'string' && post.authorName.trim()
     ? post.authorName.trim()
-    : 'Animoro Editor';
+    : '';
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -138,7 +138,7 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
         url: publisherLogoUrl,
       },
     },
-    author: { '@type': 'Person', name: authorName },
+    ...(authorName ? { author: { '@type': 'Person', name: authorName } } : {}),
     ...(image ? { image: [image] } : {}),
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
@@ -319,7 +319,7 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
       <span class="article-reading-progress-value">0%</span>
       <div class="article-reading-progress-track"><span></span></div>
     </div>
-    <div class="article-reading-layout${relatedHtml ? ' has-related' : ''}" id="articleReadingLayout">
+    <div class="article-reading-layout" id="articleReadingLayout">
       <main class="article-content-container" id="articleBody">
         ${articleContent}
         ${tags ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tags}</div>` : ''}
@@ -333,16 +333,28 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
         <a class="share-btn" href="https://reddit.com/submit?url=${encodeURIComponent(canonicalUrl)}&amp;title=${encodeURIComponent(title)}" target="_blank" rel="noopener noreferrer">Reddit</a>
         </div>
       </main>
-      ${relatedHtml}
-    </div>`;
+    </div>
+    ${relatedHtml}`;
 }
 
 function renderRelatedArticles(posts, currentId) {
   if (!Array.isArray(posts) || posts.length === 0) return '';
 
+  const seenSlugs = new Set();
   const cards = posts
-    .filter(post => post.id !== currentId && isValidArticleSlug(post.slug) && typeof post.title === 'string' && post.title.trim())
-    .slice(0, 6)
+    .filter(post => {
+      if (post.id === currentId ||
+          post.status !== 'published' ||
+          !isValidArticleSlug(post.slug) ||
+          typeof post.title !== 'string' ||
+          !post.title.trim() ||
+          seenSlugs.has(post.slug)) {
+        return false;
+      }
+      seenSlugs.add(post.slug);
+      return true;
+    })
+    .slice(0, 4)
     .map(post => {
       const path = getArticlePath(post);
       const title = post.title.trim();
@@ -351,7 +363,7 @@ function renderRelatedArticles(posts, currentId) {
       const dateTime = toIsoDateTime(publishedDate);
       const visibleDate = formatDate(publishedDate);
       return `<a class="article-related-card${image ? '' : ' article-related-card-no-image'}" href="${escapeHtml(path)}">
-        ${image ? `<img src="${escapeHtml(image)}" alt="" width="800" height="450" loading="lazy" decoding="async" />` : ''}
+        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)} article cover" width="800" height="450" loading="lazy" decoding="async" />` : ''}
         <span class="article-related-copy">
           <span class="article-related-title">${escapeHtml(title)}</span>
           ${visibleDate ? `<time datetime="${escapeHtml(dateTime)}">${escapeHtml(visibleDate)}</time>` : ''}
@@ -361,10 +373,10 @@ function renderRelatedArticles(posts, currentId) {
     .join('');
 
   return cards
-    ? `<aside class="article-related-sidebar" id="articleRelatedSidebar" aria-label="Related articles">
-        <h2>Related Articles</h2>
-        <div class="article-related-list" id="relatedArticlesContainer">${cards}</div>
-      </aside>`
+    ? `<section class="article-related-section" id="articleRelatedSection" aria-labelledby="articleRelatedHeading">
+        <h2 id="articleRelatedHeading">Related Articles</h2>
+        <div class="article-related-grid" id="relatedArticlesContainer">${cards}</div>
+      </section>`
     : '';
 }
 

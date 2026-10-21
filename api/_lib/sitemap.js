@@ -116,8 +116,12 @@ export function buildSitemap(posts, categories, animeEntries = []) {
     add(new URL(path, `${SITE_ORIGIN}/`).toString());
   }
 
-  const publicPosts = assignPostSlugs(posts.filter(post => post.status === 'published'));
-  const publicAnime = assignAnimeSlugs(animeEntries.filter(anime => anime.visibility === 'published'));
+  const publicPosts = posts.filter(post =>
+    post.status === 'published' && isValidArticleSlug(post.slug)
+  );
+  const publicAnime = animeEntries.filter(anime =>
+    anime.visibility === 'published' && isValidAnimeSlug(anime.slug)
+  );
   const categoryLastModified = new Map();
 
   for (const post of publicPosts) {
@@ -133,16 +137,13 @@ export function buildSitemap(posts, categories, animeEntries = []) {
     }
   }
 
-  for (const anime of publicAnime) {
-    if (isValidAnimeSlug(anime.slug)) add(animeUrl(anime.slug), getLastModified(anime));
-  }
+  for (const anime of publicAnime) add(animeUrl(anime.slug), getLastModified(anime));
 
   for (const [name, lastModified] of [...categoryLastModified.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     add(categoryUrl(name), lastModified);
   }
 
   for (const post of publicPosts) {
-    if (!isValidArticleSlug(post.slug)) continue;
     add(articleUrl(post.slug), getLastModified(post));
   }
 

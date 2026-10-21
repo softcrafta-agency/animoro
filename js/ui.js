@@ -3,6 +3,8 @@ import { getAnimePath } from './anime-url.js';
 import { attachMyListToggle } from './my-list.js';
 import { getUpcomingAnimePath } from './upcoming-url.js';
 import { initializeAuthNavigation } from './auth-nav.js';
+import { escapeHtml, getSafeImageUrl } from './html-utils.js';
+import { formatUpcomingReleaseDate } from './upcoming-date.js';
 
 export function formatDate(timestamp) {
   if (!timestamp) return 'Recent';
@@ -25,23 +27,33 @@ export function createArticleCard(id, post) {
   const card = document.createElement('article');
   card.className = 'article-card';
   const articlePath = getArticlePath(post);
+  const title = escapeHtml(post.title || 'Untitled article');
+  const category = escapeHtml(post.category || 'General');
+  const excerpt = escapeHtml(post.excerpt || '');
+  const rawAuthorName = typeof post.authorName === 'string' ? post.authorName.trim() : '';
+  const authorName = rawAuthorName
+    ? escapeHtml(rawAuthorName)
+    : '';
+  const authorInitial = rawAuthorName ? escapeHtml(rawAuthorName[0].toUpperCase()) : '';
+  const publishedAt = post.publishedAt;
+  const imageUrl = escapeHtml(getSafeImageUrl(
+    post.coverImage,
+    'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80'
+  ));
   card.innerHTML = `
     <a href="${articlePath}" class="card-img-wrap">
-      <img class="card-img" src="${post.coverImage || 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80'}" alt="${post.title}" width="800" height="450" loading="lazy" decoding="async" />
-      <span class="card-category-badge">${post.category || 'General'}</span>
+      <img class="card-img" src="${imageUrl}" alt="${title}" width="800" height="450" loading="lazy" decoding="async" />
+      <span class="card-category-badge">${category}</span>
     </a>
     <div class="card-body">
-      <div class="card-meta">
-        <span>${formatDate(post.publishedAt || post.createdAt)}</span>
-      </div>
+      ${publishedAt ? `<div class="card-meta"><span>${escapeHtml(formatDate(publishedAt))}</span></div>` : ''}
       <h3 class="card-title">
-        <a href="${articlePath}">${post.title}</a>
+        <a href="${articlePath}">${title}</a>
       </h3>
-      <p class="card-excerpt">${post.excerpt || ''}</p>
+      <p class="card-excerpt">${excerpt}</p>
       <div class="card-footer">
         <div class="author-info">
-          <div class="author-avatar">${(post.authorName || 'A')[0].toUpperCase()}</div>
-          <span>${post.authorName || 'Animoro Editor'}</span>
+          ${authorName ? `<div class="author-avatar">${authorInitial}</div><span>${authorName}</span>` : ''}
         </div>
         <a href="${articlePath}" style="color: var(--accent-crimson); font-weight: 600; display: flex; align-items: center; gap: 4px;">
           Read
@@ -62,7 +74,7 @@ export function createAnimeCard(anime) {
   imageLink.href = getAnimePath(anime);
   const image = document.createElement('img');
   image.className = 'card-img';
-  image.src = anime.coverImage || '/favicon.svg';
+  image.src = getSafeImageUrl(anime.coverImage, '/favicon.svg');
   image.alt = `${anime.title} cover`;
   image.width = 800;
   image.height = 450;
@@ -124,7 +136,7 @@ export function createUpcomingAnimeCard(item) {
   imageLink.href = getUpcomingAnimePath(item);
   const image = document.createElement('img');
   image.className = 'card-img';
-  image.src = item.poster || item.coverImage || '/favicon.svg';
+  image.src = getSafeImageUrl(item.poster || item.coverImage, '/favicon.svg');
   image.alt = `${item.title} poster`;
   image.width = 800;
   image.height = 450;
@@ -138,7 +150,7 @@ export function createUpcomingAnimeCard(item) {
   const meta = document.createElement('div');
   meta.className = 'card-meta';
   const releaseDate = document.createElement('span');
-  releaseDate.textContent = item.releaseDate || 'TBA';
+  releaseDate.textContent = formatUpcomingReleaseDate(item.releaseDate);
   const season = document.createElement('span');
   season.textContent = [item.season || 'TBA', item.releaseYear].filter(Boolean).join(' ');
   meta.append(releaseDate, season);
@@ -190,12 +202,62 @@ export function setupMobileNav() {
   const drawer = document.getElementById('mobileNavDrawer');
   const backdrop = document.getElementById('mobileBackdrop');
   const closeBtn = document.getElementById('drawerCloseBtn');
+  const navigationLinks = [
+    { href: '/', label: 'Home', key: 'home' },
+    { href: '/anime.html', label: 'Anime List', key: 'anime' },
+    { href: '/upcoming-anime.html', label: 'Upcoming Anime', key: 'upcoming' },
+    { href: '/blogs.html', label: 'Articles', key: 'articles' },
+    { href: '/search.html', label: 'Search', key: 'search' },
+    { href: '/my-list.html', label: 'My List', key: 'my-list' },
+    { href: '/anime-calendar.html', label: 'Release Calendar', key: 'calendar' },
+  ];
+  const pathname = window.location.pathname;
+  const activeKey = pathname === '/'
+    ? 'home'
+    : pathname.startsWith('/anime.html')
+      ? 'anime'
+      : pathname.startsWith('/upcoming-anime')
+        ? 'upcoming'
+        : pathname === '/blogs.html' || pathname.startsWith('/blog.html/') ||
+            pathname === '/category.html'
+          ? 'articles'
+          : pathname === '/search.html'
+            ? 'search'
+            : pathname === '/my-list.html'
+              ? 'my-list'
+              : pathname === '/anime-calendar.html'
+                ? 'calendar'
+                : '';
 
-  if (drawer) {
-    addDrawerLink(drawer, '/anime.html', 'Anime Database');
-    addDrawerLink(drawer, '/upcoming-anime.html', 'Upcoming Anime');
-    addDrawerLink(drawer, '/my-list.html', 'My List');
-    addDrawerLink(drawer, '/anime-calendar.html', 'Release Calendar');
+  const desktopNavigation = document.querySelector('.main-nav');
+  if (desktopNavigation) {
+    desktopNavigation.setAttribute('aria-label', 'Main navigation');
+    desktopNavigation.replaceChildren(...navigationLinks
+      .filter(link => link.key !== 'search')
+      .map(link => {
+        const anchor = document.createElement('a');
+        anchor.href = link.href;
+        anchor.className = 'nav-link';
+        anchor.textContent = link.label;
+        if (link.key === activeKey) {
+          anchor.classList.add('active');
+          anchor.setAttribute('aria-current', 'page');
+        }
+        return anchor;
+      }));
+  }
+  const mobileNavigation = drawer?.querySelector('nav');
+  if (mobileNavigation) {
+    mobileNavigation.replaceChildren(...navigationLinks.map(link => {
+      const anchor = document.createElement('a');
+      anchor.href = link.href;
+      anchor.textContent = link.label;
+      if (link.key === activeKey) {
+        anchor.classList.add('active');
+        anchor.setAttribute('aria-current', 'page');
+      }
+      return anchor;
+    }));
   }
 
   if (!document.getElementById('mobileBottomNav')) {
@@ -204,16 +266,16 @@ export function setupMobileNav() {
     nav.className = 'mobile-bottom-nav';
     nav.setAttribute('aria-label', 'Mobile navigation');
     nav.innerHTML = `
-      <a href="/" data-mobile-path="/" aria-label="Home">
+      <a href="/" data-mobile-key="home" aria-label="Home">
         <span aria-hidden="true">⌂</span><small>Home</small>
       </a>
-      <a href="/search.html" data-mobile-path="/search.html" aria-label="Search">
+      <a href="/anime.html" data-mobile-key="anime" aria-label="Anime List">
+        <span aria-hidden="true">✦</span><small>Anime List</small>
+      </a>
+      <a href="/search.html" data-mobile-key="search" aria-label="Search">
         <span aria-hidden="true">⌕</span><small>Search</small>
       </a>
-      <a href="/upcoming-anime.html" data-mobile-path="/upcoming-anime.html" aria-label="Upcoming anime">
-        <span aria-hidden="true">✦</span><small>Upcoming</small>
-      </a>
-      <a href="/my-list.html" data-mobile-path="/my-list.html" aria-label="My list">
+      <a href="/my-list.html" data-mobile-key="my-list" aria-label="My list">
         <span aria-hidden="true">♥</span><small>My List</small>
       </a>
       <button type="button" id="mobileMoreNavButton" aria-label="Open more navigation" aria-haspopup="true" aria-expanded="false">
@@ -223,17 +285,10 @@ export function setupMobileNav() {
     document.body.appendChild(nav);
     document.body.classList.add('has-mobile-bottom-nav');
 
-    const currentPath = window.location.pathname;
-    nav.querySelectorAll('[data-mobile-path]').forEach(link => {
-      const targetPath = link.getAttribute('data-mobile-path');
-      const active = targetPath === '/#trending'
-        ? currentPath === '/' && window.location.hash === '#trending'
-        : targetPath === '/'
-          ? currentPath === '/' && !window.location.hash
-          : targetPath === '/anime.html'
-            ? currentPath === '/anime.html'
-            : currentPath === targetPath;
-      if (active) link.setAttribute('aria-current', 'page');
+    nav.querySelectorAll('[data-mobile-key]').forEach(link => {
+      if (link.getAttribute('data-mobile-key') === activeKey) {
+        link.setAttribute('aria-current', 'page');
+      }
     });
 
     const moreButton = document.getElementById('mobileMoreNavButton');
@@ -253,28 +308,61 @@ export function setupMobileNav() {
 
   if (!hamburgerBtn || !drawer || !backdrop) return;
 
+  hamburgerBtn.setAttribute('aria-controls', drawer.id);
+  hamburgerBtn.setAttribute('aria-expanded', 'false');
+  if (!drawer.classList.contains('open')) {
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.inert = true;
+  }
+  if (closeBtn) closeBtn.setAttribute('aria-label', 'Close navigation menu');
+  let previousBodyOverflow = '';
+
   function openMenu() {
     drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    drawer.inert = false;
     backdrop.classList.add('show');
+    previousBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    hamburgerBtn.setAttribute('aria-expanded', 'true');
+    closeBtn?.focus();
   }
 
-  function closeMenu() {
+  function closeMenu(restoreFocus = true) {
     drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    drawer.inert = true;
     backdrop.classList.remove('show');
-    document.body.style.overflow = '';
+    document.body.style.overflow = previousBodyOverflow;
+    hamburgerBtn.setAttribute('aria-expanded', 'false');
+    document.getElementById('mobileMoreNavButton')?.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) hamburgerBtn.focus();
   }
 
-  hamburgerBtn.addEventListener('click', openMenu);
+  hamburgerBtn.addEventListener('click', () => {
+    if (drawer.classList.contains('open')) closeMenu(false);
+    else openMenu();
+  });
   backdrop.addEventListener('click', closeMenu);
   if (closeBtn) closeBtn.addEventListener('click', closeMenu);
-}
+  document.addEventListener('keydown', event => {
+    if (!drawer.classList.contains('open')) return;
+    if (event.key === 'Escape') {
+      closeMenu();
+      return;
+    }
+    if (event.key !== 'Tab') return;
 
-function addDrawerLink(drawer, href, label) {
-  const navigation = drawer.querySelector('nav');
-  if (!navigation || navigation.querySelector(`a[href="${href}"]`)) return;
-  const link = document.createElement('a');
-  link.href = href;
-  link.textContent = label;
-  navigation.appendChild(link);
+    const focusable = [...drawer.querySelectorAll('a[href], button:not([disabled])')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 }
