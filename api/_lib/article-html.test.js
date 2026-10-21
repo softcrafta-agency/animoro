@@ -55,6 +55,25 @@ test('does not display missing author, category, or publication metadata', () =>
   assert.doesNotMatch(intro, /class="badge-category"|class="article-author-details"|<time datetime=/);
   assert.doesNotMatch(html, /"author":\{"@type":"Person"/);
   assert.doesNotMatch(html, /"datePublished":/);
+  assert.match(html, /<title>Article Without Display Metadata — Animoro<\/title>/);
+  assert.match(html, /<meta name="description" content="Article Without Display Metadata" \/>/);
+});
+
+test('uses SEO metadata independently from the visible headline and escapes fallbacks', () => {
+  const html = renderArticleDocument(template, {
+    id: 'seo-article',
+    title: 'Visible <Headline>',
+    slug: 'seo-article',
+    excerpt: 'Fallback & summary',
+    seoTitle: 'Search <Title>',
+    seoDescription: 'SEO & description',
+    content: '<p>Body</p>',
+  });
+
+  assert.match(html, /<title>Search &lt;Title&gt; — Animoro<\/title>/);
+  assert.match(html, /<h1 class="article-page-title">Visible &lt;Headline&gt;<\/h1>/);
+  assert.match(html, /<meta name="description" content="SEO &amp; description" \/>/);
+  assert.match(html, /<meta property="og:title" content="Search &lt;Title&gt;" \/>/);
 });
 
 test('sanitizes executable article markup and safely serializes attacker-controlled metadata', () => {

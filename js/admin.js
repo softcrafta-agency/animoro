@@ -365,7 +365,7 @@ service cloud.firestore {
              (!('coverImage' in data) || (data.coverImage is string && data.coverImage.size() <= 2000)) &&
              (!('tags' in data) || data.tags is list) &&
              (!('featured' in data) || data.featured is bool) &&
-             (!('featuredOrder' in data) || data.featuredOrder is number) &&
+             (!('featuredOrder' in data) || (data.featuredOrder is int && data.featuredOrder >= 0)) &&
              (!('views' in data) || data.views is number) &&
              (!('authorId' in data) || (data.authorId is string && data.authorId.size() <= 128)) &&
              (!('authorEmail' in data) || (data.authorEmail is string && data.authorEmail.size() <= 200)) &&

@@ -17,6 +17,7 @@ import { formatDate, formatViews } from './ui.js';
 import { getArticlePath, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
+import { isValidFeaturedOrder, normalizeArticleTags } from './article-editor-fields.js';
 import { setupAdminBulkEdit } from './admin-bulk-edit.js';
 import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
 
@@ -44,7 +45,7 @@ const POST_BULK_EDIT_FIELDS = [
     { value: 'draft', label: 'Draft' },
   ] },
   { key: 'featured', label: 'Featured in Hero Slider', type: 'checkbox' },
-  { key: 'featuredOrder', label: 'Slider Display Order', type: 'number', min: 1, max: 10, defaultValue: '1' },
+  { key: 'featuredOrder', label: 'Slider Display Order', type: 'number', min: 0, step: 1, defaultValue: '1' },
   { key: 'tags', label: 'Tags (comma separated)' },
 ];
 
@@ -243,10 +244,15 @@ async function savePostBulkRecord(post, draft) {
     throw new Error('Choose a valid article category.');
   }
   if (!['published', 'draft'].includes(draft.status)) throw new Error('Choose Published or Draft status.');
-  const featuredOrder = Number(draft.featuredOrder);
-  if (!Number.isInteger(featuredOrder) || featuredOrder < 1 || featuredOrder > 10) {
-    throw new Error('Slider display order must be a whole number from 1 to 10.');
+  if (draft.authorName.trim().length > 100) throw new Error('Author name must be 100 characters or fewer.');
+  if (draft.featured && !isValidFeaturedOrder(draft.featuredOrder)) {
+    throw new Error('Slider display order must be a non-negative whole number.');
   }
+  const featuredOrder = isValidFeaturedOrder(draft.featuredOrder)
+    ? Number(draft.featuredOrder)
+    : isValidFeaturedOrder(String(post.featuredOrder ?? ''))
+      ? post.featuredOrder
+      : 1;
 
   const plainText = new DOMParser().parseFromString(content, 'text/html').body.textContent || '';
   let excerpt = draft.excerpt.trim();
@@ -265,11 +271,11 @@ async function savePostBulkRecord(post, draft) {
     animeSlug: draft.animeSlug.trim() ? normalizeAnimeSlug(draft.animeSlug.trim()) : '',
     seoTitle: draft.seoTitle.trim(),
     seoDescription: draft.seoDescription.trim(),
-    authorName: draft.authorName.trim() || 'Animoro Editor',
+    authorName: draft.authorName.trim() || post.authorName || 'Animoro Editor',
     status: draft.status,
     featured: Boolean(draft.featured),
     featuredOrder,
-    tags: draft.tags.split(',').map(tag => tag.trim().replace(/^#/, '')).filter(Boolean),
+    tags: normalizeArticleTags(draft.tags.split(',')),
     updatedAt: serverTimestamp(),
     publishedAt: draft.status === 'published'
       ? (post.status === 'published' ? post.publishedAt || post.createdAt || serverTimestamp() : serverTimestamp())
@@ -346,7 +352,7 @@ export function renderPostsTable() {
         </td>
         <td>
           <button class="action-btn-sm toggle-featured-btn" data-id="${post.id}" data-featured="${post.featured ? 'true' : 'false'}" title="Toggle Featured in Hero Slider">
-            ${post.featured ? '⭐ Yes (# ' + (post.featuredOrder || 1) + ')' : '☆ No'}
+            ${post.featured ? '⭐ Yes (# ' + (post.featuredOrder ?? 1) + ')' : '☆ No'}
           </button>
         </td>
         <td>
@@ -428,7 +434,7 @@ export function renderFeaturedSliderManager() {
 
   const featured = adminPostsList
     .filter(p => p.featured === true)
-    .sort((a, b) => (a.featuredOrder || 1) - (b.featuredOrder || 1));
+    .sort((a, b) => (a.featuredOrder ?? 1) - (b.featuredOrder ?? 1));
 
   if (featured.length === 0) {
     container.innerHTML = `

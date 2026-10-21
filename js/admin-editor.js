@@ -9,7 +9,10 @@ import {
   query,
   where,
   limit,
-  getDocs
+  getDocs,
+  orderBy,
+  startAt,
+  endAt
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { requireAdminAuth, verifyAdminStatus } from './auth.js';
@@ -19,6 +22,7 @@ import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import { ImageUploadField } from './image-upload-field.js';
+import { isValidArticleCategory, isValidFeaturedOrder, normalizeArticleTags } from './article-editor-fields.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -28,6 +32,13 @@ let originalPublishedAt = null;
 let originalCreatedAt = null;
 let slugWasManuallyEdited = false;
 let postTags = [];
+let animeSearchTimer = null;
+let animeSearchRequest = 0;
+let animeSuggestions = new Map();
+let lastSelectedAnimeTitle = '';
+let lastAutoAnimeSlug = '';
+let animeSlugWasManuallyEdited = false;
+let originalAuthorName = '';
 let uploadedCoverUrl = '';
 let currentUploadedCoverData = null;
 let currentCoverMode = 'upload';
@@ -48,6 +59,7 @@ let editorAutosaveTimer = null;
 let editorIsDirty = false;
 let editorInitialSnapshot = '';
 let editorSaveInProgress = false;
+let articleSubmissionPending = false;
 const THEME_STORAGE_KEY = 'animoro-theme';
 
 function getPreferredTheme() {
@@ -777,7 +789,7 @@ function setupRichEditor() {
   updateEditorStatistics();
 
   window.addEventListener('beforeunload', (event) => {
-    if (!editorIsDirty || editorSaveInProgress) return;
+    if (!editorIsDirty || editorSaveInProgress || articleSubmissionPending) return;
     event.preventDefault();
     event.returnValue = '';
   });
@@ -837,6 +849,7 @@ function setupFormControls() {
     });
   }
 
+  setupPublishingDetails();
   setupRichEditor();
 
   setupArticleImageModal();
@@ -865,9 +878,9 @@ function setupFormControls() {
 }
 
 function addTag(tag) {
-  const clean = tag.replace(/^#/, '').trim();
-  if (clean && !postTags.includes(clean)) {
-    postTags.push(clean);
+  const updatedTags = normalizeArticleTags([...postTags, tag]);
+  if (updatedTags.length > postTags.length) {
+    postTags = updatedTags;
     renderTagChips();
     markEditorChanged();
   }
@@ -889,10 +902,164 @@ function renderTagChips() {
   postTags.forEach(tag => {
     const badge = document.createElement('span');
     badge.className = 'tag-badge';
-    badge.innerHTML = `#${tag} <button type="button" data-tag="${tag}">&times;</button>`;
-    badge.querySelector('button').addEventListener('click', () => removeTag(tag));
+    const label = document.createElement('span');
+    label.textContent = `#${tag}`;
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.setAttribute('aria-label', `Remove tag ${tag}`);
+    removeButton.textContent = '×';
+    removeButton.addEventListener('click', () => removeTag(tag));
+    badge.append(label, removeButton);
     container.insertBefore(badge, tagInput);
   });
+}
+
+function setupPublishingDetails() {
+  const titleInput = document.getElementById('postSeoTitle');
+  const descriptionInput = document.getElementById('postSeoDescription');
+  const featuredInput = document.getElementById('postFeatured');
+  const featuredOrder = document.getElementById('postFeaturedOrder');
+  const animeTitleInput = document.getElementById('postAnimeTitle');
+  const animeSlugInput = document.getElementById('postAnimeSlug');
+  const animeSuggestionsList = document.getElementById('articleAnimeSuggestions');
+  const animeSearchStatus = document.getElementById('articleAnimeSearchStatus');
+
+  const updateSeoCounter = (input, counterId, recommendedLength) => {
+    const counter = document.getElementById(counterId);
+    if (!counter) return;
+    const isOverRecommendation = input.value.length > recommendedLength;
+    counter.textContent = `${input.value.length} / ${input.maxLength} characters${isOverRecommendation ? ` — recommended maximum is ${recommendedLength}` : ''}`;
+    counter.classList.toggle('is-warning', isOverRecommendation);
+  };
+  titleInput?.addEventListener('input', () => updateSeoCounter(titleInput, 'postSeoTitleCounter', 60));
+  descriptionInput?.addEventListener('input', () => updateSeoCounter(descriptionInput, 'postSeoDescriptionCounter', 160));
+  if (titleInput) updateSeoCounter(titleInput, 'postSeoTitleCounter', 60);
+  if (descriptionInput) updateSeoCounter(descriptionInput, 'postSeoDescriptionCounter', 160);
+
+  const updateFeaturedOrderVisibility = () => {
+    const orderGroup = document.getElementById('featuredOrderGroup');
+    if (orderGroup && featuredInput) orderGroup.hidden = !featuredInput.checked;
+  };
+  featuredInput?.addEventListener('change', updateFeaturedOrderVisibility);
+  updateFeaturedOrderVisibility();
+
+  animeSlugInput?.addEventListener('input', () => {
+    animeSlugWasManuallyEdited = true;
+  });
+
+  document.getElementById('clearRelatedAnime')?.addEventListener('click', () => {
+    clearTimeout(animeSearchTimer);
+    animeSearchRequest += 1;
+    if (animeTitleInput) animeTitleInput.value = '';
+    if (animeSlugInput) animeSlugInput.value = '';
+    lastSelectedAnimeTitle = '';
+    lastAutoAnimeSlug = '';
+    animeSlugWasManuallyEdited = false;
+    if (animeSearchStatus) animeSearchStatus.textContent = 'Related anime cleared.';
+    animeSuggestionsList?.replaceChildren();
+    animeSuggestions.clear();
+    animeTitleInput?.focus();
+    markEditorChanged();
+  });
+
+  animeTitleInput?.addEventListener('input', () => {
+    const selectedAnime = animeSuggestions.get(animeTitleInput.value);
+    if (selectedAnime) {
+      animeTitleInput.value = selectedAnime.title;
+      lastSelectedAnimeTitle = selectedAnime.title;
+      const animeSlug = normalizeAnimeSlug(selectedAnime.slug || selectedAnime.title);
+      if (!animeSlugWasManuallyEdited && animeSlugInput) {
+        animeSlugInput.value = animeSlug;
+        lastAutoAnimeSlug = animeSlug;
+      }
+      if (animeSearchStatus) animeSearchStatus.textContent = `Selected ${selectedAnime.title}.`;
+      return;
+    }
+
+    if (lastSelectedAnimeTitle && animeTitleInput.value !== lastSelectedAnimeTitle) {
+      if (!animeSlugWasManuallyEdited && animeSlugInput?.value === lastAutoAnimeSlug) {
+        animeSlugInput.value = '';
+        lastAutoAnimeSlug = '';
+      }
+      lastSelectedAnimeTitle = '';
+    }
+
+    clearTimeout(animeSearchTimer);
+    animeSearchRequest += 1;
+    const searchTerm = animeTitleInput.value.trim();
+    if (searchTerm.length < 2) {
+      animeSuggestionsList?.replaceChildren();
+      animeSuggestions.clear();
+      if (animeSearchStatus) animeSearchStatus.textContent = searchTerm
+        ? 'Type at least 2 characters to search.'
+        : 'Search existing anime records by title or alternative title.';
+      return;
+    }
+    animeSearchTimer = setTimeout(() => searchRelatedAnime(searchTerm), 250);
+  });
+
+  async function searchRelatedAnime(searchTerm) {
+    if (!db || !isConfigured || !animeSuggestionsList) {
+      if (animeSearchStatus) animeSearchStatus.textContent = 'Anime search is unavailable because Firebase is not configured.';
+      return;
+    }
+    const request = ++animeSearchRequest;
+    if (animeSearchStatus) animeSearchStatus.textContent = 'Searching anime…';
+    try {
+      const searchVariations = [...new Set([
+        searchTerm,
+        `${searchTerm.charAt(0).toLocaleUpperCase()}${searchTerm.slice(1)}`,
+      ])];
+      const [titleMatches, alternativeMatches] = await Promise.all([
+        Promise.all(searchVariations.map(term => getDocs(query(
+          collection(db, 'anime'),
+          orderBy('title'),
+          startAt(term),
+          endAt(`${term}\uf8ff`),
+          limit(10)
+        )))),
+        Promise.all(searchVariations.map(term => getDocs(query(
+          collection(db, 'anime'),
+          where('alternativeTitles', 'array-contains', term),
+          limit(10)
+        )))),
+      ]);
+      if (request !== animeSearchRequest) return;
+
+      const records = new Map();
+      [...titleMatches, ...alternativeMatches]
+        .flatMap(snapshot => snapshot.docs)
+        .forEach(document => {
+          const anime = document.data();
+          if (typeof anime.title !== 'string' || !anime.title.trim()) return;
+          const alternatives = Array.isArray(anime.alternativeTitles)
+            ? anime.alternativeTitles.filter(value => typeof value === 'string' && value.trim())
+            : [];
+          const displayValue = alternatives.length
+            ? `${anime.title} — ${alternatives.slice(0, 2).join(', ')}`
+            : anime.title;
+          records.set(document.id, {
+            displayValue,
+            title: anime.title.trim(),
+            slug: typeof anime.slug === 'string' ? anime.slug : '',
+          });
+        });
+
+      animeSuggestions = new Map([...records.values()].map(anime => [anime.displayValue, anime]));
+      animeSuggestionsList.replaceChildren(...[...animeSuggestions.keys()].map(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        return option;
+      }));
+      if (animeSearchStatus) animeSearchStatus.textContent = records.size
+        ? `${records.size} matching anime found. Select a suggestion to link it.`
+        : 'No matching anime found.';
+    } catch (error) {
+      if (request !== animeSearchRequest) return;
+      console.error('Could not search anime records for article linking:', error);
+      if (animeSearchStatus) animeSearchStatus.textContent = 'Anime search failed. Check your connection and try again.';
+    }
+  }
 }
 
 let savedImageInsertRange = null;
@@ -1997,12 +2164,21 @@ async function loadPostForEditing(postId) {
     document.getElementById('postCategory').value = post.category || 'Anime News';
     document.getElementById('postAnimeTitle').value = post.animeTitle || '';
     document.getElementById('postAnimeSlug').value = post.animeSlug || '';
+    lastSelectedAnimeTitle = post.animeTitle || '';
+    lastAutoAnimeSlug = post.animeSlug === normalizeAnimeSlug(post.animeTitle || '')
+      ? post.animeSlug
+      : '';
+    animeSlugWasManuallyEdited = Boolean(post.animeSlug && !lastAutoAnimeSlug);
     document.getElementById('postSeoTitle').value = post.seoTitle || '';
     document.getElementById('postSeoDescription').value = post.seoDescription || '';
     document.getElementById('postAuthor').value = post.authorName || '';
+    originalAuthorName = typeof post.authorName === 'string' ? post.authorName : '';
     document.getElementById('postStatus').value = post.status || 'draft';
     document.getElementById('postFeatured').checked = !!post.featured;
-    document.getElementById('postFeaturedOrder').value = post.featuredOrder || 1;
+    document.getElementById('postFeaturedOrder').value = post.featuredOrder ?? 1;
+    document.getElementById('postSeoTitle').dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('postSeoDescription').dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('postFeatured').dispatchEvent(new Event('change', { bubbles: true }));
 
     const editorArea = document.getElementById('richEditorArea');
     if (editorArea) editorArea.innerHTML = sanitizeArticleEditorHtml(post.content || '', { allowLegacyDataImages: true });
@@ -2037,7 +2213,7 @@ async function loadPostForEditing(postId) {
     }
 
     if (post.tags && Array.isArray(post.tags)) {
-      postTags = [...post.tags];
+      postTags = normalizeArticleTags(post.tags);
       renderTagChips();
     }
     editorInitialSnapshot = getEditorSnapshot();
@@ -2050,6 +2226,23 @@ async function loadPostForEditing(postId) {
 }
 
 async function handlePostSubmit(e) {
+  e.preventDefault();
+  if (articleSubmissionPending) return;
+  articleSubmissionPending = true;
+  const submitBtn = document.getElementById('publishSubmitBtn');
+  const saveDraftBtn = document.getElementById('saveDraftBtn');
+  if (submitBtn) submitBtn.disabled = true;
+  if (saveDraftBtn) saveDraftBtn.disabled = true;
+  try {
+    await submitArticle(e);
+  } finally {
+    articleSubmissionPending = false;
+    if (submitBtn) submitBtn.disabled = false;
+    if (saveDraftBtn) saveDraftBtn.disabled = false;
+  }
+}
+
+async function submitArticle(e) {
   e.preventDefault();
   const autosaveKeyBeforeSave = getEditorAutosaveKey();
   const feedbackEl = document.getElementById('editorFeedback');
@@ -2085,10 +2278,15 @@ async function handlePostSubmit(e) {
   const animeSlug = animeSlugInput ? normalizeAnimeSlug(animeSlugInput) : '';
   const seoTitle = document.getElementById('postSeoTitle').value.trim();
   const seoDescription = document.getElementById('postSeoDescription').value.trim();
-  const authorName = document.getElementById('postAuthor').value.trim() || 'Animoro Editor';
+  const authorName = document.getElementById('postAuthor').value.trim() ||
+    originalAuthorName ||
+    currentUser.displayName ||
+    'Animoro Editor';
   const status = document.getElementById('postStatus').value;
   const featured = document.getElementById('postFeatured').checked;
-  const featuredOrder = parseInt(document.getElementById('postFeaturedOrder').value, 10) || 1;
+  const featuredOrderValue = document.getElementById('postFeaturedOrder').value;
+  const featuredOrderIsValid = isValidFeaturedOrder(featuredOrderValue);
+  const featuredOrder = featuredOrderIsValid ? Number(featuredOrderValue) : 1;
   const editor = getRichEditor();
   let content = sanitizeArticleEditorHtml(editor.innerHTML, { allowLegacyDataImages: true }).trim();
   editor.innerHTML = content;
@@ -2105,6 +2303,22 @@ async function handlePostSubmit(e) {
   }
   if (!content || content === '<br>') {
     showFeedback(feedbackEl, "Please enter article body content.", "error");
+    return;
+  }
+  if (!isValidArticleCategory(category)) {
+    showFeedback(feedbackEl, "Choose a supported article category.", "error");
+    return;
+  }
+  if (authorName.length > 100) {
+    showFeedback(feedbackEl, "Author name must be 100 characters or fewer.", "error");
+    return;
+  }
+  if (featured && !featuredOrderIsValid) {
+    showFeedback(feedbackEl, "Slider display order must be a non-negative whole number.", "error");
+    return;
+  }
+  if (!['draft', 'published'].includes(status)) {
+    showFeedback(feedbackEl, "Choose Draft or Published status.", "error");
     return;
   }
   if (selectedCover.mode === 'url' && !isValidExternalCoverUrl(coverImage)) {
@@ -2234,7 +2448,7 @@ async function handlePostSubmit(e) {
     animeSlug,
     seoTitle,
     seoDescription,
-    tags: postTags,
+    tags: normalizeArticleTags(postTags),
     authorName,
     authorId: currentUser.uid,
     authorEmail: currentUser.email || '',

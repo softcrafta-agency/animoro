@@ -172,6 +172,7 @@ test('loads related posts and linked anime profile concurrently', async () => {
     slug: 'published-story',
     status: 'published',
     category: 'Anime News',
+    animeTitle: 'Linked Anime',
     animeSlug: 'linked-anime',
     content: '<p>Published article body.</p>',
   };
@@ -227,6 +228,7 @@ test('loads related posts and linked anime profile concurrently', async () => {
   assert.ok(bothQueriesStarted);
   assert.equal(response.statusCode, 200);
   assert.match(response.body, /Published article body\./);
+  assert.match(response.body, /href="\/anime\.html\/linked-anime" class="badge-category">Linked Anime<\/a>/);
 });
 
 test('returns 404 for missing and unpublished articles', async () => {

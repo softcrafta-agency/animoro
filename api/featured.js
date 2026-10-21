@@ -47,7 +47,7 @@ function serializePost(document, includeCoverImage = false) {
     excerpt: post.excerpt || '',
     category: post.category || '',
     authorName: post.authorName || '',
-    featuredOrder: post.featuredOrder || 99,
+    featuredOrder: post.featuredOrder ?? 99,
     publishedAt: serializeDate(post.publishedAt),
     createdAt: serializeDate(post.createdAt),
   };

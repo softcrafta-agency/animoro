@@ -105,6 +105,22 @@ test('returns only the first featured cover before the hero renders with bounded
   assert.ok(queries.some(query => query[0] === 'select' && !query.includes('content')));
 });
 
+test('preserves zero as a valid featured display order', async () => {
+  const { firestore } = createFirestore({
+    featured: [createDocument('featured-first', {
+      title: 'First Story',
+      slug: 'first-story',
+      featuredOrder: 0,
+    })],
+  });
+  const response = createResponse();
+  const handler = createFeaturedHandler({ getServices: () => ({ firestore }) });
+
+  await handler({ method: 'GET' }, response);
+
+  assert.equal(JSON.parse(response.body).featured[0].featuredOrder, 0);
+});
+
 test('returns remaining cover URLs separately after the initial hero image loads with bounded public caching', async () => {
   const { firestore } = createFirestore({
     featured: [
