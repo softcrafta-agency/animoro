@@ -1,16 +1,14 @@
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { getAnimePath } from './anime-url.js';
+import { getUpcomingAnimePath } from './upcoming-url.js';
 import { getSafeImageUrl } from './html-utils.js';
 import { setupMobileNav } from './ui.js';
 import {
   formatCalendarDate,
-  getCalendarDateKey,
-  getCalendarWindow,
-  getSchedulesForPeriod,
+  getUpcomingAnimeForPeriod,
 } from './anime-release-calendar.js';
 
-let scheduledAnime = [];
+let publishedUpcomingAnime = [];
 let selectedFilter = 'today';
 let viewerTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
@@ -18,7 +16,7 @@ async function initAnimeCalendar() {
   setupMobileNav();
   const timezoneLabel = document.getElementById('calendarTimezone');
   if (timezoneLabel) {
-    timezoneLabel.textContent = `Dates are filtered in your timezone (${viewerTimezone}); release times are shown in each schedule's timezone.`;
+    timezoneLabel.textContent = `Exact date-only releases are shown as entered; timestamp dates use your local timezone (${viewerTimezone}).`;
   }
 
   document.querySelectorAll('[data-calendar-filter]').forEach(button => {
@@ -41,23 +39,17 @@ async function initAnimeCalendar() {
   }
 
   try {
-    const window = getCalendarWindow(new Date(), viewerTimezone, 'week');
     const snapshot = await getDocs(query(
-      collection(db, 'anime'),
-      where('visibility', '==', 'published'),
-      where('calendarEnabled', '==', true),
-      where('episodeReleaseDate', '>=', window.startDate),
-      where('episodeReleaseDate', '<=', window.endDate)
+      collection(db, 'upcomingAnime'),
+      where('status', '==', 'published'),
+      limit(200)
     ));
-    scheduledAnime = snapshot.docs
-      .map(document => ({ id: document.id, ...document.data() }))
-      .filter(anime => anime.visibility === 'published' &&
-        anime.calendarEnabled === true &&
-        ['Scheduled', 'Released', 'Delayed', 'Cancelled'].includes(anime.episodeReleaseStatus));
+    publishedUpcomingAnime = snapshot.docs
+      .map(document => ({ id: document.id, ...document.data() }));
     renderCalendar();
   } catch (error) {
-    handleFirestoreError(error, 'list', 'anime');
-    renderState(container, 'Unable to load release schedules. Please try again later.', 'error');
+    handleFirestoreError(error, 'list', 'upcomingAnime');
+    renderState(container, 'Unable to load release dates. Please try again later.', 'error');
   }
 }
 
@@ -67,21 +59,26 @@ function renderCalendar() {
 
   let visible;
   try {
-    visible = getSchedulesForPeriod(scheduledAnime, new Date(), viewerTimezone, selectedFilter);
+    visible = getUpcomingAnimeForPeriod(
+      publishedUpcomingAnime,
+      new Date(),
+      viewerTimezone,
+      selectedFilter
+    );
   } catch (error) {
-    console.error('Could not calculate release calendar date boundaries:', error);
+    console.error('Could not filter Upcoming Anime release dates:', error);
     renderState(container, 'Release dates could not be displayed in your timezone.', 'error');
     return;
   }
   if (visible.length === 0) {
     const labels = { today: 'today', tomorrow: 'tomorrow', week: 'the rest of this week' };
-    renderState(container, `No release schedules are available for ${labels[selectedFilter]}.`, 'empty');
+    renderState(container, `No upcoming anime with an exact release date is listed for ${labels[selectedFilter]}.`, 'empty');
     return;
   }
 
   const grouped = new Map();
   visible.forEach(anime => {
-    const day = getCalendarDateKey(new Date(anime.releaseInstant), viewerTimezone);
+    const day = anime.calendarDate;
     if (!grouped.has(day)) grouped.set(day, []);
     grouped.get(day).push(anime);
   });
@@ -107,10 +104,11 @@ function renderCalendar() {
 
 function createReleaseItem(anime) {
   const item = document.createElement('article');
-  const status = anime.episodeReleaseStatus;
-  item.className = `calendar-release-item calendar-release-${status.toLowerCase()}`;
+  const status = anime.releaseStatus || 'TBA';
+  const statusClass = status.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  item.className = `calendar-release-item calendar-release-${statusClass}`;
 
-  const posterUrl = getSafeImageUrl(anime.coverImage || anime.poster);
+  const posterUrl = getSafeImageUrl(anime.poster);
   if (posterUrl) {
     const poster = document.createElement('img');
     poster.className = 'calendar-release-poster';
@@ -125,44 +123,31 @@ function createReleaseItem(anime) {
   content.className = 'calendar-release-content';
   const time = document.createElement('time');
   time.className = 'calendar-release-time';
-  if (anime.episodeReleaseTime) {
-    time.dateTime = new Date(anime.releaseInstant).toISOString();
-    time.textContent = `${formatCalendarDate(new Date(anime.releaseInstant), anime.episodeTimezone, {
-      hour: 'numeric',
-      minute: '2-digit',
-    })} (${anime.episodeTimezone})`;
-  } else {
-    time.textContent = `Time TBA (${anime.episodeTimezone})`;
-  }
+  time.dateTime = anime.calendarDate;
+  time.textContent = formatCalendarDate(
+    new Date(`${anime.calendarDate}T12:00:00.000Z`),
+    'UTC',
+    { month: 'short', day: 'numeric', year: 'numeric' }
+  );
 
   const title = document.createElement('h3');
   const link = document.createElement('a');
-  link.href = getAnimePath(anime);
+  link.href = getUpcomingAnimePath(anime);
   link.textContent = anime.title || 'Untitled anime';
   title.appendChild(link);
   content.append(time, title);
 
-  if (anime.episodeNumber || anime.episodeTitle) {
-    const episode = document.createElement('p');
-    episode.className = 'calendar-release-episode';
-    episode.textContent = [
-      anime.episodeNumber ? `Episode ${anime.episodeNumber}` : '',
-      anime.episodeTitle || '',
-    ].filter(Boolean).join(' — ');
-    content.appendChild(episode);
+  if (anime.shortDescription) {
+    const description = document.createElement('p');
+    description.className = 'calendar-release-episode';
+    description.textContent = anime.shortDescription;
+    content.appendChild(description);
   }
 
   const statusLabel = document.createElement('span');
   statusLabel.className = 'calendar-release-status';
   statusLabel.textContent = status;
   content.appendChild(statusLabel);
-
-  if (anime.episodeScheduleNotes) {
-    const notes = document.createElement('p');
-    notes.className = 'calendar-release-notes';
-    notes.textContent = anime.episodeScheduleNotes;
-    content.appendChild(notes);
-  }
 
   item.appendChild(content);
   return item;

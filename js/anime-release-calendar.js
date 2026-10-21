@@ -56,6 +56,79 @@ function addCalendarDays(dateString, days) {
   });
 }
 
+export function getCalendarDateRange(now, timeZone, period) {
+  if (!['today', 'tomorrow', 'week'].includes(period)) throw new RangeError('Unknown calendar period.');
+  const { year, month, day } = getDateParts(now, timeZone);
+  const today = dateStringFromParts({ year, month, day });
+  const startDate = addCalendarDays(today, period === 'tomorrow' ? 1 : 0);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  const daysUntilNextMonday = weekday === 0 ? 1 : 8 - weekday;
+  const endDate = addCalendarDays(startDate, period === 'week' ? daysUntilNextMonday : 1);
+  return { startDate, endDate };
+}
+
+export function getUpcomingReleaseDate(value, timeZone) {
+  if (typeof value === 'string') {
+    if (isValidDate(value)) {
+      return {
+        dateKey: value,
+        date: new Date(`${value}T12:00:00.000Z`),
+        isInstant: false,
+      };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) {
+      return null;
+    }
+    if (!isValidDate(value.slice(0, 10))) return null;
+  }
+
+  let date = value instanceof Date ? value : null;
+  if (!date && value && typeof value.toDate === 'function') {
+    try {
+      date = value.toDate();
+    } catch {
+      return null;
+    }
+  }
+  if (!date && typeof value === 'string') date = new Date(value);
+  if (!(date instanceof Date) || !Number.isFinite(date.getTime())) return null;
+
+  try {
+    return {
+      dateKey: getCalendarDateKey(date, timeZone),
+      date,
+      isInstant: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getUpcomingAnimeForPeriod(records, now, timeZone, period) {
+  const { startDate, endDate } = getCalendarDateRange(now, timeZone, period);
+  const seen = new Set();
+
+  return records
+    .map(record => {
+      if (record.status !== 'published') return null;
+      if (record.id && seen.has(record.id)) return null;
+      const release = getUpcomingReleaseDate(record.releaseDate, timeZone);
+      if (!release || release.dateKey < startDate || release.dateKey >= endDate) return null;
+      if (record.id) seen.add(record.id);
+      return {
+        ...record,
+        calendarDate: release.dateKey,
+        calendarDateValue: release.date,
+        calendarDateIsInstant: release.isInstant,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) =>
+      left.calendarDate.localeCompare(right.calendarDate) ||
+      String(left.title || '').localeCompare(String(right.title || ''))
+    );
+}
+
 export function isValidReleaseSchedule(schedule) {
   if (!schedule || typeof schedule !== 'object') return false;
   if (!isValidDate(schedule.episodeReleaseDate)) return false;
@@ -106,13 +179,7 @@ export function getZonedDateTimeInstant(dateString, timeString, timeZone) {
 }
 
 export function getCalendarWindow(now, timeZone, period) {
-  if (!['today', 'tomorrow', 'week'].includes(period)) throw new RangeError('Unknown calendar period.');
-  const { year, month, day } = getDateParts(now, timeZone);
-  const today = dateStringFromParts({ year, month, day });
-  const startDate = addCalendarDays(today, period === 'tomorrow' ? 1 : 0);
-  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-  const daysUntilNextMonday = weekday === 0 ? 1 : 8 - weekday;
-  const endDate = addCalendarDays(startDate, period === 'week' ? daysUntilNextMonday : 1);
+  const { startDate, endDate } = getCalendarDateRange(now, timeZone, period);
   const start = getZonedDateTimeInstant(startDate, '00:00', timeZone);
   const end = getZonedDateTimeInstant(endDate, '00:00', timeZone);
   if (start === null || end === null) throw new RangeError('Could not calculate calendar date boundaries.');

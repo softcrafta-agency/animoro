@@ -2,12 +2,59 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   getCalendarDateKey,
+  getUpcomingAnimeForPeriod,
+  getUpcomingReleaseDate,
   getCalendarWindow,
   getReleaseInstant,
   getSchedulesForPeriod,
   getZonedDateTimeInstant,
   isValidReleaseSchedule,
 } from './anime-release-calendar.js';
+
+test('parses exact Upcoming Anime dates without shifting date-only values by timezone', () => {
+  const dateOnly = getUpcomingReleaseDate('2026-10-22', 'America/Los_Angeles');
+  assert.equal(dateOnly.dateKey, '2026-10-22');
+  assert.equal(dateOnly.isInstant, false);
+  assert.equal(getUpcomingReleaseDate('October 2026', 'UTC'), null);
+  assert.equal(getUpcomingReleaseDate('2026-02-30', 'UTC'), null);
+});
+
+test('normalizes Firestore Timestamp values to the viewer calendar date', () => {
+  const timestamp = { toDate: () => new Date('2026-10-22T00:30:00.000Z') };
+  const release = getUpcomingReleaseDate(timestamp, 'America/Los_Angeles');
+
+  assert.equal(release.dateKey, '2026-10-21');
+  assert.equal(release.isInstant, true);
+});
+
+test('filters published upcoming anime by exact dates and preserves release statuses', () => {
+  const records = [
+    { id: 'today', title: 'Today', status: 'published', releaseStatus: 'Upcoming', releaseDate: '2026-10-22' },
+    { id: 'delayed', title: 'Delayed', status: 'published', releaseStatus: 'Delayed', releaseDate: '2026-10-23' },
+    { id: 'airing', title: 'Airing', status: 'published', releaseStatus: 'Airing', releaseDate: '2026-10-24' },
+    { id: 'draft', title: 'Draft', status: 'draft', releaseStatus: 'Upcoming', releaseDate: '2026-10-22' },
+    { id: 'completed', title: 'Completed', status: 'published', releaseStatus: 'Completed', releaseDate: '2026-10-22' },
+    { id: 'tba', title: 'TBA', status: 'published', releaseStatus: 'TBA', releaseDate: '2026-10-22' },
+    { id: 'missing', title: 'Missing', status: 'published', releaseStatus: 'Upcoming', releaseDate: null },
+    { id: 'invalid', title: 'Invalid', status: 'published', releaseStatus: 'Upcoming', releaseDate: 'October 2026' },
+    { id: 'next-week', title: 'Next week', status: 'published', releaseStatus: 'Upcoming', releaseDate: '2026-10-26' },
+    { id: 'today', title: 'Duplicate', status: 'published', releaseStatus: 'Upcoming', releaseDate: '2026-10-22' },
+  ];
+  const now = new Date('2026-10-21T18:45:00.000Z');
+
+  assert.deepEqual(
+    getUpcomingAnimeForPeriod(records, now, 'Asia/Kolkata', 'today').map(item => item.title),
+    ['Completed', 'TBA', 'Today']
+  );
+  assert.deepEqual(
+    getUpcomingAnimeForPeriod(records, now, 'Asia/Kolkata', 'tomorrow').map(item => item.title),
+    ['Delayed']
+  );
+  assert.deepEqual(
+    getUpcomingAnimeForPeriod(records, now, 'Asia/Kolkata', 'week').map(item => item.title),
+    ['Completed', 'TBA', 'Today', 'Delayed', 'Airing']
+  );
+});
 
 test('validates explicit schedules independently of series release fields', () => {
   assert.equal(isValidReleaseSchedule({
