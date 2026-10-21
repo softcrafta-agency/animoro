@@ -358,7 +358,7 @@ service cloud.firestore {
     function isValidPost(data) {
       return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
              data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200 &&
-             data.content is string && data.content.size() > 0 && data.content.size() <= 100000 &&
+             data.content is string && data.content.size() > 0 &&
              data.category is string && data.category.size() <= 100 &&
              (data.status == 'draft' || data.status == 'published') &&
              (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() <= 1000)) &&

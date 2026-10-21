@@ -2107,10 +2107,6 @@ async function handlePostSubmit(e) {
     showFeedback(feedbackEl, "Please enter article body content.", "error");
     return;
   }
-  if (content.length > 100000) {
-    showFeedback(feedbackEl, "Article content must be 100,000 characters or less.", "error");
-    return;
-  }
   if (selectedCover.mode === 'url' && !isValidExternalCoverUrl(coverImage)) {
     showFeedback(feedbackEl, "Please enter a valid HTTPS image URL.", "error");
     return;

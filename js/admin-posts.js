@@ -29,7 +29,7 @@ const POST_BULK_EDIT_FIELDS = [
   { key: 'title', label: 'Article Title', required: true, maxLength: 200 },
   { key: 'slug', label: 'URL Slug', required: true, maxLength: 200 },
   { key: 'excerpt', label: 'Summary / Excerpt', type: 'textarea', maxLength: 1000 },
-  { key: 'content', label: 'Article Body (HTML)', type: 'html', required: true, maxLength: 100000, rows: 12, hint: 'Article HTML is sanitized before it is saved.' },
+  { key: 'content', label: 'Article Body (HTML)', type: 'html', required: true, rows: 12, hint: 'Article HTML is sanitized before it is saved.' },
   { key: 'coverImage', label: 'Cover Image URL', type: 'url', hint: 'Use a direct HTTP(S) image URL. Existing uploaded images are not deleted.' },
   { key: 'category', label: 'Category', type: 'select', options: [
     'Anime News', 'Reviews', 'Rankings', 'Guides', 'Recommendations', 'Manga', 'Seasonal Anime',
@@ -219,8 +219,8 @@ async function savePostBulkRecord(post, draft) {
   const content = draft.content === (post.content || '')
     ? post.content
     : sanitizeArticleEditorHtml(draft.content).trim();
-  if (!content || content.length > 100000 || /data:image\//i.test(content)) {
-    throw new Error('Article body must contain sanitized content under 100,000 characters without embedded data images.');
+  if (!content || /data:image\//i.test(content)) {
+    throw new Error('Article body must contain sanitized content without embedded data images.');
   }
   let coverImage = draft.coverImage.trim();
   if (coverImage) {

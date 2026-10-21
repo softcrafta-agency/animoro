@@ -116,6 +116,26 @@ test('returns complete HTML and cache headers for a published article', async ()
   assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\.html\/published-story"/);
 });
 
+test('renders published article content exceeding 100,000 characters', async () => {
+  const content = `<p>${'a'.repeat(100_001)}</p>`;
+  const handler = createArticleHandler({
+    getServices: () => createServices({
+      title: 'Long Published Story',
+      slug: 'long-published-story',
+      status: 'published',
+      content,
+      category: '',
+    }),
+    loadTemplate: async () => template,
+  });
+  const response = createResponse();
+
+  await handler({ method: 'GET', query: { slug: 'long-published-story' } }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.body.includes(content));
+});
+
 test('resolves a published article slug from the rewritten Vercel request URL', async () => {
   const slugs = [
     'best-sports-anime-you-should-definitely-watch',
