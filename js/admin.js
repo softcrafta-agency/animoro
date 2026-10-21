@@ -372,6 +372,29 @@ service cloud.firestore {
              (!('authorName' in data) || (data.authorName is string && data.authorName.size() <= 100));
     }
 
+    function isValidEpisodeSchedule(data) {
+      return (!('calendarEnabled' in data) || data.calendarEnabled is bool) &&
+             (!('episodeReleaseDate' in data) ||
+              (data.episodeReleaseDate is string &&
+               (data.episodeReleaseDate == '' || data.episodeReleaseDate.matches('^\\\\d{4}-\\\\d{2}-\\\\d{2}$')))) &&
+             (!('episodeReleaseTime' in data) ||
+              (data.episodeReleaseTime is string &&
+               (data.episodeReleaseTime == '' || data.episodeReleaseTime.matches('^([01]\\\\d|2[0-3]):[0-5]\\\\d$')))) &&
+             (!('episodeTimezone' in data) ||
+              (data.episodeTimezone is string && data.episodeTimezone.size() <= 100)) &&
+             (!('episodeReleaseStatus' in data) ||
+              data.episodeReleaseStatus in ['Scheduled', 'Released', 'Delayed', 'Cancelled']) &&
+             (!('episodeNumber' in data) || (data.episodeNumber is string && data.episodeNumber.size() <= 40)) &&
+             (!('episodeTitle' in data) || (data.episodeTitle is string && data.episodeTitle.size() <= 200)) &&
+             (!('episodeScheduleNotes' in data) ||
+              (data.episodeScheduleNotes is string && data.episodeScheduleNotes.size() <= 1000)) &&
+             (!('calendarEnabled' in data) || data.calendarEnabled != true ||
+              (data.episodeReleaseDate is string &&
+               data.episodeReleaseDate.matches('^\\\\d{4}-\\\\d{2}-\\\\d{2}$') &&
+               data.episodeTimezone is string && data.episodeTimezone.size() > 0 &&
+               data.episodeReleaseStatus in ['Scheduled', 'Released', 'Delayed', 'Cancelled']));
+    }
+
     // Posts Collection
     match /posts/{postId} {
       allow get: if (resource.data.status == 'published') ||
@@ -405,7 +428,8 @@ service cloud.firestore {
 
     match /anime/{animeId} {
       allow get, list: if resource.data.visibility == 'published' || isSuperOrDocAdmin();
-      allow create, update, delete: if isSuperOrDocAdmin();
+      allow create, update: if isSuperOrDocAdmin() && isValidEpisodeSchedule(incoming());
+      allow delete: if isSuperOrDocAdmin();
     }
 
     // Categories Collection

@@ -297,7 +297,24 @@
               <div class="form-group"><label class="form-label" for="animeRating">Rating (only when verified)</label><input class="form-input" id="animeRating" type="number" min="0" max="10" step="0.1" /></div>
               <div class="form-group"><label class="form-label" for="animeCharacters">Characters (comma separated)</label><input class="form-input" id="animeCharacters" /></div>
               <div class="form-group"><label class="form-label" for="animeTags">Tags (comma separated)</label><input class="form-input" id="animeTags" /></div>
-              <div class="form-group"><label class="form-label" for="animeReleaseDay">Release Day</label><select class="form-select" id="animeReleaseDay"><option value="">Not scheduled</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
+              <div class="form-group anime-release-calendar-settings">
+                <label class="form-label" for="animeCalendarEnabled">Enable Release Calendar</label>
+                <div class="anime-release-calendar-toggle">
+                  <input id="animeCalendarEnabled" type="checkbox" />
+                  <span>Show this episode schedule on the public release calendar.</span>
+                </div>
+              </div>
+              <div id="animeReleaseCalendarFields" hidden>
+                <div class="form-group"><label class="form-label" for="animeEpisodeReleaseDate">Episode Release Date</label><input class="form-input" id="animeEpisodeReleaseDate" type="date" /></div>
+                <div class="form-group"><label class="form-label" for="animeEpisodeNumber">Episode Number (Optional)</label><input class="form-input" id="animeEpisodeNumber" maxlength="40" placeholder="12 or 12.5" /></div>
+                <div class="form-group"><label class="form-label" for="animeEpisodeTitle">Episode Title (Optional)</label><input class="form-input" id="animeEpisodeTitle" maxlength="200" /></div>
+                <div class="form-group"><label class="form-label" for="animeEpisodeReleaseTime">Release Time (Optional)</label><input class="form-input" id="animeEpisodeReleaseTime" type="time" /></div>
+                <div class="form-group"><label class="form-label" for="animeEpisodeTimezone">Release Timezone</label><input class="form-input" id="animeEpisodeTimezone" list="animeReleaseTimezones" placeholder="Asia/Kolkata" /><datalist id="animeReleaseTimezones"></datalist><small class="admin-selection-hint">Choose an IANA timezone. Defaults to Asia/Kolkata.</small></div>
+                <div class="form-group"><label class="form-label" for="animeEpisodeReleaseStatus">Release Schedule Status</label><select class="form-select" id="animeEpisodeReleaseStatus"><option value="Scheduled">Scheduled</option><option value="Released">Released</option><option value="Delayed">Delayed</option><option value="Cancelled">Cancelled</option></select></div>
+                <div class="form-group"><label class="form-label" for="animeEpisodeScheduleNotes">Schedule Notes (Optional)</label><textarea class="form-textarea" id="animeEpisodeScheduleNotes" maxlength="1000"></textarea></div>
+              </div>
+              <small class="admin-selection-hint">Weekly series details below are separate from individual dated episode schedules. Use Enable Release Calendar above to publish an episode date.</small>
+              <div class="form-group"><label class="form-label" for="animeReleaseDay">Weekly Release Day</label><select class="form-select" id="animeReleaseDay"><option value="">Not scheduled</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
               <div class="form-group"><label class="form-label" for="animeReleaseTime">Release Time</label><input class="form-input" id="animeReleaseTime" type="time" /></div>
               <div class="form-group"><label class="form-label" for="animeTimezone">Release Timezone (IANA)</label><input class="form-input" id="animeTimezone" placeholder="Asia/Kolkata" /></div>
               <div class="form-group"><label class="form-label" for="animeNextEpisode">Next Episode</label><input class="form-input" id="animeNextEpisode" type="number" min="1" /></div>

@@ -2838,8 +2838,50 @@ html.auth-checking body {
   background: var(--bg-card);
 }
 
+.calendar-release-poster {
+  width: 84px;
+  height: 112px;
+  flex: 0 0 84px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.calendar-release-content {
+  min-width: 0;
+}
+
+.calendar-release-delayed {
+  border-color: rgba(245, 158, 11, 0.7);
+}
+
+.calendar-release-cancelled {
+  border-color: rgba(239, 68, 68, 0.7);
+  opacity: 0.78;
+}
+
+.calendar-release-status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.calendar-release-delayed .calendar-release-status {
+  border-color: rgba(245, 158, 11, 0.7);
+  color: #fbbf24;
+}
+
+.calendar-release-cancelled .calendar-release-status {
+  border-color: rgba(239, 68, 68, 0.7);
+  color: #f87171;
+}
+
 .calendar-release-time {
-  flex: 0 0 150px;
+  display: block;
+  margin-bottom: 8px;
   color: var(--accent-crimson-hover);
   font-family: var(--font-mono);
   font-size: 0.9rem;
@@ -2857,6 +2899,10 @@ html.auth-checking body {
 .calendar-release-item p {
   margin: 6px 0 0;
   color: var(--text-muted);
+}
+
+.calendar-state-error .empty-state-desc {
+  color: #f87171;
 }
 
 .calendar-filter-row {
@@ -2889,6 +2935,11 @@ html.auth-checking body {
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .calendar-release-poster {
+    width: 72px;
+    height: 96px;
   }
 
   .calendar-release-time {

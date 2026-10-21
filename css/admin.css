@@ -697,6 +697,27 @@ html[data-theme='light'] .article-image-library-card {
   color: #fbbf24;
 }
 
+.anime-release-calendar-settings {
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.anime-release-calendar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.anime-release-calendar-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-crimson);
+}
+
 .editor-toolbar {
   display: flex;
   align-items: center;

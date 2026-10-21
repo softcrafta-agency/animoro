@@ -144,5 +144,6 @@ test('continues later atomic batches after a partial import failure', async () =
 test('keeps Firestore anime writes restricted to admin authorization rules', async () => {
   const rules = await readFile(new URL('../firestore.rules', import.meta.url), 'utf8');
   assert.match(rules, /function isSuperOrDocAdmin\(\)/);
-  assert.match(rules, /match \/anime\/\{animeId\}\s*\{\s*allow get, list: if resource\.data\.visibility == 'published' \|\| isSuperOrDocAdmin\(\);\s*allow create, update, delete: if isSuperOrDocAdmin\(\);/);
+  assert.match(rules, /match \/anime\/\{animeId\}\s*\{\s*allow get, list: if resource\.data\.visibility == 'published' \|\| isSuperOrDocAdmin\(\);\s*allow create, update: if isSuperOrDocAdmin\(\) && isValidEpisodeSchedule\(incoming\(\)\);\s*allow delete: if isSuperOrDocAdmin\(\);/);
+  assert.match(rules, /function isValidEpisodeSchedule\(data\)/);
 });

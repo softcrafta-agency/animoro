@@ -16,6 +16,7 @@ import { db, handleFirestoreError, isConfigured } from './firebase-init.js';
 import { auth } from './auth-init.js';
 import { verifyAdminStatus } from './auth.js';
 import { normalizeAnimeSlug } from './anime-url.js';
+import { isValidReleaseSchedule } from './anime-release-calendar.js';
 import { commitAnimeImportBatches } from './anime-import-batches.js';
 import { createAdminTableSelection, openBulkDeleteConfirmation } from './admin-table-selection.js';
 import { setupAnimeListManager } from './admin-anime-lists.js';
@@ -31,7 +32,9 @@ const ANIME_FIELDS = [
   'Title', 'Slug', 'AlternativeTitles', 'Synopsis', 'SeoTitle', 'SeoDescription', 'CoverImage', 'BannerImage',
   'Genres', 'Type', 'Status', 'ReleaseYear', 'Studio', 'Episodes', 'Season',
   'Source', 'Rating', 'Characters', 'Tags', 'ReleaseDay', 'ReleaseTime',
-  'Timezone', 'NextEpisode', 'Visibility'
+  'Timezone', 'NextEpisode', 'CalendarEnabled', 'EpisodeReleaseDate',
+  'EpisodeNumber', 'EpisodeTitle', 'EpisodeReleaseTime', 'EpisodeTimezone',
+  'EpisodeReleaseStatus', 'EpisodeScheduleNotes', 'Visibility'
 ];
 const ANIME_IMPORT_BATCH_SIZE = 400;
 const ANIME_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -99,6 +102,20 @@ export function setupAnimeManager() {
   document.getElementById('animeSlug')?.addEventListener('input', () => {
     slugManuallyEdited = true;
   });
+  document.getElementById('animeCalendarEnabled')?.addEventListener('change', event => {
+    const fields = document.getElementById('animeReleaseCalendarFields');
+    if (fields) fields.hidden = !event.target.checked;
+  });
+  const episodeTimezoneInput = document.getElementById('animeEpisodeTimezone');
+  if (episodeTimezoneInput) episodeTimezoneInput.value = 'Asia/Kolkata';
+  const timezoneList = document.getElementById('animeReleaseTimezones');
+  if (timezoneList && typeof Intl.supportedValuesOf === 'function') {
+    timezoneList.replaceChildren(...Intl.supportedValuesOf('timeZone').map(timezone => {
+      const option = document.createElement('option');
+      option.value = timezone;
+      return option;
+    }));
+  }
   document.getElementById('cancelAnimeEditButton')?.addEventListener('click', resetAnimeForm);
   const openAnimeBulkEdit = setupAdminBulkEdit({
     title: 'Bulk Edit Anime',
@@ -549,9 +566,11 @@ function renderAnimeRows(entries, emptyMessage = 'No anime entries yet. Add one 
     const visibilityCell = row.insertCell();
     visibilityCell.textContent = anime.visibility || 'draft';
     const releaseCell = row.insertCell();
-    releaseCell.textContent = anime.releaseDay && anime.releaseTime
-      ? `${anime.releaseDay} ${anime.releaseTime}${anime.timezone ? ` (${anime.timezone})` : ''}`
-      : 'Not scheduled';
+    releaseCell.textContent = anime.calendarEnabled && anime.episodeReleaseDate
+      ? `${anime.episodeReleaseDate} — ${anime.episodeReleaseStatus || 'Scheduled'}`
+      : anime.releaseDay && anime.releaseTime
+        ? `Weekly: ${anime.releaseDay} ${anime.releaseTime}${anime.timezone ? ` (${anime.timezone})` : ''}`
+        : 'Not scheduled';
     const actionsCell = row.insertCell();
     const editButton = document.createElement('button');
     editButton.className = 'action-btn-sm';
@@ -584,6 +603,14 @@ async function saveAnime(event) {
   const releaseDay = valueOf('animeReleaseDay');
   const releaseTime = valueOf('animeReleaseTime');
   const timezone = valueOf('animeTimezone').trim();
+  const calendarEnabled = document.getElementById('animeCalendarEnabled').checked;
+  const episodeTimezone = valueOf('animeEpisodeTimezone').trim() || 'Asia/Kolkata';
+  const episodeSchedule = {
+    episodeReleaseDate: valueOf('animeEpisodeReleaseDate'),
+    episodeReleaseTime: valueOf('animeEpisodeReleaseTime'),
+    episodeTimezone,
+    episodeReleaseStatus: valueOf('animeEpisodeReleaseStatus') || 'Scheduled',
+  };
   if (!title) {
     showFeedback(feedback, 'Enter an anime title.', 'error');
     return;
@@ -597,6 +624,18 @@ async function saveAnime(event) {
       new Intl.DateTimeFormat('en', { timeZone: timezone });
     } catch {
       showFeedback(feedback, 'Enter a valid IANA timezone, such as Asia/Kolkata.', 'error');
+      return;
+    }
+  }
+  if (calendarEnabled) {
+    if (!isValidReleaseSchedule(episodeSchedule)) {
+      showFeedback(feedback, 'Enter a valid episode release date, time, timezone, and schedule status.', 'error');
+      return;
+    }
+    if (valueOf('animeEpisodeNumber').trim().length > 40 ||
+        valueOf('animeEpisodeTitle').trim().length > 200 ||
+        valueOf('animeEpisodeScheduleNotes').trim().length > 1000) {
+      showFeedback(feedback, 'Episode number, title, or schedule notes exceed their allowed length.', 'error');
       return;
     }
   }
@@ -639,6 +678,11 @@ async function saveAnime(event) {
       releaseTime,
       timezone,
       nextEpisode: numberOrNull('animeNextEpisode'),
+      calendarEnabled,
+      ...episodeSchedule,
+      episodeNumber: valueOf('animeEpisodeNumber').trim(),
+      episodeTitle: valueOf('animeEpisodeTitle').trim(),
+      episodeScheduleNotes: valueOf('animeEpisodeScheduleNotes').trim(),
       visibility: valueOf('animeVisibility'),
       updatedAt: serverTimestamp(),
       ...(currentId ? {} : { createdAt: serverTimestamp() }),
@@ -744,8 +788,15 @@ function populateAnimeForm(anime) {
     if (!element) return;
     const key = field[0].toLowerCase() + field.slice(1);
     const value = anime[key];
-    element.value = Array.isArray(value) ? value.join(', ') : value ?? '';
+    if (element.type === 'checkbox') element.checked = Boolean(value);
+    else element.value = Array.isArray(value) ? value.join(', ') : value ?? '';
   });
+  const scheduleFields = document.getElementById('animeReleaseCalendarFields');
+  if (scheduleFields) scheduleFields.hidden = !anime.calendarEnabled;
+  const episodeTimezone = document.getElementById('animeEpisodeTimezone');
+  if (episodeTimezone && !episodeTimezone.value) episodeTimezone.value = anime.episodeTimezone || anime.timezone || 'Asia/Kolkata';
+  const episodeStatus = document.getElementById('animeEpisodeReleaseStatus');
+  if (episodeStatus && !episodeStatus.value) episodeStatus.value = 'Scheduled';
   animeImageFields.forEach(field => field.refresh());
   document.getElementById('cancelAnimeEditButton').hidden = false;
   slugManuallyEdited = false;
@@ -768,6 +819,9 @@ function resetAnimeForm() {
   document.getElementById('animeManagerForm')?.reset();
   animeImageFields.forEach(field => field.refresh());
   document.getElementById('animeDocumentId').value = '';
+  document.getElementById('animeEpisodeTimezone').value = 'Asia/Kolkata';
+  document.getElementById('animeEpisodeReleaseStatus').value = 'Scheduled';
+  document.getElementById('animeReleaseCalendarFields').hidden = true;
   document.getElementById('animeFormHeading').textContent = 'Add Anime';
   document.getElementById('cancelAnimeEditButton').hidden = true;
   slugManuallyEdited = false;

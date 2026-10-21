@@ -73,6 +73,15 @@
       ]
     },
     {
+      "collectionGroup": "anime",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibility", "order": "ASCENDING" },
+        { "fieldPath": "calendarEnabled", "order": "ASCENDING" },
+        { "fieldPath": "episodeReleaseDate", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
