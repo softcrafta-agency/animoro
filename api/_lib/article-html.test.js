@@ -31,7 +31,8 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /Editor One/);
   assert.match(html, /https:\/\/images\.example\.test\/cover\.webp/);
   assert.match(html, /class="article-cover-img"[^>]+loading="eager" fetchpriority="high"/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\.html\/great-anime-story"/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\/great-anime-story"/);
+  assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
   assert.match(html, /"url":"https:\/\/www\.animoro\.in\/logo\.png"/);
   assert.match(html, /<meta property="og:title" content="A &lt;Great&gt; Anime Story"/);
   assert.match(html, /"@type":"BlogPosting"/);
@@ -56,7 +57,7 @@ test('does not display missing author, category, or publication metadata', () =>
   assert.doesNotMatch(html, /"author":\{"@type":"Person"/);
   assert.doesNotMatch(html, /"datePublished":/);
   assert.match(html, /<title>Article Without Display Metadata — Animoro<\/title>/);
-  assert.match(html, /<meta name="description" content="Article Without Display Metadata" \/>/);
+  assert.match(html, /<meta name="description" content="Body text\." \/>/);
 });
 
 test('uses SEO metadata independently from the visible headline and escapes fallbacks', () => {
@@ -94,7 +95,7 @@ test('sanitizes executable article markup and safely serializes attacker-control
   assert.match(html, /&lt;\/title&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.match(html, /&lt;svg onload=alert\(1\)&gt;Author&lt;\/svg&gt;/);
   assert.match(html, /<a href="https:\/\/example\.test" target="_blank" rel="noopener noreferrer">safe link<\/a>/);
-  assert.match(html, /"canonicalUrl":"https:\/\/www\.animoro\.in\/blog\.html\/safe-title"/);
+  assert.match(html, /"canonicalUrl":"https:\/\/www\.animoro\.in\/blog\/safe-title"/);
   assert.match(html, /"headline":"\\u003c\/title\\u003e/);
 });
 
@@ -120,10 +121,10 @@ test('renders related links only for valid published article slugs', () => {
     { id: 'article-4', title: 'Unpublished', slug: 'unpublished', status: 'draft' },
   ]);
 
-  assert.match(html, /<a class="article-related-card" href="\/blog\.html\/related">[\s\S]*?Related/);
+  assert.match(html, /<a class="article-related-card" href="\/blog\/related">[\s\S]*?Related/);
   assert.match(html, /<section class="article-related-section" id="articleRelatedSection"/);
   assert.ok(html.indexOf('Published Story') < html.indexOf('articleRelatedSection'));
-  assert.match(html, /class="article-related-card" href="\/blog\.html\/related"[\s\S]*?loading="lazy"/);
+  assert.match(html, /class="article-related-card" href="\/blog\/related"[\s\S]*?loading="lazy"/);
   assert.match(html, /<time datetime="2026-10-05T10:00:00\.000Z">Oct 5, 2026<\/time>/);
   assert.doesNotMatch(html, /not%20valid|not valid|Duplicate slug|Unpublished/);
   assert.doesNotMatch(html, /ARTICLE_(?:SEO_METADATA|STRUCTURED_DATA|BODY|RELATED|CLIENT_DATA)/);

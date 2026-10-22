@@ -53,7 +53,8 @@ test('sitemap requests do not generate or persist missing slugs', async () => {
 
   assert.equal(response.statusCode, 200);
   assert.match(response.headers['content-type'], /application\/xml/);
-  assert.match(response.body, /blog\.html\/valid-post/);
+  assert.match(response.body, /\/blog\/valid-post/);
+  assert.doesNotMatch(response.body, /blog\.html\//);
   assert.match(response.body, /anime\.html\/valid-anime/);
   assert.doesNotMatch(response.body, /post-without-stored-slug|anime-without-stored-slug/);
 });

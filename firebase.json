@@ -8,7 +8,7 @@
     ],
     "rewrites": [
       {
-        "source": "/blog.html/**",
+        "source": "/blog/**",
         "destination": "/blog.html"
       },
       {
@@ -30,6 +30,13 @@
       {
         "source": "/my-list",
         "destination": "/my-list.html"
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/blog.html/:slug",
+        "destination": "/blog/:slug",
+        "type": 301
       }
     ]
   },

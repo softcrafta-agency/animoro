@@ -8,6 +8,7 @@ import {
 } from './article-url.js';
 import { getAnimePath, isValidAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
+import { getArticleSeo } from './article-seo.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
 const THEME_STORAGE_KEY = 'animoro-theme';
@@ -106,7 +107,8 @@ function getSafeViews(value) {
 
 function isPublicArticlePage() {
   const pathname = window.location.pathname.toLowerCase();
-  return pathname === '/blog.html' || pathname.startsWith('/blog.html/');
+  return pathname === '/blog.html' || pathname.startsWith('/blog.html/') ||
+    pathname.startsWith('/blog/');
 }
 
 function isPreviewRequest() {
@@ -284,9 +286,9 @@ async function hydrateServerRenderedArticle({ id, canonicalUrl }) {
 }
 
 function getRequestedSlug() {
-  const prefix = '/blog.html/';
   const pathname = window.location.pathname;
-  if (!pathname.startsWith(prefix)) return '';
+  const prefix = ['/blog/', '/blog.html/'].find(candidate => pathname.startsWith(candidate));
+  if (!prefix) return '';
 
   const encodedSlug = pathname.slice(prefix.length);
   if (!encodedSlug || encodedSlug.includes('/')) return '';
@@ -294,7 +296,7 @@ function getRequestedSlug() {
   try {
     const decodedSlug = decodeURIComponent(encodedSlug);
     if (decodedSlug.includes('/') || decodedSlug.includes('\\')) return '';
-    return normalizeArticleSlug(decodedSlug);
+    return isValidArticleSlug(decodedSlug) ? decodedSlug : '';
   } catch (error) {
     console.warn('Invalid encoded article slug in URL:', error);
     return '';
@@ -366,8 +368,7 @@ async function recordCooldownArticleView(articleId) {
  * Update Page Title & OpenGraph Meta Tags
  */
 function updateSeoTags(post, canonicalUrl) {
-  const title = post.seoTitle || post.title;
-  const description = post.seoDescription || post.excerpt || post.title;
+  const { title, description } = getArticleSeo(post);
   document.title = `${title} — Animoro`;
 
   const metaDesc = document.querySelector('meta[name="description"]');

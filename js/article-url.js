@@ -41,7 +41,7 @@ export function getArticleSlug(post) {
 }
 
 export function getArticlePath(post) {
-  return `/blog.html/${encodeURIComponent(getArticleSlug(post))}`;
+  return `/blog/${encodeURIComponent(getArticleSlug(post))}`;
 }
 
 export function getCanonicalArticleUrl(post) {

@@ -1,7 +1,7 @@
 {
     "rewrites":  [
                      {
-                         "source":  "/blog.html/:slug",
+                         "source":  "/blog/:slug",
                          "destination":  "/api/article"
                      },
                      {
@@ -38,6 +38,11 @@
                       {
                           "source":  "/index.html",
                           "destination":  "/",
+                          "statusCode":  308
+                      },
+                      {
+                          "source":  "/blog.html/:slug",
+                          "destination":  "/blog/:slug",
                           "statusCode":  308
                       }
                   ],

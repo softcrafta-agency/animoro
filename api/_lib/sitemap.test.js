@@ -43,8 +43,9 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   assert.match(xml, /https:\/\/www\.animoro\.in\/anime-calendar\.html/);
   assert.doesNotMatch(xml, /search\.html/);
   assert.match(xml, /category\.html\?category=Anime%20%26%20Manga/);
-  assert.match(xml, /blog\.html\/first-post/);
-  assert.match(xml, /blog\.html\/second-post/);
+  assert.match(xml, /\/blog\/first-post/);
+  assert.match(xml, /\/blog\/second-post/);
+  assert.doesNotMatch(xml, /blog\.html\//);
   assert.match(xml, /<lastmod>2026-10-01<\/lastmod>/);
   assert.match(xml, /<lastmod>2026-09-30<\/lastmod>/);
   assert.doesNotMatch(xml, /draft-1|not-public|category=Private/);
@@ -65,7 +66,7 @@ test('escapes XML characters in public URLs and omits invalid lastmod values', (
     []
   );
 
-  assert.match(xml, /blog\.html\/safe-story/);
+  assert.match(xml, /\/blog\/safe-story/);
   assert.match(xml, /category=Drama%20%26%20%3CReviews%3E/);
   assert.doesNotMatch(xml, /<lastmod>/);
   assert.doesNotMatch(xml, /<loc>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
@@ -82,7 +83,7 @@ test('deduplicates category and URL entries', () => {
   );
 
   assert.equal((xml.match(/category\.html\?category=Reviews/g) || []).length, 1);
-  assert.equal((xml.match(/blog\.html\/same-post/g) || []).length, 1);
+  assert.equal((xml.match(/\/blog\/same-post/g) || []).length, 1);
 });
 
 test('generates unique slugs for published posts without replacing existing valid slugs', () => {
@@ -107,7 +108,7 @@ test('sitemap excludes published records without a stored public slug', () => {
     { id: 'valid-post', title: 'Kagurabachi Anime News', slug: 'kagurabachi-news', status: 'published' },
   ], []);
 
-  assert.match(xml, /blog\.html\/kagurabachi-news/);
+  assert.match(xml, /\/blog\/kagurabachi-news/);
   assert.doesNotMatch(xml, /kagurabachi-anime-news/);
   assert.doesNotMatch(xml, /secret-document-id|\?id=/);
 });
@@ -119,7 +120,7 @@ test('excludes invalid stored slugs instead of emitting synthetic sitemap URLs',
     { title: 'Anime without a slug', visibility: 'published', slug: '' },
   ]);
 
-  assert.doesNotMatch(xml, /blog\.html\/article-without-a-valid-slug|anime\.html\/anime-without-a-slug/);
+  assert.doesNotMatch(xml, /\/blog\/article-without-a-valid-slug|anime\.html\/anime-without-a-slug/);
 });
 
 test('normalizes article titles into URL-safe slugs', () => {

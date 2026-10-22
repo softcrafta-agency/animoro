@@ -218,7 +218,8 @@ export function setupMobileNav() {
       ? 'anime'
       : pathname.startsWith('/upcoming-anime')
         ? 'upcoming'
-        : pathname === '/blogs.html' || pathname.startsWith('/blog.html/') ||
+        : pathname === '/blogs.html' || pathname.startsWith('/blog/') ||
+            pathname.startsWith('/blog.html/') ||
             pathname === '/category.html'
           ? 'articles'
           : pathname === '/search.html'

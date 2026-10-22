@@ -1,8 +1,9 @@
 import sanitizeHtml from 'sanitize-html';
-import { getArticlePath, isValidArticleSlug } from '../../js/article-url.js';
+import { ARTICLE_SITE_ORIGIN, getArticlePath, isValidArticleSlug } from '../../js/article-url.js';
+import { getArticleSeo } from '../../js/article-seo.js';
 import { getAnimePath, isValidAnimeSlug } from '../../js/anime-url.js';
 
-export const SITE_ORIGIN = 'https://www.animoro.in';
+export const SITE_ORIGIN = ARTICLE_SITE_ORIGIN;
 
 const ARTICLE_CONTENT_TAGS = [
   'a', 'b', 'blockquote', 'br', 'caption', 'code', 'del', 'div', 'em',
@@ -106,14 +107,7 @@ function getPublishedDate(post) {
 }
 
 function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
-  const title = typeof post.seoTitle === 'string' && post.seoTitle.trim()
-    ? post.seoTitle.trim()
-    : String(post.title || 'Animoro Article');
-  const description = typeof post.seoDescription === 'string' && post.seoDescription.trim()
-    ? post.seoDescription.trim()
-    : typeof post.excerpt === 'string' && post.excerpt.trim()
-      ? post.excerpt.trim()
-      : String(post.title || 'Read the latest anime articles from Animoro.');
+  const { title, description } = getArticleSeo(post);
   const image = getSafeImageUrl(post.coverImage);
   const datePublished = toIsoDateTime(getPublishedDate(post));
   const dateModified = toIsoDateTime(post.updatedAt);

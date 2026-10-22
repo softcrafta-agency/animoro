@@ -1,4 +1,5 @@
 import {
+  ARTICLE_SITE_ORIGIN,
   createUniqueArticleSlug,
   isValidArticleSlug,
   normalizeArticleSlug
@@ -8,7 +9,7 @@ import {
   normalizeAnimeSlug
 } from '../../js/anime-url.js';
 
-export const SITE_ORIGIN = 'https://www.animoro.in';
+export const SITE_ORIGIN = ARTICLE_SITE_ORIGIN;
 
 const STATIC_PATHS = [
   '/',
@@ -52,7 +53,7 @@ function getLastModified(post) {
 }
 
 function articleUrl(slug) {
-  return new URL(`/blog.html/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
+  return new URL(`/blog/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
 }
 
 function animeUrl(slug) {

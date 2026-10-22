@@ -7,6 +7,8 @@
 
 **Deployment verification update (2026-10-13):** The source fixes below are present locally, but production still serves the old homepage/article heading output and robots rules. Category title, description, and query canonical are visible after browser rendering; its new Twitter metadata is absent. The live anime directory reports no published profiles, so no detail page was available to verify client-generated metadata.
 
+**Article routing update (2026-10-22):** The source now generates `/blog/{slug}` links and canonicals, redirects the legacy `/blog.html/{slug}` route, and emits the new article route in the sitemap. These changes are local and require deployment before production behavior changes. The canonical host remains `www.animoro.in` because the apex domain permanently redirects there.
+
 ## Executive summary
 
 The live site uses Vercel for public delivery, static HTML templates with Firebase client rendering for anime directories/details, and a server-rendered Vercel function for article pages. `www.animoro.in` is the canonical host; requests to `animoro.in` return HTTP 308 to `www`. The live sitemap is served successfully at `/sitemap.xml`.
@@ -29,13 +31,13 @@ The confirmed content-structure issues were a missing homepage H1 and multiple H
 
 ### Routing, canonical URLs, and status
 
-- Existing public article URLs use `/blog.html/{slug}` and are server-rendered by `api/article.js`; the rendered canonical URL matches the requested article URL. Article HTML includes a canonical, Open Graph/Twitter metadata, `BlogPosting`, and `BreadcrumbList`.
+- At the time of the 2026-10-13 production inspection, public article URLs used `/blog.html/{slug}` and were server-rendered by `api/article.js`; the rendered canonical URL matched the requested article URL. Article HTML included a canonical, Open Graph/Twitter metadata, `BlogPosting`, and `BreadcrumbList`.
 - Anime detail URLs use the existing `/anime.html/{slug}` route. Client code sets title, description, canonical, social metadata, and `TVSeries` JSON-LD after loading a published Firestore record. The initial HTTP response is the shared HTML template, so the per-anime metadata is not present until JavaScript runs.
 - Category pages use `/category.html?category=...`; client code sets category-specific title, description, canonical, and social metadata. The sitemap uses these same query URLs.
 - The sitemap and page canonicals use `https://www.animoro.in`. The apex host returned a permanent 308 redirect to `www`.
 - Representative production checks returned HTTP 200 for the homepage, article, anime/category directories, and static informational pages; `/sitemap.xml` and `/robots.txt` returned 200. A nonexistent top-level path returned 404 with `noindex, nofollow`.
 - The article handler has automated coverage for missing/unpublished articles returning 404. Browser-executed status behavior for unknown anime slugs was not tested in this audit.
-- No existing page URL or route was renamed, introduced, or migrated by this implementation.
+- At the time of the 2026-10-13 audit, no existing page URL or route had been renamed, introduced, or migrated.
 
 ### Indexability and crawl directives
 
