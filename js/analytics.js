@@ -3,6 +3,7 @@
  * Renders real view counts per article using clean, modern SVG vector charts.
  * Strictly NO fake numbers or hardcoded telemetry.
  */
+import { escapeHtml } from './html-utils.js';
 
 export function renderPerformanceChart(containerId, articles) {
   const container = document.getElementById(containerId);
@@ -23,11 +24,11 @@ export function renderPerformanceChart(containerId, articles) {
   const maxViews = Math.max(...sortedArticles.map(a => a.views || 0), 1);
 
   const barsHtml = sortedArticles.map((art, idx) => {
-    const views = art.views || 0;
+    const parsedViews = Number(art.views);
+    const views = Number.isFinite(parsedViews) ? Math.max(0, parsedViews) : 0;
     const pct = Math.max(Math.round((views / maxViews) * 100), 4);
-    const shortTitle = (art.title || 'Untitled').length > 24 
-      ? (art.title || '').substring(0, 24) + '...' 
-      : art.title;
+    const rawTitle = String(art.title || 'Untitled');
+    const shortTitle = escapeHtml(rawTitle.length > 24 ? `${rawTitle.substring(0, 24)}...` : rawTitle);
 
     return `
       <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">

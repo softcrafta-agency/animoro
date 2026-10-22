@@ -148,6 +148,7 @@ html[data-theme='light'] .article-image-library-card {
   font-family: var(--font-display);
   font-size: 1.35rem;
   font-weight: 700;
+  margin-block: 0.83em;
 }
 
 .admin-content {
@@ -1801,10 +1802,6 @@ html[data-theme='light'] .anime-import-editor {
   }
 
   @media (max-width: 768px) {
-    .editor-card {
-      padding: 16px;
-    }
-
     .editor-toolbar {
       align-items: flex-start;
       gap: 6px;
@@ -2179,4 +2176,232 @@ html[data-theme='light'] .anime-import-editor {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.upcoming-editor-card {
+  min-width: 0;
+  padding: 22px;
+}
+
+.upcoming-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "title release-date"
+    "slug release-status"
+    "poster status"
+    "short-description short-description"
+    "advanced advanced"
+    "actions actions";
+  gap: 14px 16px;
+  min-width: 0;
+}
+
+.upcoming-form-grid > .form-group,
+.upcoming-advanced-fields > .form-group {
+  min-width: 0;
+  margin: 0;
+}
+
+.upcoming-field-title { grid-area: title; }
+.upcoming-field-release-date { grid-area: release-date; }
+.upcoming-field-slug { grid-area: slug; }
+.upcoming-field-release-status { grid-area: release-status; }
+.upcoming-field-poster { grid-area: poster; }
+.upcoming-field-status { grid-area: status; }
+.upcoming-field-short-description { grid-area: short-description; }
+.upcoming-advanced-details { grid-area: advanced; }
+.upcoming-form-actions { grid-area: actions; }
+
+.upcoming-form .form-label {
+  margin-bottom: 6px;
+}
+
+.upcoming-form .form-label span {
+  color: var(--accent-crimson);
+}
+
+.upcoming-form .form-input,
+.upcoming-form .form-select,
+.upcoming-form .form-textarea {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
+.upcoming-form .form-textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.upcoming-form .form-input:focus-visible,
+.upcoming-form .form-select:focus-visible,
+.upcoming-form .form-textarea:focus-visible,
+.upcoming-form input[type="checkbox"]:focus-visible,
+.upcoming-advanced-details summary:focus-visible,
+.upcoming-form-actions button:focus-visible,
+.upcoming-form .image-upload-dropzone:focus-visible {
+  outline: 2px solid var(--accent-crimson);
+  outline-offset: 2px;
+}
+
+.upcoming-field-poster .image-upload-field {
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.upcoming-field-poster .image-upload-dropzone {
+  min-height: 64px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.upcoming-field-poster .image-upload-preview {
+  width: min(100%, 180px);
+  max-height: 180px;
+}
+
+.upcoming-field-poster .image-upload-status {
+  min-height: 0;
+}
+
+.upcoming-character-count {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.upcoming-field-error {
+  display: block;
+  margin-top: 5px;
+  color: #fb7185;
+  font-size: 0.78rem;
+}
+
+.upcoming-field-error[hidden] {
+  display: none;
+}
+
+.upcoming-advanced-details {
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.upcoming-advanced-details summary {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.upcoming-advanced-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.upcoming-advanced-details summary::after {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: "";
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform var(--transition-fast);
+}
+
+.upcoming-advanced-details[open] summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.upcoming-advanced-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  padding: 0 14px 14px;
+}
+
+.upcoming-advanced-fields .upcoming-field-full-description,
+.upcoming-featured-field {
+  grid-column: 1 / -1;
+}
+
+.upcoming-featured-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.upcoming-featured-field .form-label {
+  margin: 0;
+}
+
+.upcoming-featured-field input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-crimson);
+}
+
+.upcoming-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.upcoming-form-actions button {
+  min-height: 44px;
+  padding: 10px 16px;
+}
+
+html[data-theme='light'] .upcoming-advanced-details {
+  background: var(--bg-surface);
+}
+
+@media (max-width: 768px) {
+  .upcoming-editor-card {
+    padding: 18px 14px;
+  }
+
+  .upcoming-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "release-date"
+      "slug"
+      "release-status"
+      "poster"
+      "status"
+      "short-description"
+      "advanced"
+      "actions";
+  }
+
+  .upcoming-advanced-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .upcoming-advanced-fields .upcoming-field-full-description,
+  .upcoming-featured-field {
+    grid-column: auto;
+  }
+
+  .upcoming-form-actions > button {
+    flex: 1 1 150px;
+  }
 }

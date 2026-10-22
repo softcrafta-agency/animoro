@@ -14,6 +14,7 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { auth } from './auth-init.js';
 import { verifyAdminStatus } from './auth.js';
 import { formatDate, formatViews } from './ui.js';
+import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { getArticlePath, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
@@ -124,7 +125,7 @@ export async function loadAdminPosts(onStatsLoaded = () => {}) {
             <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px;">
               ${isPermError 
                 ? "Your Firebase Firestore database rejected the read request for the 'posts' collection. To resolve this, ensure the project's <strong>firestore.rules</strong> are deployed in your Firebase Console (Rules tab)."
-                : (error?.message || "An error occurred while fetching posts from Cloud Firestore.")}
+                : escapeHtml(error?.message || "An error occurred while fetching posts from Cloud Firestore.")}
             </p>
             <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
               <a href="#settings" class="btn-cta" style="padding: 8px 16px; font-size: 0.85rem;" onclick="document.querySelector('[data-tab=settings]')?.click()">
@@ -328,51 +329,58 @@ export function renderPostsTable() {
   const renderPostRow = post => {
     const isPublished = post.status === 'published';
     const articlePath = getArticlePath(post);
+    const title = escapeHtml(post.title || 'Untitled article');
+    const coverImage = escapeHtml(getSafeImageUrl(
+      post.coverImage,
+      'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=120&q=80'
+    ));
+    const postId = String(post.id);
+    const encodedPostId = encodeURIComponent(postId);
     const row = document.createElement('tr');
     row.dataset.id = post.id;
     row.innerHTML = `
         <td>
-          <img class="table-thumb" src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=120&q=80'}" alt="${post.title}" width="120" height="90" loading="lazy" decoding="async" />
+          <img class="table-thumb" src="${coverImage}" alt="${title}" width="120" height="90" loading="lazy" decoding="async" />
         </td>
         <td>
           <div style="font-weight: 600; color: var(--text-primary); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${post.title}
+            ${title}
           </div>
           <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">
-            ${articlePath}
+            ${escapeHtml(articlePath)}
           </div>
         </td>
         <td>
-          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">${post.category || 'Anime'}</span>
+          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">${escapeHtml(post.category || 'Anime')}</span>
         </td>
         <td>
           <span class="status-pill ${isPublished ? 'published' : 'draft'}">
-            ${post.status || 'draft'}
+            ${escapeHtml(post.status || 'draft')}
           </span>
         </td>
         <td>
-          <button class="action-btn-sm toggle-featured-btn" data-id="${post.id}" data-featured="${post.featured ? 'true' : 'false'}" title="Toggle Featured in Hero Slider">
-            ${post.featured ? '⭐ Yes (# ' + (post.featuredOrder ?? 1) + ')' : '☆ No'}
+          <button class="action-btn-sm toggle-featured-btn" data-id="${escapeHtml(postId)}" data-featured="${post.featured ? 'true' : 'false'}" title="Toggle Featured in Hero Slider">
+            ${post.featured ? '⭐ Yes (# ' + escapeHtml(post.featuredOrder ?? 1) + ')' : '☆ No'}
           </button>
         </td>
         <td>
-          <span style="font-family: var(--font-mono); font-weight: 600;">${formatViews(post.views)}</span>
+          <span style="font-family: var(--font-mono); font-weight: 600;">${escapeHtml(formatViews(post.views))}</span>
         </td>
         <td>
           <span style="font-size: 0.8rem;">${formatDate(post.publishedAt || post.createdAt)}</span>
         </td>
         <td>
           <div class="table-actions">
-            <a href="admin-post-editor.html?id=${post.id}" class="action-btn-sm" title="Edit Article">
+            <a href="admin-post-editor.html?id=${encodedPostId}" class="action-btn-sm" title="Edit Article">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
               Edit
             </a>
             ${isPublished ? `
-              <a href="${articlePath}" target="_blank" class="action-btn-sm" title="View Published Article">
+              <a href="${escapeHtml(articlePath)}" target="_blank" class="action-btn-sm" title="View Published Article">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
               </a>
             ` : ''}
-            <button class="action-btn-sm delete delete-post-btn" data-id="${post.id}" data-title="${post.title}" title="Delete Article">
+            <button class="action-btn-sm delete delete-post-btn" data-id="${escapeHtml(postId)}" data-title="${title}" title="Delete Article">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
           </div>
@@ -446,23 +454,46 @@ export function renderFeaturedSliderManager() {
     return;
   }
 
-  container.innerHTML = featured.map((post, idx) => `
-    <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 10px;">
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <span style="font-weight: 800; color: var(--accent-crimson); font-family: var(--font-display);">Slide ${idx + 1}</span>
-        <img src="${post.coverImage || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=100&q=80'}" alt="${post.title}" width="50" height="36" loading="lazy" decoding="async" style="width: 50px; height: 36px; object-fit: cover; border-radius: var(--radius-sm);" />
-        <div>
-          <div style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${post.title}</div>
-          <div style="font-size: 0.78rem; color: var(--text-muted);">${post.category || 'Anime'}</div>
-        </div>
-      </div>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <button class="action-btn-sm toggle-featured-btn" data-id="${post.id}" data-featured="true" style="color: #ef4444; border-color: rgba(239,68,68,0.3);">
-          Remove from Slider
-        </button>
-      </div>
-    </div>
-  `).join('');
+  container.replaceChildren(...featured.map((post, idx) => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);margin-bottom:10px;';
+    const content = document.createElement('div');
+    content.style.cssText = 'display:flex;align-items:center;gap:14px;';
+    const slide = document.createElement('span');
+    slide.style.cssText = 'font-weight:800;color:var(--accent-crimson);font-family:var(--font-display);';
+    slide.textContent = `Slide ${idx + 1}`;
+    const image = document.createElement('img');
+    image.src = getSafeImageUrl(
+      post.coverImage,
+      'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=100&q=80'
+    );
+    image.alt = post.title || 'Untitled article';
+    image.width = 50;
+    image.height = 36;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.style.cssText = 'width:50px;height:36px;object-fit:cover;border-radius:var(--radius-sm);';
+    const details = document.createElement('div');
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:600;color:var(--text-primary);font-size:0.9rem;';
+    title.textContent = post.title || 'Untitled article';
+    const category = document.createElement('div');
+    category.style.cssText = 'font-size:0.78rem;color:var(--text-muted);';
+    category.textContent = post.category || 'Anime';
+    details.append(title, category);
+    content.append(slide, image, details);
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    const button = document.createElement('button');
+    button.className = 'action-btn-sm toggle-featured-btn';
+    button.dataset.id = post.id;
+    button.dataset.featured = 'true';
+    button.style.cssText = 'color:#ef4444;border-color:rgba(239,68,68,0.3);';
+    button.textContent = 'Remove from Slider';
+    actions.appendChild(button);
+    item.append(content, actions);
+    return item;
+  }));
 
   container.querySelectorAll('.toggle-featured-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {

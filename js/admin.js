@@ -11,6 +11,7 @@ import { requireAdminAuth, logoutAdmin } from './auth.js';
 import { loadAdminPosts, setupPostsTableControls } from './admin-posts.js';
 import { renderPerformanceChart } from './analytics.js';
 import { formatDate, formatViews } from './ui.js';
+import { escapeHtml } from './html-utils.js';
 import { setupAnimeManager } from './admin-anime.js';
 import { setupUpcomingManager } from './admin-upcoming.js';
 
@@ -172,10 +173,10 @@ function renderTopPerformingTable(posts) {
     <tr>
       <td style="font-weight: 800; color: var(--accent-crimson);">#${idx + 1}</td>
       <td>
-        <div style="font-weight: 600; color: var(--text-primary);">${post.title}</div>
+        <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(post.title || 'Untitled article')}</div>
       </td>
-      <td>${post.category || 'Anime'}</td>
-      <td style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${formatViews(post.views)} views</td>
+      <td>${escapeHtml(post.category || 'Anime')}</td>
+      <td style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${escapeHtml(formatViews(post.views))} views</td>
       <td>${formatDate(post.publishedAt || post.createdAt)}</td>
       <td><span class="status-pill published">Published</span></td>
     </tr>
@@ -243,9 +244,9 @@ async function loadCategories() {
       const cat = d.data();
       return `
         <tr>
-          <td style="font-weight: 600; color: var(--text-primary);">${cat.name}</td>
-          <td style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted);">${cat.slug}</td>
-          <td>${cat.description || '—'}</td>
+          <td style="font-weight: 600; color: var(--text-primary);">${escapeHtml(cat.name)}</td>
+          <td style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted);">${escapeHtml(cat.slug)}</td>
+          <td>${escapeHtml(cat.description || '—')}</td>
           <td>${formatDate(cat.createdAt)}</td>
         </tr>
       `;
@@ -282,10 +283,10 @@ async function loadContactMessages() {
       return `
         <tr>
           <td><span style="font-size: 0.8rem;">${formatDate(msg.createdAt)}</span></td>
-          <td style="font-weight: 600; color: var(--text-primary);">${msg.name}</td>
-          <td><a href="mailto:${msg.email}" style="color: var(--accent-crimson);">${msg.email}</a></td>
-          <td style="font-weight: 600;">${msg.subject || '—'}</td>
-          <td style="max-width: 320px; font-size: 0.84rem; color: var(--text-secondary);">${msg.message}</td>
+          <td style="font-weight: 600; color: var(--text-primary);">${escapeHtml(msg.name)}</td>
+          <td><a href="mailto:${escapeHtml(msg.email)}" style="color: var(--accent-crimson);">${escapeHtml(msg.email)}</a></td>
+          <td style="font-weight: 600;">${escapeHtml(msg.subject || '—')}</td>
+          <td style="max-width: 320px; font-size: 0.84rem; color: var(--text-secondary);">${escapeHtml(msg.message)}</td>
         </tr>
       `;
     }).join('');
@@ -417,11 +418,17 @@ service cloud.firestore {
 
     match /posts/{postId}/viewers/{visitorId} {
       allow get: if true;
-      allow create: if request.resource.data.viewedAt is timestamp &&
-                       request.resource.data.keys().hasOnly(['viewedAt']);
-      allow update: if resource.data.viewedAt is timestamp &&
+      allow create: if visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') &&
+                       get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' &&
+                       request.resource.data.keys().hasOnly(['viewedAt']) &&
+                       request.resource.data.keys().hasAll(['viewedAt']) &&
+                       request.resource.data.viewedAt == request.time;
+      allow update: if visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') &&
+                       get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' &&
+                       resource.data.viewedAt is timestamp &&
                        request.time > resource.data.viewedAt + duration.value(1, 'd') &&
-                       request.resource.data.viewedAt is timestamp &&
+                       request.resource.data.keys().hasOnly(['viewedAt']) &&
+                       request.resource.data.viewedAt == request.time &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
       allow delete: if isSuperOrDocAdmin();
     }
@@ -440,9 +447,13 @@ service cloud.firestore {
 
     // Contacts Collection
     match /contacts/{contactId} {
-      allow create: if incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100 &&
+      allow create: if incoming().keys().hasOnly(['name', 'email', 'subject', 'message', 'createdAt']) &&
+                       incoming().keys().hasAll(['name', 'email', 'subject', 'message', 'createdAt']) &&
+                       incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100 &&
                        incoming().email is string && incoming().email.size() > 0 && incoming().email.size() <= 200 &&
-                       incoming().message is string && incoming().message.size() > 0 && incoming().message.size() <= 5000;
+                       incoming().subject in ['Editorial Tip', 'Review Request', 'Correction', 'Press / Business', 'Other'] &&
+                       incoming().message is string && incoming().message.size() > 0 && incoming().message.size() <= 5000 &&
+                       incoming().createdAt == request.time;
       allow get, list, update, delete: if isSuperOrDocAdmin();
     }
 

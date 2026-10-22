@@ -2587,8 +2587,8 @@ service cloud.firestore {
     }
     match /posts/{postId}/viewers/{visitorId} {
       allow get: if true;
-      allow create: if request.resource.data.viewedAt is timestamp && request.resource.data.keys().hasOnly(['viewedAt']);
-      allow update: if resource.data.viewedAt is timestamp && request.time > resource.data.viewedAt + duration.value(1, 'd') && request.resource.data.viewedAt is timestamp && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
+      allow create: if visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' && request.resource.data.keys().hasOnly(['viewedAt']) && request.resource.data.keys().hasAll(['viewedAt']) && request.resource.data.viewedAt == request.time;
+      allow update: if visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' && resource.data.viewedAt is timestamp && request.time > resource.data.viewedAt + duration.value(1, 'd') && request.resource.data.keys().hasOnly(['viewedAt']) && request.resource.data.viewedAt == request.time && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
       allow delete: if isSuperOrDocAdmin();
     }
     match /anime/{animeId} {
@@ -2596,7 +2596,16 @@ service cloud.firestore {
       allow create, update, delete: if isSuperOrDocAdmin();
     }
     match /categories/{categoryId} { allow get, list: if true; allow create, update, delete: if isSuperOrDocAdmin(); }
-    match /contacts/{contactId} { allow create: if true; allow get, list, update, delete: if isSuperOrDocAdmin(); }
+    match /contacts/{contactId} {
+      allow create: if request.resource.data.keys().hasOnly(['name', 'email', 'subject', 'message', 'createdAt']) &&
+        request.resource.data.keys().hasAll(['name', 'email', 'subject', 'message', 'createdAt']) &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100 &&
+        request.resource.data.email is string && request.resource.data.email.size() > 0 && request.resource.data.email.size() <= 200 &&
+        request.resource.data.subject in ['Editorial Tip', 'Review Request', 'Correction', 'Press / Business', 'Other'] &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 5000 &&
+        request.resource.data.createdAt == request.time;
+      allow get, list, update, delete: if isSuperOrDocAdmin();
+    }
     match /admins/{adminUid} {
       allow get: if isSignedIn() && (request.auth.uid == adminUid || isSuperOrDocAdmin());
       allow list: if isSuperOrDocAdmin();

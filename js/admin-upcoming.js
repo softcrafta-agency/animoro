@@ -111,16 +111,24 @@ export function setupUpcomingManager() {
 
   const titleField = document.getElementById('upcomingTitle');
   titleField?.addEventListener('input', (event) => {
+    const titleError = document.getElementById('upcomingTitleError');
+    if (titleError && event.target.value.trim()) titleError.hidden = true;
     if (!upcomingSlugManuallyEdited) {
       const slugField = document.getElementById('upcomingSlug');
       if (slugField) slugField.value = normalizeAnimeSlug(event.target.value);
     }
+  });
+  titleField?.addEventListener('invalid', () => {
+    const titleError = document.getElementById('upcomingTitleError');
+    if (titleError) titleError.hidden = false;
   });
 
   document.getElementById('upcomingSlug')?.addEventListener('input', () => {
     upcomingSlugManuallyEdited = true;
   });
 
+  document.getElementById('upcomingShortDescription')?.addEventListener('input', updateUpcomingShortDescriptionCount);
+  updateUpcomingShortDescriptionCount();
   document.getElementById('cancelUpcomingEditButton')?.addEventListener('click', resetUpcomingForm);
 
   const searchInput = document.getElementById('upcomingSearchInput');
@@ -1058,6 +1066,9 @@ function populateUpcomingForm(item) {
     else if (node.tagName === 'SELECT') node.value = value || node.options[0]?.value || '';
     else node.value = value || '';
   });
+  document.getElementById('upcomingAdvancedDetails').open = true;
+  document.getElementById('upcomingTitleError').hidden = true;
+  updateUpcomingShortDescriptionCount();
   upcomingPosterField?.refresh();
   const featuredCheckbox = document.getElementById('upcomingFeatured');
   if (featuredCheckbox) featuredCheckbox.checked = Boolean(item.featured);
@@ -1103,11 +1114,21 @@ async function deleteUpcomingEntry(item) {
 function resetUpcomingForm() {
   const form = document.getElementById('upcomingManagerForm');
   if (form) form.reset();
+  document.getElementById('upcomingAdvancedDetails').open = false;
+  document.getElementById('upcomingTitleError').hidden = true;
+  updateUpcomingShortDescriptionCount();
   upcomingPosterField?.refresh();
   document.getElementById('upcomingDocumentId').value = '';
   document.getElementById('upcomingFormHeading').textContent = 'Add Upcoming Anime';
-  document.getElementById('cancelUpcomingEditButton').hidden = true;
+  document.getElementById('cancelUpcomingEditButton').hidden = false;
   upcomingSlugManuallyEdited = false;
+}
+
+function updateUpcomingShortDescriptionCount() {
+  const description = document.getElementById('upcomingShortDescription');
+  const counter = document.getElementById('upcomingShortDescriptionCount');
+  if (!description || !counter) return;
+  counter.value = `${description.value.length} / ${description.maxLength}`;
 }
 
 function showUpcomingFeedback(element, message, type) {
