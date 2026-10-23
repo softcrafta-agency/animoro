@@ -58,3 +58,34 @@ test('sitemap requests do not generate or persist missing slugs', async () => {
   assert.match(response.body, /anime\.html\/valid-anime/);
   assert.doesNotMatch(response.body, /post-without-stored-slug|anime-without-stored-slug/);
 });
+
+test('sitemap reflects Firestore publication and deletion on each uncached request', async () => {
+  let publishedPosts = [
+    { id: 'new-post', slug: 'new-post', status: 'published', updatedAt: new Date('2026-10-22T00:00:00Z') },
+  ];
+  const firestore = {
+    collection(name) {
+      return {
+        where() { return this; },
+        async get() {
+          const records = name === 'posts' ? publishedPosts : [];
+          return { docs: records.map(record => ({ data: () => record })) };
+        },
+      };
+    },
+  };
+  const handler = createSitemapHandler({ getServices: () => ({ firestore }) });
+  const publishedResponse = createResponse();
+
+  await handler({ method: 'GET' }, publishedResponse);
+  assert.equal(publishedResponse.statusCode, 200);
+  assert.equal(publishedResponse.headers['cache-control'], 'no-store');
+  assert.match(publishedResponse.body, /https:\/\/www\.animoro\.in\/blog\/new-post/);
+
+  publishedPosts = [];
+  const deletedResponse = createResponse();
+  await handler({ method: 'GET' }, deletedResponse);
+
+  assert.equal(deletedResponse.statusCode, 200);
+  assert.doesNotMatch(deletedResponse.body, /\/blog\/new-post/);
+});

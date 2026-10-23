@@ -103,7 +103,7 @@
               </div>
 
               <div class="form-group">
-                <label for="postExcerpt" class="form-label">Summary / Excerpt (Lead Paragraph)</label>
+                <label for="postExcerpt" class="form-label">Article Excerpt / Summary (Lead Paragraph)</label>
                 <textarea id="postExcerpt" class="form-textarea" placeholder="A compelling 1-2 sentence hook for cards and search engines..." style="min-height: 80px;"></textarea>
               </div>
 
@@ -285,10 +285,33 @@
               </div>
 
               <div class="form-group">
-                <label for="postSeoDescription" class="form-label">SEO Description (Optional)</label>
+                <label for="postSeoDescription" class="form-label">Meta Description (Optional)</label>
                 <textarea id="postSeoDescription" class="form-textarea" maxlength="1000" style="min-height: 80px;" aria-describedby="postSeoDescriptionCounter postSeoDescriptionGuidance"></textarea>
                 <small id="postSeoDescriptionCounter" class="editor-field-hint" aria-live="polite">0 / 1000 characters</small>
                 <small id="postSeoDescriptionGuidance" class="editor-field-hint">Aim for approximately 150–160 characters.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="postPrimaryKeyword" class="form-label">Primary Focus Keyword</label>
+                <input type="text" id="postPrimaryKeyword" class="form-input" maxlength="120" placeholder="Defaults to the article title" />
+                <small class="editor-field-hint">Choose one phrase the article genuinely answers. Include it naturally in the title and opening only where it fits. If blank, the article title is used.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="postSecondaryKeywords" class="form-label">Secondary Keywords (Optional)</label>
+                <textarea id="postSecondaryKeywords" class="form-textarea" maxlength="3000" placeholder="Jiro Azuma, supernatural anime, manga adaptation" style="min-height: 84px;"></textarea>
+                <small class="editor-field-hint">Separate relevant supporting phrases with commas. Duplicates and extra spaces are removed.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="postSearchIntent" class="form-label">Search Intent</label>
+                <select id="postSearchIntent" class="form-select">
+                  <option value="informational">Informational (default)</option>
+                  <option value="commercial">Commercial investigation</option>
+                  <option value="transactional">Transactional</option>
+                  <option value="navigational">Navigational</option>
+                </select>
+                <small class="editor-field-hint">Select the main reason a reader would search for this article.</small>
               </div>
 
               <div class="form-group">

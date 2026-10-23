@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   isValidArticleCategory,
   isValidFeaturedOrder,
+  isValidSearchIntent,
+  normalizeArticleKeywords,
   normalizeArticleTags,
 } from './article-editor-fields.js';
 
@@ -11,6 +13,19 @@ test('normalizes tags and prevents case-insensitive duplicates', () => {
     normalizeArticleTags([' #Action ', 'action', '', '#Drama', 'Drama']),
     ['Action', 'Drama']
   );
+});
+
+test('normalizes related keywords and removes duplicates', () => {
+  assert.deepEqual(
+    normalizeArticleKeywords(' Black Torch, black torch , Jiro Azuma, , supernatural anime, Black Torch '),
+    ['Black Torch', 'Jiro Azuma', 'supernatural anime']
+  );
+});
+
+test('accepts supported search intents only', () => {
+  assert.equal(isValidSearchIntent('informational'), true);
+  assert.equal(isValidSearchIntent('commercial'), true);
+  assert.equal(isValidSearchIntent('unknown'), false);
 });
 
 test('accepts supported categories only', () => {

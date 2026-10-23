@@ -730,6 +730,11 @@ async function loadRelatedArticles(currentPost, currentId) {
     const tags = Array.isArray(currentPost.tags)
       ? currentPost.tags.filter(tag => typeof tag === 'string' && tag.trim()).slice(0, 10)
       : [];
+    const keywords = [
+      currentPost.primaryKeyword,
+      ...(Array.isArray(currentPost.secondaryKeywords) ? currentPost.secondaryKeywords : []),
+      ...(Array.isArray(currentPost.keywords) ? currentPost.keywords : []),
+    ].filter(keyword => typeof keyword === 'string' && keyword.trim()).slice(0, 10);
     const queries = [];
     if (typeof category === 'string' && category.trim()) {
       queries.push(loadRelatedCandidates(query(
@@ -755,6 +760,20 @@ async function loadRelatedArticles(currentPost, currentId) {
         limit(12)
       )));
     }
+    if (keywords.length) {
+      queries.push(loadRelatedCandidates(query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('secondaryKeywords', 'array-contains-any', keywords),
+        limit(12)
+      )));
+      queries.push(loadRelatedCandidates(query(
+        collection(db, 'posts'),
+        where('status', '==', 'published'),
+        where('keywords', 'array-contains-any', keywords),
+        limit(12)
+      )));
+    }
 
     const candidateGroups = await Promise.all(queries);
     const candidatePosts = new Map();
@@ -771,11 +790,17 @@ async function loadRelatedArticles(currentPost, currentId) {
       .map(post => {
         const postTags = Array.isArray(post.tags) ? post.tags : [];
         const matchingTags = postTags.filter(tag => currentTags.has(String(tag).toLowerCase())).length;
+        const postKeywords = [
+          ...(Array.isArray(post.secondaryKeywords) ? post.secondaryKeywords : []),
+          ...(Array.isArray(post.keywords) ? post.keywords : []),
+        ].map(keyword => String(keyword).toLowerCase());
+        const currentKeywords = new Set(keywords.map(keyword => keyword.toLowerCase()));
+        const matchingKeywords = postKeywords.filter(keyword => currentKeywords.has(keyword)).length;
         const sameAnime = currentPost.animeSlug && post.animeSlug === currentPost.animeSlug;
         const keywordMatch = [...currentTitleWords].some(word =>
           String(post.title || '').toLowerCase().includes(word)
         );
-        const score = (sameAnime ? 100 : 0) + matchingTags * 10 +
+        const score = (sameAnime ? 100 : 0) + matchingKeywords * 15 + matchingTags * 10 +
           (category && post.category === category ? 5 : 0) + (keywordMatch ? 1 : 0);
         return { post, score };
       })

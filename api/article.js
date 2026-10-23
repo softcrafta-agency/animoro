@@ -72,6 +72,29 @@ export async function loadRelatedPosts(firestore, currentPost, currentId) {
         .get(),
     });
   }
+  const keywords = [
+    currentPost.primaryKeyword,
+    ...(Array.isArray(currentPost.secondaryKeywords) ? currentPost.secondaryKeywords : []),
+    ...(Array.isArray(currentPost.keywords) ? currentPost.keywords : []),
+  ].filter(keyword => typeof keyword === 'string' && keyword.trim()).slice(0, 10);
+  if (keywords.length) {
+    relatedQueries.push({
+      priority: 3.5,
+      load: () => firestore.collection('posts')
+        .where('status', '==', 'published')
+        .where('secondaryKeywords', 'array-contains-any', keywords)
+        .limit(8)
+        .get(),
+    });
+    relatedQueries.push({
+      priority: 3.5,
+      load: () => firestore.collection('posts')
+        .where('status', '==', 'published')
+        .where('keywords', 'array-contains-any', keywords)
+        .limit(8)
+        .get(),
+    });
+  }
   if (typeof currentPost.category === 'string' && currentPost.category.trim()) {
     relatedQueries.push({
       priority: 2,

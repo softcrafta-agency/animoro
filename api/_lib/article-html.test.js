@@ -77,6 +77,28 @@ test('uses SEO metadata independently from the visible headline and escapes fall
   assert.match(html, /<meta property="og:title" content="Search &lt;Title&gt;" \/>/);
 });
 
+test('keeps SEO targeting fields private while rendering one canonical H1 and useful metadata', () => {
+  const html = renderArticleDocument(template, {
+    id: 'keyword-targeted-article',
+    title: 'Black Torch Anime Story Explained',
+    slug: 'black-torch-story-explained',
+    excerpt: 'A reader-focused introduction to Jiro Azuma and the supernatural story.',
+    primaryKeyword: 'private focus phrase',
+    secondaryKeywords: ['private secondary phrase'],
+    searchIntent: 'informational',
+    content: '<h2>Who is Jiro Azuma?</h2><p>Black Torch follows a ninja drawn into a supernatural conflict.</p>',
+    publishedAt: new Date('2026-10-20T10:00:00Z'),
+    updatedAt: new Date('2026-10-21T10:00:00Z'),
+  });
+
+  assert.equal((html.match(/<h1\b/g) || []).length, 1);
+  assert.match(html, /<h1 class="article-page-title">Black Torch Anime Story Explained<\/h1>/);
+  assert.match(html, /<meta name="description" content="A reader-focused introduction to Jiro Azuma and the supernatural story\." \/>/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\/black-torch-story-explained"/);
+  assert.match(html, /"@type":"BlogPosting"/);
+  assert.doesNotMatch(html, /private focus phrase|private secondary phrase|informational/);
+});
+
 test('sanitizes executable article markup and safely serializes attacker-controlled metadata', () => {
   const html = renderArticleDocument(template, {
     id: 'article-2',

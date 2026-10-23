@@ -11,6 +11,7 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { getArticlePath } from './article-url.js';
 import { getAnimePath } from './anime-url.js';
+import { normalizeArticleSearchText, scoreArticleSearch } from './article-search.js';
 
 let allPublishedPosts = [];
 let lastPostDoc = null;
@@ -22,6 +23,7 @@ let animeResults = [];
 let isAnimeLoaded = false;
 let searchSuggestions = [];
 let activeSuggestionIndex = -1;
+let searchRequestId = 0;
 const PAGE_SIZE = 50;
 
 function ensureMetaTag(attribute, name, value) {
@@ -118,6 +120,7 @@ function initSearchPage() {
 async function searchArticles(term) {
   const resultsContainer = document.getElementById('searchResultsContainer');
   if (!resultsContainer) return;
+  const requestId = ++searchRequestId;
 
   if (!term) {
     resultsContainer.innerHTML = `
@@ -125,6 +128,12 @@ async function searchArticles(term) {
         <p class="empty-state-desc">Type keywords above to search across titles, categories, authors, and tags.</p>
       </div>
     `;
+    const animeContainer = document.getElementById('animeSearchResults');
+    const animeSection = document.getElementById('animeSearchSection');
+    if (animeContainer && animeSection) {
+      animeContainer.replaceChildren();
+      animeSection.hidden = true;
+    }
     const resultsCount = document.getElementById('searchResultsCount');
     if (resultsCount) resultsCount.textContent = '';
     updateLoadMoreButton();
@@ -136,9 +145,13 @@ async function searchArticles(term) {
     return;
   }
 
+  renderSearchLoading(term);
+
   if (!isLoaded || !isAnimeLoaded) {
     await Promise.all([loadNextPublishedPage(), loadAnimePage()]);
   }
+  if (requestId !== searchRequestId) return;
+  if (!isLoaded) return;
   renderSearchResults(term);
   renderSuggestions(term);
 }
@@ -219,6 +232,19 @@ function loadNextPublishedPage() {
   return pendingPageRequest;
 }
 
+function renderSearchLoading(term) {
+  const resultsContainer = document.getElementById('searchResultsContainer');
+  if (!resultsContainer) return;
+  const state = document.createElement('div');
+  state.className = 'empty-state';
+  state.style.gridColumn = '1 / -1';
+  const message = document.createElement('p');
+  message.className = 'empty-state-desc';
+  message.textContent = `Searching for “${term}”...`;
+  state.appendChild(message);
+  resultsContainer.replaceChildren(state);
+}
+
 function renderSearchResults(term = document.getElementById('searchInput')?.value.trim() || '') {
   const resultsContainer = document.getElementById('searchResultsContainer');
   const resultsCount = document.getElementById('searchResultsCount');
@@ -226,17 +252,25 @@ function renderSearchResults(term = document.getElementById('searchInput')?.valu
   const animeSection = document.getElementById('animeSearchSection');
   if (!resultsContainer) return;
 
-  const lower = term.toLowerCase();
-  const matched = allPublishedPosts.filter(post => {
-    const titleMatch = (post.title || '').toLowerCase().includes(lower);
-    const slugMatch = (post.slug || '').toLowerCase().includes(lower);
-    const excerptMatch = (post.excerpt || '').toLowerCase().includes(lower);
-    const catMatch = (post.category || '').toLowerCase().includes(lower);
-    const authorMatch = (post.authorName || '').toLowerCase().includes(lower);
-    const tagMatch = (post.tags || []).some(tag => String(tag).toLowerCase().includes(lower));
+  const lower = normalizeArticleSearchText(term);
+  if (!lower) {
+    resultsContainer.replaceChildren();
+    renderSearchMessage('Enter a search term with letters or numbers.');
+    if (resultsCount) resultsCount.textContent = '';
+    if (animeContainer && animeSection) {
+      animeContainer.replaceChildren();
+      animeSection.hidden = true;
+    }
+    updateLoadMoreButton();
+    return;
+  }
 
-    return titleMatch || slugMatch || excerptMatch || catMatch || authorMatch || tagMatch;
-  });
+  const rankedPosts = allPublishedPosts
+    .map(post => ({ post, score: scoreArticleSearch(post, lower) }))
+    .filter(entry => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  const matched = rankedPosts.map(({ post }) => post);
   const matchedAnime = animeResults.filter(anime => [
     anime.title,
     anime.slug,
@@ -245,7 +279,7 @@ function renderSearchResults(term = document.getElementById('searchInput')?.valu
     ...(anime.alternativeTitles || []),
     ...(anime.genres || []),
     ...(anime.tags || []),
-  ].some(value => String(value || '').toLowerCase().includes(lower)));
+  ].some(value => normalizeArticleSearchText(value).includes(lower)));
 
   if (resultsCount) {
     resultsCount.textContent = `Found ${matchedAnime.length} anime and ${matched.length} matching article${matched.length === 1 ? '' : 's'} in the loaded results.`;
@@ -280,14 +314,23 @@ function renderSearchResults(term = document.getElementById('searchInput')?.valu
 function renderSuggestions(term) {
   const container = document.getElementById('searchSuggestions');
   if (!container) return;
-  const normalizedTerm = term.toLowerCase();
+  const normalizedTerm = normalizeArticleSearchText(term);
   const anime = animeResults
-    .filter(item => String(item.title || '').toLowerCase().includes(normalizedTerm))
+    .filter(item => normalizeArticleSearchText(item.title).includes(normalizedTerm))
     .slice(0, 3)
     .map(item => ({ label: item.title, type: 'ANIME', href: getAnimePath(item) }));
   const articles = allPublishedPosts
-    .filter(post => [post.title, post.slug, post.category, ...(post.tags || [])]
-      .some(value => String(value || '').toLowerCase().includes(normalizedTerm)))
+    .filter(post => [
+      post.title,
+      post.slug,
+      post.category,
+      post.primaryKeyword,
+      post.focusKeyword,
+      ...(Array.isArray(post.secondaryKeywords) ? post.secondaryKeywords : []),
+      ...(Array.isArray(post.keywords) ? post.keywords : []),
+      ...(Array.isArray(post.relatedKeywords) ? post.relatedKeywords : []),
+      ...(post.tags || []),
+    ].some(value => normalizeArticleSearchText(value).includes(normalizedTerm)))
     .slice(0, 5)
     .map(post => ({ label: post.title, type: 'ARTICLE', href: getArticlePath(post) }));
   const categories = [...new Set(allPublishedPosts

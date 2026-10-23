@@ -22,7 +22,14 @@ import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import { ImageUploadField } from './image-upload-field.js';
-import { isValidArticleCategory, isValidFeaturedOrder, normalizeArticleTags } from './article-editor-fields.js';
+import {
+  isValidArticleCategory,
+  isValidFeaturedOrder,
+  isValidSearchIntent,
+  normalizeArticleKeywords,
+  normalizeArticleTags,
+} from './article-editor-fields.js';
+import { getArticleSeo } from './article-seo.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -31,6 +38,7 @@ let originalPostStatus = 'draft';
 let originalPublishedAt = null;
 let originalCreatedAt = null;
 let slugWasManuallyEdited = false;
+let primaryKeywordWasManuallyEdited = false;
 let postTags = [];
 let animeSearchTimer = null;
 let animeSearchRequest = 0;
@@ -831,11 +839,19 @@ function setupFormControls() {
       if (!editingPostId && !slugWasManuallyEdited) {
         slugInput.value = normalizeArticleSlug(titleInput.value);
       }
+      const primaryKeywordInput = document.getElementById('postPrimaryKeyword');
+      if (!editingPostId && primaryKeywordInput && !primaryKeywordWasManuallyEdited) {
+        primaryKeywordInput.value = titleInput.value.trim();
+      }
     });
     slugInput.addEventListener('input', () => {
       slugWasManuallyEdited = true;
     });
   }
+
+  document.getElementById('postPrimaryKeyword')?.addEventListener('input', () => {
+    primaryKeywordWasManuallyEdited = true;
+  });
 
   // Tags input
   const tagInput = document.getElementById('tagInput');
@@ -2171,6 +2187,18 @@ async function loadPostForEditing(postId) {
     animeSlugWasManuallyEdited = Boolean(post.animeSlug && !lastAutoAnimeSlug);
     document.getElementById('postSeoTitle').value = post.seoTitle || '';
     document.getElementById('postSeoDescription').value = post.seoDescription || '';
+    document.getElementById('postPrimaryKeyword').value =
+      post.primaryKeyword || post.focusKeyword || post.title || '';
+    const savedKeywords = Array.isArray(post.secondaryKeywords)
+      ? post.secondaryKeywords
+      : Array.isArray(post.keywords)
+        ? post.keywords
+        : Array.isArray(post.relatedKeywords)
+          ? post.relatedKeywords
+          : [];
+    document.getElementById('postSecondaryKeywords').value = savedKeywords.join(', ');
+    document.getElementById('postSearchIntent').value =
+      isValidSearchIntent(post.searchIntent) ? post.searchIntent : 'informational';
     document.getElementById('postAuthor').value = post.authorName || '';
     originalAuthorName = typeof post.authorName === 'string' ? post.authorName : '';
     document.getElementById('postStatus').value = post.status || 'draft';
@@ -2276,8 +2304,13 @@ async function submitArticle(e) {
   const animeTitle = document.getElementById('postAnimeTitle').value.trim();
   const animeSlugInput = document.getElementById('postAnimeSlug').value.trim();
   const animeSlug = animeSlugInput ? normalizeAnimeSlug(animeSlugInput) : '';
-  const seoTitle = document.getElementById('postSeoTitle').value.trim();
-  const seoDescription = document.getElementById('postSeoDescription').value.trim();
+  let seoTitle = document.getElementById('postSeoTitle').value.trim();
+  let seoDescription = document.getElementById('postSeoDescription').value.trim();
+  const primaryKeywordInput = document.getElementById('postPrimaryKeyword');
+  const primaryKeyword = (primaryKeywordInput?.value || '').trim().replace(/\s+/g, ' ') || title;
+  const secondaryKeywordInput = document.getElementById('postSecondaryKeywords');
+  const secondaryKeywords = normalizeArticleKeywords(secondaryKeywordInput?.value || '');
+  const searchIntent = document.getElementById('postSearchIntent')?.value || '';
   const authorName = document.getElementById('postAuthor').value.trim() ||
     originalAuthorName ||
     currentUser.displayName ||
@@ -2299,6 +2332,18 @@ async function submitArticle(e) {
   }
   if (title.length > 200) {
     showFeedback(feedbackEl, "Title must be 200 characters or less.", "error");
+    return;
+  }
+  if (primaryKeyword.length > 120) {
+    showFeedback(feedbackEl, "Primary focus keyword must be 120 characters or fewer.", "error");
+    return;
+  }
+  if (secondaryKeywords.length > 30 || secondaryKeywords.some(keyword => keyword.length > 120)) {
+    showFeedback(feedbackEl, "Enter up to 30 secondary keywords, each 120 characters or fewer.", "error");
+    return;
+  }
+  if (!isValidSearchIntent(searchIntent)) {
+    showFeedback(feedbackEl, "Choose a supported search intent.", "error");
     return;
   }
   if (!content || content === '<br>') {
@@ -2344,6 +2389,16 @@ async function submitArticle(e) {
   } else if (excerpt.length > 1000) {
     excerpt = excerpt.substring(0, 1000);
   }
+  const seoDefaults = getArticleSeo({
+    title,
+    seoTitle,
+    seoDescription,
+    excerpt,
+    content,
+    primaryKeyword,
+  });
+  seoTitle = seoDefaults.title;
+  seoDescription = seoDefaults.description;
 
   if (!isConfigured || !db) {
     showFeedback(feedbackEl, "Firebase is not configured yet with valid credentials. Please enter credentials in the Admin Setup panel first.", "error");
@@ -2448,6 +2503,10 @@ async function submitArticle(e) {
     animeSlug,
     seoTitle,
     seoDescription,
+    primaryKeyword,
+    secondaryKeywords,
+    keywords: normalizeArticleKeywords([primaryKeyword, ...secondaryKeywords]),
+    searchIntent,
     tags: normalizeArticleTags(postTags),
     authorName,
     authorId: currentUser.uid,

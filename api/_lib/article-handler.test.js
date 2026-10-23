@@ -93,6 +93,46 @@ test('prioritizes anime and tag matches, deduplicates results, and excludes the 
   assert.ok(related.every(post => post.status === 'published'));
 });
 
+test('uses matching secondary and legacy keywords to link related published articles', async () => {
+  const entries = [
+    { id: 'current', status: 'published', secondaryKeywords: ['Jiro Azuma'] },
+    { id: 'new-match', status: 'published', secondaryKeywords: ['Jiro Azuma'] },
+    { id: 'legacy-match', status: 'published', keywords: ['Jiro Azuma'] },
+    { id: 'unrelated', status: 'published', secondaryKeywords: ['Other topic'] },
+  ];
+  const firestore = {
+    collection() {
+      const filters = [];
+      let maximum = Infinity;
+      return {
+        where(field, operator, value) {
+          filters.push({ field, operator, value });
+          return this;
+        },
+        orderBy() { return this; },
+        limit(value) { maximum = value; return this; },
+        async get() {
+          const keywordFilter = filters.find(filter =>
+            ['secondaryKeywords', 'keywords'].includes(filter.field)
+          );
+          const matches = keywordFilter
+            ? entries.filter(entry => (entry[keywordFilter.field] || [])
+              .some(keyword => keywordFilter.value.includes(keyword)))
+            : entries;
+          return { docs: matches.slice(0, maximum).map(entry => ({ id: entry.id, data: () => entry })) };
+        },
+      };
+    },
+  };
+
+  const related = await loadRelatedPosts(firestore, {
+    primaryKeyword: 'Black Torch',
+    secondaryKeywords: ['Jiro Azuma'],
+  }, 'current');
+
+  assert.deepEqual(related.slice(0, 2).map(post => post.id), ['new-match', 'legacy-match']);
+});
+
 test('returns complete HTML and cache headers for a published article', async () => {
   const handler = createArticleHandler({
     getServices: () => createServices({

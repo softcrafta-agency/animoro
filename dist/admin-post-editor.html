@@ -22,13 +22,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-post-editor-DoHOK6nZ.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/auth-CGlbWdbv.js">
-  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-DqH1Q9Rq.js">
-  <link rel="modulepreload" crossorigin href="/assets/anime-url-Bwj29Ekj.js">
+  <script type="module" crossorigin src="/assets/admin-post-editor-BlhEGWFE.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/auth-CbvXakRJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-BEs6qgFc.js">
+  <link rel="modulepreload" crossorigin href="/assets/anime-url-By2Gh82B.js">
   <link rel="modulepreload" crossorigin href="/assets/article-content-C2qxFj9R.js">
-  <link rel="stylesheet" crossorigin href="/assets/auth-dRCX3dAm.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-DC5AA_Zr.css">
+  <link rel="modulepreload" crossorigin href="/assets/article-seo-BhW3mpU9.js">
+  <link rel="stylesheet" crossorigin href="/assets/auth-RW7uId9r.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-RI05UoxT.css">
 </head>
 <body class="admin-body">
 
@@ -75,7 +76,7 @@
     <header class="admin-topbar">
       <div style="display: flex; align-items: center; gap: 12px;">
         <a href="admin.html#posts" class="action-btn-sm">&larr; Back to Articles</a>
-        <h2 class="admin-topbar-title" id="editorPageTitle">Add New Article</h2>
+        <h1 class="admin-topbar-title" id="editorPageTitle">Add New Article</h1>
       </div>
 
       <div style="display: flex; align-items: center; gap: 12px;">
@@ -108,7 +109,7 @@
               </div>
 
               <div class="form-group">
-                <label for="postExcerpt" class="form-label">Summary / Excerpt (Lead Paragraph)</label>
+                <label for="postExcerpt" class="form-label">Article Excerpt / Summary (Lead Paragraph)</label>
                 <textarea id="postExcerpt" class="form-textarea" placeholder="A compelling 1-2 sentence hook for cards and search engines..." style="min-height: 80px;"></textarea>
               </div>
 
@@ -221,12 +222,12 @@
                 <label for="coverUrlInput" class="form-label" style="font-size: 0.8rem;">Image URL (Optional)</label>
                 <input type="url" id="coverUrlInput" class="form-input" placeholder="https://images.unsplash.com/..." style="font-size: 0.85rem;" />
                 <span style="font-size: 0.73rem; color: var(--text-muted); margin-top: 5px; display: block; line-height: 1.4;">
-                  Enter any web image URL (PNG, JPG, WebP). If omitted, the article can be published without an image.
+                  Enter an HTTPS image URL (JPG, JPEG, PNG, WebP, GIF, or AVIF). Image CDN URLs without file extensions are supported.
                 </span>
               </div>
 
               <div id="coverPreviewContainer" style="position: relative; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-card); border: 1px dashed var(--border-subtle); min-height: 120px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px;">
-                <div id="coverPlaceholder" style="color: var(--text-muted); font-size: 0.78rem; padding: 12px;">
+                <div id="coverPlaceholder" role="status" aria-live="polite" style="color: var(--text-muted); font-size: 0.78rem; padding: 12px;">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 6px auto; opacity: 0.6; display: block;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                   <span>No cover image selected. Choose an upload or enter a direct URL.</span>
                 </div>
@@ -271,7 +272,10 @@
 
               <div class="form-group">
                 <label for="postAnimeTitle" class="form-label">Related Anime (Optional)</label>
-                <input type="text" id="postAnimeTitle" class="form-input" placeholder="Anime title" />
+                <input type="search" id="postAnimeTitle" class="form-input" list="articleAnimeSuggestions" placeholder="Search anime by title or Japanese title" autocomplete="off" aria-describedby="articleAnimeSearchStatus" />
+                <datalist id="articleAnimeSuggestions"></datalist>
+                <small id="articleAnimeSearchStatus" class="editor-field-hint" role="status" aria-live="polite">Search existing anime records by title or alternative title.</small>
+                <button type="button" id="clearRelatedAnime" class="action-btn-sm" style="margin-top: 8px; padding: 5px 10px;">Clear related anime</button>
               </div>
 
               <div class="form-group">
@@ -281,12 +285,39 @@
 
               <div class="form-group">
                 <label for="postSeoTitle" class="form-label">SEO Title (Optional)</label>
-                <input type="text" id="postSeoTitle" class="form-input" maxlength="200" />
+                <input type="text" id="postSeoTitle" class="form-input" maxlength="200" aria-describedby="postSeoTitleCounter postSeoTitleGuidance" />
+                <small id="postSeoTitleCounter" class="editor-field-hint" aria-live="polite">0 / 200 characters</small>
+                <small id="postSeoTitleGuidance" class="editor-field-hint">Aim for approximately 50–60 characters.</small>
               </div>
 
               <div class="form-group">
-                <label for="postSeoDescription" class="form-label">SEO Description (Optional)</label>
-                <textarea id="postSeoDescription" class="form-textarea" maxlength="1000" style="min-height: 80px;"></textarea>
+                <label for="postSeoDescription" class="form-label">Meta Description (Optional)</label>
+                <textarea id="postSeoDescription" class="form-textarea" maxlength="1000" style="min-height: 80px;" aria-describedby="postSeoDescriptionCounter postSeoDescriptionGuidance"></textarea>
+                <small id="postSeoDescriptionCounter" class="editor-field-hint" aria-live="polite">0 / 1000 characters</small>
+                <small id="postSeoDescriptionGuidance" class="editor-field-hint">Aim for approximately 150–160 characters.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="postPrimaryKeyword" class="form-label">Primary Focus Keyword</label>
+                <input type="text" id="postPrimaryKeyword" class="form-input" maxlength="120" placeholder="Defaults to the article title" />
+                <small class="editor-field-hint">Choose one phrase the article genuinely answers. Include it naturally in the title and opening only where it fits. If blank, the article title is used.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="postSecondaryKeywords" class="form-label">Secondary Keywords (Optional)</label>
+                <textarea id="postSecondaryKeywords" class="form-textarea" maxlength="3000" placeholder="Jiro Azuma, supernatural anime, manga adaptation" style="min-height: 84px;"></textarea>
+                <small class="editor-field-hint">Separate relevant supporting phrases with commas. Duplicates and extra spaces are removed.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="postSearchIntent" class="form-label">Search Intent</label>
+                <select id="postSearchIntent" class="form-select">
+                  <option value="informational">Informational (default)</option>
+                  <option value="commercial">Commercial investigation</option>
+                  <option value="transactional">Transactional</option>
+                  <option value="navigational">Navigational</option>
+                </select>
+                <small class="editor-field-hint">Select the main reason a reader would search for this article.</small>
               </div>
 
               <div class="form-group">
@@ -312,15 +343,16 @@
                   <input type="checkbox" id="postFeatured" style="width: 18px; height: 18px; accent-color: var(--accent-crimson);" />
                 </div>
                 
-                <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
+                <div id="featuredOrderGroup" class="form-group" style="margin-top: 12px; margin-bottom: 0;" hidden>
                   <label for="postFeaturedOrder" class="form-label" style="font-size: 0.75rem;">Slider Display Order</label>
-                  <input type="number" id="postFeaturedOrder" class="form-input" value="1" min="1" max="10" style="padding: 6px 10px; font-size: 0.85rem;" />
+                  <input type="number" id="postFeaturedOrder" class="form-input" value="1" min="0" step="1" style="padding: 6px 10px; font-size: 0.85rem;" />
+                  <small class="editor-field-hint">Lower numbers appear first. Use a non-negative whole number.</small>
                 </div>
               </div>
 
               <!-- Tags Manager -->
               <div class="form-group" style="margin-top: 18px;">
-                <label class="form-label">Tags (Type and press Enter or Comma)</label>
+                <label for="tagInput" class="form-label">Tags (Type and press Enter or Comma)</label>
                 <div class="tags-input-container" id="tagsContainer">
                   <input type="text" id="tagInput" class="tag-raw-input" placeholder="Add tag..." />
                 </div>

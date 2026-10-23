@@ -40,14 +40,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/main-DdjZHKMW.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/auth-CGlbWdbv.js">
-  <link rel="modulepreload" crossorigin href="/assets/anime-url-Bwj29Ekj.js">
-  <link rel="modulepreload" crossorigin href="/assets/my-list-ximmLVQX.js">
-  <link rel="modulepreload" crossorigin href="/assets/ui-CgFLJBhM.js">
-  <link rel="modulepreload" crossorigin href="/assets/preload-helper-Ckd2HdFk.js">
-  <link rel="stylesheet" crossorigin href="/assets/auth-dRCX3dAm.css">
-  <link rel="stylesheet" crossorigin href="/assets/responsive-BFBLhD_5.css">
+  <script type="module" crossorigin src="/assets/main-B_VETzvs.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/auth-CbvXakRJ.js">
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-CTY7SxQm.js">
+  <link rel="modulepreload" crossorigin href="/assets/anime-url-By2Gh82B.js">
+  <link rel="modulepreload" crossorigin href="/assets/my-list-pWRo3af5.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-DUTakPbx.js">
+  <link rel="modulepreload" crossorigin href="/assets/anime-popular-miXuU77f.js">
+  <link rel="stylesheet" crossorigin href="/assets/auth-RW7uId9r.css">
+  <link rel="stylesheet" crossorigin href="/assets/responsive-cVkTDT4U.css">
 </head>
 <body>
 
@@ -62,12 +63,11 @@
 
       <nav class="main-nav" aria-label="Main Navigation">
         <a href="/" class="nav-link active">Home</a>
-        <a href="blogs.html" class="nav-link">Articles</a>
-        <a href="anime.html" class="nav-link">Anime</a>
+        <a href="anime.html" class="nav-link">Anime List</a>
         <a href="upcoming-anime.html" class="nav-link">Upcoming Anime</a>
+        <a href="blogs.html" class="nav-link">Articles</a>
         <a href="my-list.html" class="nav-link">My List</a>
-        <a href="about.html" class="nav-link">About</a>
-        <a href="contact.html" class="nav-link">Contact</a>
+        <a href="anime-calendar.html" class="nav-link">Release Calendar</a>
       </nav>
 
       <div class="header-actions">
@@ -92,20 +92,12 @@
     </div>
     <nav class="mobile-nav-links">
       <a href="/" class="active">Home</a>
-      <a href="blogs.html">All Articles</a>
-      <a href="anime.html">Anime Database</a>
+      <a href="anime.html">Anime List</a>
       <a href="upcoming-anime.html">Upcoming Anime</a>
+      <a href="blogs.html">Articles</a>
       <a href="my-list.html">My List</a>
-      <a href="category.html?category=Anime%20News">Anime News</a>
-      <a href="category.html?category=Reviews">Reviews</a>
-      <a href="category.html?category=Rankings">Rankings</a>
-      <a href="category.html?category=Guides">Guides</a>
-      <a href="category.html?category=Recommendations">Recommendations</a>
-      <a href="category.html?category=Manga">Manga</a>
-      <a href="category.html?category=Seasonal%20Anime">Seasonal Anime</a>
       <a href="search.html">Search</a>
-      <a href="about.html">About Animoro</a>
-      <a href="contact.html">Contact Us</a>
+      <a href="anime-calendar.html">Release Calendar</a>
     </nav>
   </aside>
 
@@ -154,7 +146,7 @@
           </div>
         </div>
 
-        <!-- Trending Sidebar Column -->
+        <!-- Engagement-based article discovery -->
         <aside class="trending-sidebar" aria-label="Trending Anime Articles">
           <div class="trending-box" id="trending">
             <h3 class="trending-header-title">
@@ -175,15 +167,24 @@
             </div>
           </div>
 
-          <!-- Editorial Pick / Notice Card -->
-          <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px; margin-top: 24px;">
-            <span class="badge-category" style="margin-left: 0; margin-bottom: 12px; display: inline-block;">Editorial</span>
-            <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 8px;">Curated for Anime Enthusiasts</h4>
-            <p style="font-size: 0.86rem; color: var(--text-secondary); line-height: 1.6;">
-              Animoro delivers real journalism and genuine critique. No AI-generated spam, no clickbait — pure anime passion.
-            </p>
-          </div>
         </aside>
+      </div>
+    </section>
+
+    <section class="section-padded anime-popular-section" aria-labelledby="homePopularAnimeHeading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="homePopularAnimeHeading">Popular Anime List</h2>
+            <p class="section-subtitle">Highest-rated published entries in the Animoro catalogue.</p>
+          </div>
+          <a href="/anime.html" class="btn-outline">View All Anime</a>
+        </div>
+        <div class="articles-grid" id="homePopularAnimeContainer" aria-live="polite">
+          <div class="home-loading-state" role="status" aria-label="Loading popular anime">
+            <span class="home-loading-line"></span><span class="home-loading-line"></span>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -232,16 +233,19 @@
       </div>
     </section>
 
-    <!-- Newsletter CTA Banner -->
     <section class="section-padded">
       <div class="container">
-        <div class="newsletter-card">
-          <h2 class="newsletter-title">Never Miss a Broadcast</h2>
-          <p class="newsletter-desc">Get the freshest anime news, seasonal previews, and editorial picks delivered straight to your inbox.</p>
-          <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Thank you for subscribing to Animoro Dispatch!'); this.reset();">
-            <input type="email" class="newsletter-input" placeholder="Enter your email address" required aria-label="Email Address" />
-            <button type="submit" class="btn-cta">Subscribe</button>
-          </form>
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Upcoming Anime</h2>
+            <p class="section-subtitle">Browse upcoming releases from the Animoro catalogue.</p>
+          </div>
+          <a href="/upcoming-anime.html" class="btn-outline">View All Upcoming Anime</a>
+        </div>
+        <div class="articles-grid" id="homeUpcomingAnimeContainer" aria-live="polite">
+          <div class="home-loading-state" role="status" aria-label="Loading upcoming anime">
+            <span class="home-loading-line"></span><span class="home-loading-line"></span>
+          </div>
         </div>
       </div>
     </section>
@@ -284,6 +288,6 @@
       <div>&copy; 2026 Animoro. Built for anime fans worldwide. All anime imagery and titles belong to their respective creators and animation studios.</div>
     </div>
   </footer>
-
+
 </body>
 </html>
