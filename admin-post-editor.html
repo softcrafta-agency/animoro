@@ -253,15 +253,11 @@
 
               <div class="form-group">
                 <label for="postCategory" class="form-label">Category</label>
-                <select id="postCategory" class="form-select">
-                  <option value="Anime News">Anime News</option>
-                  <option value="Reviews">Reviews</option>
-                  <option value="Rankings">Rankings</option>
-                  <option value="Guides">Guides</option>
-                  <option value="Recommendations">Recommendations</option>
-                  <option value="Manga">Manga</option>
-                  <option value="Seasonal Anime">Seasonal Anime</option>
+                <select id="postCategory" class="form-select" disabled>
+                  <option value="">Loading categories...</option>
                 </select>
+                <small id="postCategoryStatus" class="editor-field-hint" role="status" aria-live="polite">Loading categories...</small>
+                <button type="button" id="refreshPostCategories" class="action-btn-sm" style="margin-top: 8px; padding: 5px 10px;">Refresh categories</button>
               </div>
 
               <div class="form-group">

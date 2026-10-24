@@ -75,6 +75,7 @@ npx firebase-tools deploy --only firestore:rules --project YOUR_FIREBASE_PROJECT
 
 ### Security Rules Highlights:
 - **Public access:** Anyone can read published articles, view categories, and submit contact inquiries.
+- **Categories:** Admin category records are stored in the `categories` collection with a name, slug, description, and creation timestamp. The category manager and article editor read that collection; only authorized admins can create or change its records. The first admin load registers the former built-in article categories there if they are missing.
 - **Private Drafts:** Draft articles are never visible to the public — only authenticated admins can see or edit them.
 - **Admin protection:** Only authenticated administrators can create, edit, publish, or delete posts.
 - **Upcoming anime:** Published entries in the existing `upcomingAnime` collection are readable only by signed-in users; writes and unpublished-entry access require administrator authorization.

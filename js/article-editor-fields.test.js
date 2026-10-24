@@ -28,9 +28,12 @@ test('accepts supported search intents only', () => {
   assert.equal(isValidSearchIntent('unknown'), false);
 });
 
-test('accepts supported categories only', () => {
-  assert.equal(isValidArticleCategory('Anime News'), true);
-  assert.equal(isValidArticleCategory('Unsupported'), false);
+test('accepts registered categories and preserves an existing legacy category', () => {
+  const registeredCategories = ['Anime News', 'Romance Anime'];
+  assert.equal(isValidArticleCategory('Anime News', registeredCategories), true);
+  assert.equal(isValidArticleCategory('Romance Anime', registeredCategories), true);
+  assert.equal(isValidArticleCategory('Legacy Category', registeredCategories, 'Legacy Category'), true);
+  assert.equal(isValidArticleCategory('Unsupported', registeredCategories), false);
 });
 
 test('accepts non-negative whole slider orders only', () => {

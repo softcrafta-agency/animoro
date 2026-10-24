@@ -20,6 +20,7 @@ import { auth } from './auth-init.js';
 import { uploadImageToStorage } from './firebase-storage-upload.js';
 import { isValidArticleSlug, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
+import { ensureLegacyArticleCategories, getRegisteredCategories } from './category-data.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import { ImageUploadField } from './image-upload-field.js';
 import {
@@ -35,6 +36,7 @@ let currentAdminUser = null;
 let editingPostId = null;
 let originalPostSlug = '';
 let originalPostStatus = 'draft';
+let originalPostCategory = '';
 let originalPublishedAt = null;
 let originalCreatedAt = null;
 let slugWasManuallyEdited = false;
@@ -68,6 +70,8 @@ let editorIsDirty = false;
 let editorInitialSnapshot = '';
 let editorSaveInProgress = false;
 let articleSubmissionPending = false;
+let registeredArticleCategories = [];
+let categoryLoadError = false;
 const THEME_STORAGE_KEY = 'animoro-theme';
 
 function getPreferredTheme() {
@@ -808,6 +812,7 @@ export async function initAdminEditor() {
   requireAdminAuth(async (user) => {
     currentAdminUser = user;
     setupFormControls();
+    await loadArticleCategories();
 
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
@@ -830,6 +835,11 @@ export async function initAdminEditor() {
 }
 
 function setupFormControls() {
+  document.getElementById('refreshPostCategories')?.addEventListener('click', () => {
+    const selectedCategory = document.getElementById('postCategory')?.value || originalPostCategory;
+    void loadArticleCategories(selectedCategory);
+  });
+
   // Title -> Slug auto-generate
   const titleInput = document.getElementById('postTitle');
   const slugInput = document.getElementById('postSlug');
@@ -891,6 +901,74 @@ function setupFormControls() {
       handlePostSubmit(e);
     });
   }
+}
+
+async function loadArticleCategories(selectedCategory = '') {
+  const categorySelect = document.getElementById('postCategory');
+  const status = document.getElementById('postCategoryStatus');
+  const refreshButton = document.getElementById('refreshPostCategories');
+  if (!categorySelect) return false;
+
+  if (refreshButton) refreshButton.disabled = true;
+  categorySelect.disabled = true;
+  categorySelect.replaceChildren(new Option('Loading categories...', ''));
+  if (status) status.textContent = 'Loading categories...';
+  categoryLoadError = false;
+
+  try {
+    await ensureLegacyArticleCategories();
+    registeredArticleCategories = await getRegisteredCategories();
+    categorySelect.replaceChildren(new Option('Select a category', ''));
+    registeredArticleCategories.forEach(category => {
+      categorySelect.add(new Option(category.name, category.name));
+    });
+
+    if (selectedCategory && !registeredArticleCategories.some(category => category.name === selectedCategory)) {
+      categorySelect.add(new Option(`${selectedCategory} (saved on this article)`, selectedCategory));
+    }
+    categorySelect.value = selectedCategory;
+    categorySelect.disabled = registeredArticleCategories.length === 0 && !selectedCategory;
+
+    const selectedCategoryRegistered = registeredArticleCategories.some(category => category.name === selectedCategory);
+    if (registeredArticleCategories.length === 0) {
+      if (status) {
+        status.textContent = selectedCategory
+          ? `No categories are registered. The saved category "${selectedCategory}" is preserved; add categories in the Categories Manager.`
+          : 'No categories are registered. Add one in the Categories Manager.';
+      }
+    } else if (status) {
+      status.textContent = selectedCategory && !selectedCategoryRegistered
+        ? `${registeredArticleCategories.length} categories loaded. The saved category "${selectedCategory}" is not registered but is preserved for this article.`
+        : `${registeredArticleCategories.length} categories loaded.`;
+    }
+    return true;
+  } catch (error) {
+    categoryLoadError = true;
+    registeredArticleCategories = [];
+    categorySelect.replaceChildren(new Option('Categories could not be loaded', ''));
+    if (selectedCategory) {
+      categorySelect.add(new Option(`${selectedCategory} (saved on this article)`, selectedCategory));
+      categorySelect.value = selectedCategory;
+    }
+    categorySelect.disabled = !selectedCategory;
+    if (status) {
+      status.textContent = `Could not load categories: ${error.message} Use Refresh categories to try again.`;
+    }
+    handleFirestoreError(error, 'list', 'categories');
+    return false;
+  } finally {
+    if (refreshButton) refreshButton.disabled = false;
+  }
+}
+
+function selectSavedArticleCategory(category) {
+  const categorySelect = document.getElementById('postCategory');
+  if (!categorySelect || !category) return;
+
+  if (![...categorySelect.options].some(option => option.value === category)) {
+    categorySelect.add(new Option(`${category} (saved on this article)`, category));
+  }
+  categorySelect.value = category;
 }
 
 function addTag(tag) {
@@ -2163,6 +2241,7 @@ async function loadPostForEditing(postId) {
     const post = snap.data();
     originalPostSlug = typeof post.slug === 'string' ? post.slug : '';
     originalPostStatus = post.status || 'draft';
+    originalPostCategory = typeof post.category === 'string' ? post.category : '';
     originalPublishedAt = post.publishedAt || null;
     originalCreatedAt = post.createdAt || null;
     existingCoverData = {
@@ -2177,7 +2256,7 @@ async function loadPostForEditing(postId) {
     document.getElementById('postTitle').value = post.title || '';
     document.getElementById('postSlug').value = post.slug || '';
     document.getElementById('postExcerpt').value = post.excerpt || '';
-    document.getElementById('postCategory').value = post.category || 'Anime News';
+    selectSavedArticleCategory(originalPostCategory);
     document.getElementById('postAnimeTitle').value = post.animeTitle || '';
     document.getElementById('postAnimeSlug').value = post.animeSlug || '';
     lastSelectedAnimeTitle = post.animeTitle || '';
@@ -2350,8 +2429,12 @@ async function submitArticle(e) {
     showFeedback(feedbackEl, "Please enter article body content.", "error");
     return;
   }
-  if (!isValidArticleCategory(category)) {
-    showFeedback(feedbackEl, "Choose a supported article category.", "error");
+  if (categoryLoadError && category !== originalPostCategory) {
+    showFeedback(feedbackEl, "Categories could not be loaded. Refresh the category list before choosing a category.", "error");
+    return;
+  }
+  if (!isValidArticleCategory(category, registeredArticleCategories.map(item => item.name), originalPostCategory)) {
+    showFeedback(feedbackEl, "Choose a registered article category.", "error");
     return;
   }
   if (authorName.length > 100) {

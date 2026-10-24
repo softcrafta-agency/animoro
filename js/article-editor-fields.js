@@ -1,13 +1,3 @@
-export const ARTICLE_CATEGORIES = [
-  'Anime News',
-  'Reviews',
-  'Rankings',
-  'Guides',
-  'Recommendations',
-  'Manga',
-  'Seasonal Anime',
-];
-
 export const ARTICLE_SEARCH_INTENTS = [
   'informational',
   'commercial',
@@ -15,8 +5,10 @@ export const ARTICLE_SEARCH_INTENTS = [
   'navigational',
 ];
 
-export function isValidArticleCategory(value) {
-  return ARTICLE_CATEGORIES.includes(value);
+export function isValidArticleCategory(value, registeredCategories, legacyCategory = '') {
+  return typeof value === 'string' &&
+    value.length > 0 &&
+    (registeredCategories.includes(value) || value === legacyCategory);
 }
 
 export function isValidSearchIntent(value) {

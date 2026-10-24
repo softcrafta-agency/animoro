@@ -1,12 +1,15 @@
 import {
   collection,
   getDocs,
-  addDoc,
   query,
   orderBy,
-  serverTimestamp
 } from 'firebase/firestore';
 import { db, isConfigured, testConnection, handleFirestoreError } from './firebase-init.js';
+import {
+  createRegisteredCategory,
+  ensureLegacyArticleCategories,
+  getRegisteredCategories,
+} from './category-data.js';
 import { requireAdminAuth, logoutAdmin } from './auth.js';
 import { loadAdminPosts, setupPostsTableControls } from './admin-posts.js';
 import { renderPerformanceChart } from './analytics.js';
@@ -190,69 +193,93 @@ function setupCategoryManager() {
   const addForm = document.getElementById('addCategoryForm');
   if (!addForm) return;
 
+  document.getElementById('refreshCategories')?.addEventListener('click', () => {
+    void loadCategories();
+  });
+
   addForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const nameInput = document.getElementById('newCategoryName');
     const descInput = document.getElementById('newCategoryDesc');
+    const submitButton = addForm.querySelector('button[type="submit"]');
     const name = nameInput.value.trim();
     const desc = descInput.value.trim();
 
     if (!name) return;
-    if (!db) {
-      alert("Firebase is not connected yet.");
-      return;
-    }
 
     try {
-      await addDoc(collection(db, 'categories'), {
-        name,
-        slug: name.toLowerCase().replace(/\s+/g, '-'),
-        description: desc,
-        createdAt: serverTimestamp()
-      });
+      if (submitButton) submitButton.disabled = true;
+      await createRegisteredCategory(name, desc);
       nameInput.value = '';
       descInput.value = '';
-      loadCategories();
-      alert(`Category "${name}" added successfully.`);
+      if (await loadCategories()) {
+        alert(`Category "${name}" added successfully.`);
+      } else {
+        alert(`Category "${name}" was saved, but the registered categories list could not be refreshed.`);
+      }
     } catch (err) {
       handleFirestoreError(err, 'create', 'categories');
       alert("Could not add category: " + err.message);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
     }
   });
 }
 
 async function loadCategories() {
   const tbody = document.getElementById('categoriesTableBody');
-  if (!tbody || !db) return;
+  const status = document.getElementById('categoriesStatus');
+  if (!tbody) return false;
+
+  if (status) status.textContent = 'Loading categories...';
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="4" style="text-align: center; padding: 24px; color: var(--text-muted);">
+        Loading categories...
+      </td>
+    </tr>
+  `;
 
   try {
-    const snap = await getDocs(collection(db, 'categories'));
-    setKpiValue('kpiCategories', snap.size);
+    await ensureLegacyArticleCategories();
+    const categories = await getRegisteredCategories();
+    setKpiValue('kpiCategories', String(categories.length));
 
-    if (snap.empty) {
+    if (categories.length === 0) {
       tbody.innerHTML = `
         <tr>
           <td colspan="4" style="text-align: center; padding: 24px; color: var(--text-muted);">
-            No custom categories registered in Firestore yet.
+            No categories registered in Firestore yet.
           </td>
         </tr>
       `;
-      return;
+      if (status) status.textContent = 'No categories are registered yet.';
+      return true;
     }
 
-    tbody.innerHTML = snap.docs.map(d => {
-      const cat = d.data();
+    tbody.innerHTML = categories.map(category => {
       return `
         <tr>
-          <td style="font-weight: 600; color: var(--text-primary);">${escapeHtml(cat.name)}</td>
-          <td style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted);">${escapeHtml(cat.slug)}</td>
-          <td>${escapeHtml(cat.description || '—')}</td>
-          <td>${formatDate(cat.createdAt)}</td>
+          <td style="font-weight: 600; color: var(--text-primary);">${escapeHtml(category.name)}</td>
+          <td style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted);">${escapeHtml(category.slug)}</td>
+          <td>${escapeHtml(category.description || '—')}</td>
+          <td>${formatDate(category.createdAt)}</td>
         </tr>
       `;
     }).join('');
+    if (status) status.textContent = `${categories.length} registered categor${categories.length === 1 ? 'y' : 'ies'}.`;
+    return true;
   } catch (err) {
-    console.warn("Could not load categories collection:", err);
+    handleFirestoreError(err, 'list', 'categories');
+    if (status) status.textContent = `Could not load categories: ${err.message}`;
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" style="text-align: center; padding: 24px; color: var(--accent-crimson);">
+          Could not load registered categories. Use Refresh categories to try again.
+        </td>
+      </tr>
+    `;
+    return false;
   }
 }
 

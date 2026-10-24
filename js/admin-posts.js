@@ -17,8 +17,10 @@ import { formatDate, formatViews } from './ui.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { getArticlePath, normalizeArticleSlug } from './article-url.js';
 import { normalizeAnimeSlug } from './anime-url.js';
+import { ensureLegacyArticleCategories, getRegisteredCategories } from './category-data.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import {
+  isValidArticleCategory,
   isValidFeaturedOrder,
   isValidSearchIntent,
   normalizeArticleKeywords,
@@ -32,15 +34,14 @@ let currentFilter = 'all';
 let currentSearch = '';
 let postsTableSelection = null;
 let postsStatsCallback = () => {};
+let registeredArticleCategoryNames = [];
 const POST_BULK_EDIT_FIELDS = [
   { key: 'title', label: 'Article Title', required: true, maxLength: 200 },
   { key: 'slug', label: 'URL Slug', required: true, maxLength: 200 },
   { key: 'excerpt', label: 'Summary / Excerpt', type: 'textarea', maxLength: 1000 },
   { key: 'content', label: 'Article Body (HTML)', type: 'html', required: true, rows: 12, hint: 'Article HTML is sanitized before it is saved.' },
   { key: 'coverImage', label: 'Cover Image URL', type: 'url', hint: 'Use a direct HTTP(S) image URL. Existing uploaded images are not deleted.' },
-  { key: 'category', label: 'Category', type: 'select', options: [
-    'Anime News', 'Reviews', 'Rankings', 'Guides', 'Recommendations', 'Manga', 'Seasonal Anime',
-  ].map(value => ({ value, label: value })) },
+  { key: 'category', label: 'Category', type: 'select', options: [] },
   { key: 'animeTitle', label: 'Related Anime' },
   { key: 'animeSlug', label: 'Anime Page Slug' },
   { key: 'seoTitle', label: 'SEO Title', maxLength: 200 },
@@ -187,7 +188,19 @@ export function setupPostsTableControls() {
         return { deletedCount, missingCount };
       },
     }),
-    onBulkEdit: ids => openPostsBulkEdit(adminPostsList.filter(post => ids.includes(post.id))),
+    onBulkEdit: async ids => {
+      try {
+        await ensureLegacyArticleCategories();
+        const categories = await getRegisteredCategories();
+        registeredArticleCategoryNames = categories.map(category => category.name);
+        const categoryField = POST_BULK_EDIT_FIELDS.find(field => field.key === 'category');
+        categoryField.options = categories.map(category => ({ value: category.name, label: category.name }));
+        openPostsBulkEdit(adminPostsList.filter(post => ids.includes(post.id)));
+      } catch (error) {
+        handleFirestoreError(error, 'list', 'categories');
+        alert(`Could not load categories for bulk editing: ${error.message}`);
+      }
+    },
   });
   const filterBtns = document.querySelectorAll('.post-filter-btn');
   filterBtns.forEach(btn => {
@@ -251,11 +264,8 @@ async function savePostBulkRecord(post, draft) {
     coverImage = coverUrl.toString();
   }
   const category = draft.category;
-  if (
-    category !== post.category &&
-    !POST_BULK_EDIT_FIELDS.find(field => field.key === 'category').options.some(option => option.value === category)
-  ) {
-    throw new Error('Choose a valid article category.');
+  if (!isValidArticleCategory(category, registeredArticleCategoryNames, post.category || '')) {
+    throw new Error('Choose a registered article category.');
   }
   if (!['published', 'draft'].includes(draft.status)) throw new Error('Choose Published or Draft status.');
   if (draft.authorName.trim().length > 100) throw new Error('Author name must be 100 characters or fewer.');

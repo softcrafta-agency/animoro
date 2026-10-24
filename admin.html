@@ -171,7 +171,7 @@
 
           <div class="kpi-card">
             <span class="kpi-label">Categories</span>
-            <div class="kpi-value" id="kpiCategories">7</div>
+            <div class="kpi-value" id="kpiCategories">0</div>
             <span class="kpi-hint">Content verticals</span>
           </div>
         </div>
@@ -423,7 +423,7 @@
             <form id="addCategoryForm">
               <div class="form-group">
                 <label class="form-label">Category Name</label>
-                <input type="text" id="newCategoryName" class="form-input" placeholder="e.g. Anime Movies" required />
+                <input type="text" id="newCategoryName" class="form-input" placeholder="e.g. Anime Movies" maxlength="100" required />
               </div>
               <div class="form-group">
                 <label class="form-label">Description</label>
@@ -437,7 +437,9 @@
           <div class="data-table-container">
             <div class="table-toolbar">
               <h3 style="font-family: var(--font-display); font-size: 1.1rem;">Registered Categories</h3>
+              <button type="button" id="refreshCategories" class="action-btn-sm">Refresh categories</button>
             </div>
+            <small id="categoriesStatus" role="status" aria-live="polite" style="display: block; padding: 0 16px 12px; color: var(--text-muted);">Loading categories...</small>
             <div class="table-responsive">
               <table class="admin-table">
                 <thead>
