@@ -2724,13 +2724,20 @@ service cloud.firestore {
       allow get: if (resource.data.status == 'published') || isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
       allow list: if (resource.data.status == 'published') || isAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
       allow create: if isSuperOrDocAdmin() || (isSignedIn() && incoming().authorId == request.auth.uid);
-      allow update: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid) || (resource.data.status == 'published' && incoming().diff(resource.data).affectedKeys().hasOnly(['views', 'lastViewedAt']) && incoming().views is number && incoming().views >= 0 && incoming().views == resource.data.views + 1 && incoming().lastViewedAt is timestamp);
+      allow update: if (
+        ((isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid)) &&
+          !incoming().diff(resource.data).affectedKeys().hasAny(['views', 'lastViewedAt'])) ||
+        (!isSuperOrDocAdmin() && resource.data.status == 'published' &&
+          incoming().diff(resource.data).affectedKeys().hasOnly(['views', 'lastViewedAt']) &&
+          incoming().views is number && incoming().views >= 0 &&
+          incoming().views == resource.data.views + 1 && incoming().lastViewedAt is timestamp)
+      );
       allow delete: if isSuperOrDocAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid);
     }
     match /posts/{postId}/viewers/{visitorId} {
       allow get: if true;
-      allow create: if visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' && request.resource.data.keys().hasOnly(['viewedAt']) && request.resource.data.keys().hasAll(['viewedAt']) && request.resource.data.viewedAt == request.time;
-      allow update: if visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' && resource.data.viewedAt is timestamp && request.time > resource.data.viewedAt + duration.value(1, 'd') && request.resource.data.keys().hasOnly(['viewedAt']) && request.resource.data.viewedAt == request.time && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
+      allow create: if !isSuperOrDocAdmin() && visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' && request.resource.data.keys().hasOnly(['viewedAt']) && request.resource.data.keys().hasAll(['viewedAt']) && request.resource.data.viewedAt == request.time;
+      allow update: if !isSuperOrDocAdmin() && visitorId.matches('^animoro_visitor_[a-f0-9]{32}$') && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'published' && resource.data.viewedAt is timestamp && request.time > resource.data.viewedAt + duration.value(1, 'd') && request.resource.data.keys().hasOnly(['viewedAt']) && request.resource.data.viewedAt == request.time && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedAt']);
       allow delete: if isSuperOrDocAdmin();
     }
     match /anime/{animeId} {

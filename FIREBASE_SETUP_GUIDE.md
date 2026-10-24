@@ -79,7 +79,7 @@ npx firebase-tools deploy --only firestore:rules --project YOUR_FIREBASE_PROJECT
 - **Private Drafts:** Draft articles are never visible to the public — only authenticated admins can see or edit them.
 - **Admin protection:** Only authenticated administrators can create, edit, publish, or delete posts.
 - **Upcoming anime:** Published entries in the existing `upcomingAnime` collection are readable only by signed-in users; writes and unpublished-entry access require administrator authorization.
-- **View counter:** Public visitors can atomically increment `views` on published articles (+1).
+- **View counter:** Public visitors can atomically increment `views` on published articles (+1 per browser/article per 24 hours). Verified admins and draft previews are excluded, and Firestore rules prevent admin accounts from writing view-count fields.
 - **Image uploads:** Anime covers and banners, upcoming anime posters, article covers, and article body images can be selected by drag-and-drop or file picker, with manual URL entry retained as a fallback. New image files are uploaded to the configured Firebase Storage bucket by the authenticated Firebase client and Firestore stores download URLs and lightweight metadata only. Storage writes are limited to admins by `storage.rules`; the protected `/api/delete-image` endpoint checks Firestore references before deleting either Firebase Storage or legacy R2 objects. Existing R2 URLs remain readable.
 - **My List:** Each signed-in user's normal/upcoming anime entries are stored under `users/{uid}/myList`; Firestore rules permit access only when the authenticated UID matches `{uid}`.
 

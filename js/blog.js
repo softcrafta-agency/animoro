@@ -9,6 +9,7 @@ import {
 import { getAnimePath, isValidAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import { getArticleSeo } from './article-seo.js';
+import { shouldSkipPublicArticleView } from './article-view-policy.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
 const THEME_STORAGE_KEY = 'animoro-theme';
@@ -20,11 +21,14 @@ function getFirestoreRuntime() {
     firestoreRuntimePromise = Promise.all([
       import('firebase/firestore'),
       import('./firebase-init.js'),
-    ]).then(([firestore, firebase]) => ({
+      import('./auth-init.js'),
+    ]).then(([firestore, firebase, authModule]) => ({
       ...firebase,
+      auth: authModule.auth,
       collection: firestore.collection,
       doc: firestore.doc,
       getDoc: firestore.getDoc,
+      getDocFromServer: firestore.getDocFromServer,
       getDocs: firestore.getDocs,
       limit: firestore.limit,
       query: firestore.query,
@@ -117,27 +121,43 @@ function isPreviewRequest() {
 }
 
 async function shouldSkipPublicViewTracking() {
-  if (!isPublicArticlePage() || isPreviewRequest()) {
-    return true;
-  }
-
-  if (localStorage.getItem('animoro_admin_user')) {
+  const isPublicArticle = isPublicArticlePage();
+  const isPreview = isPreviewRequest();
+  const hasAdminMarker = Boolean(localStorage.getItem('animoro_admin_user'));
+  if (shouldSkipPublicArticleView({
+    isPublicArticlePage: isPublicArticle,
+    isPreviewRequest: isPreview,
+    hasAdminMarker,
+    isAdmin: false,
+  })) {
     return true;
   }
 
   try {
-    const [{ auth }, { verifyAdminStatus }] = await Promise.all([
-      import('./auth-init.js'),
-      import('./auth.js'),
-    ]);
-    if (!auth || !auth.currentUser) {
-      return false;
-    }
-    return await verifyAdminStatus(auth.currentUser);
+    const isAdmin = await isVerifiedAdminUser();
+    return shouldSkipPublicArticleView({
+      isPublicArticlePage: isPublicArticle,
+      isPreviewRequest: isPreview,
+      hasAdminMarker,
+      isAdmin,
+    });
   } catch (error) {
     console.warn('Unable to verify admin status for article view check:', error);
-    return false;
+    return true;
   }
+}
+
+async function isVerifiedAdminUser() {
+  const { auth, db, doc, getDocFromServer } = await getFirestoreRuntime();
+  if (!auth) return false;
+
+  await auth.authStateReady();
+  const user = auth.currentUser;
+  if (!user) return false;
+  if (!db) throw new Error('Firestore is unavailable while verifying article preview access.');
+
+  const adminSnapshot = await getDocFromServer(doc(db, 'admins', user.uid));
+  return adminSnapshot.exists() && adminSnapshot.data()?.role === 'admin';
 }
 
 async function initBlogPage() {
@@ -207,14 +227,21 @@ async function initBlogPage() {
 
     const post = postSnap.data();
     const postId = postSnap.id;
+    let isDraftPreview = false;
 
-    // Check status: only show published articles to public visitors
+    // Draft previews are available only to authenticated administrators.
     if (post.status !== 'published') {
-      const isAdminSession = localStorage.getItem('animoro_admin_user');
-      if (!isAdminSession) {
+      let isAdmin = false;
+      try {
+        isAdmin = await isVerifiedAdminUser();
+      } catch (error) {
+        console.warn('Unable to verify admin status for article preview:', error);
+      }
+      if (!isAdmin) {
         renderArticleError(mainContainer, "This article is currently saved as a draft and is not public.");
         return;
       }
+      isDraftPreview = true;
     }
 
     let slug = getArticleSlug(post);
@@ -227,7 +254,7 @@ async function initBlogPage() {
     const articlePath = getArticlePath({ ...post, slug });
     const canonicalUrl = getCanonicalArticleUrl({ ...post, slug });
 
-    if (shouldCanonicalizeLegacyUrl &&
+    if (!isDraftPreview && shouldCanonicalizeLegacyUrl &&
         (window.location.pathname !== articlePath || urlParams.has('id'))) {
       window.location.replace(articlePath);
       return;
