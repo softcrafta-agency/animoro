@@ -130,8 +130,10 @@
   <script type="module">
     import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
     import { db, isConfigured, handleFirestoreError } from '/js/firebase-init.js';
+    import { initializeVisitorAnalytics } from '/js/visitor-analytics.js';
     import { setupMobileNav } from '/js/ui.js';
 
+    initializeVisitorAnalytics();
     setupMobileNav();
 
     const form = document.getElementById('contactForm');

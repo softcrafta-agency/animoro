@@ -10,6 +10,7 @@ import { getAnimePath, isValidAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import { getArticleSeo } from './article-seo.js';
 import { shouldSkipPublicArticleView } from './article-view-policy.js';
+import { trackArticlePageView } from './visitor-analytics.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
 const THEME_STORAGE_KEY = 'animoro-theme';
@@ -360,6 +361,12 @@ async function recordCooldownArticleView(articleId) {
     if (await shouldSkipPublicViewTracking()) {
       return;
     }
+
+    trackArticlePageView({
+      id: articleId,
+      slug: getRequestedSlug(),
+      canonicalUrl: getCanonicalArticleUrl({ slug: getRequestedSlug() }),
+    });
 
     const { db, doc, runTransaction, serverTimestamp } = await getFirestoreRuntime();
     if (!db) return;

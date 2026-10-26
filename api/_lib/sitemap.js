@@ -14,10 +14,11 @@ export const SITE_ORIGIN = ARTICLE_SITE_ORIGIN;
 const STATIC_PATHS = [
   '/',
   '/blogs.html',
-  '/anime.html',
+  '/anime',
   '/anime-calendar.html',
   '/about.html',
   '/contact.html',
+  '/privacy.html',
 ];
 
 function escapeXml(value) {

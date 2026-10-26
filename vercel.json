@@ -5,6 +5,10 @@
                          "destination":  "/api/article"
                      },
                      {
+                         "source":  "/anime",
+                         "destination":  "/anime.html"
+                     },
+                     {
                          "source":  "/anime.html/:slug*",
                          "destination":  "/anime.html"
                      },
@@ -44,6 +48,11 @@
                           "source":  "/blog.html/:slug",
                           "destination":  "/blog/:slug",
                           "statusCode":  308
+                      },
+                      {
+                          "source":  "/anime.html",
+                          "destination":  "/anime",
+                          "statusCode":  301
                       }
                   ],
     "headers": [

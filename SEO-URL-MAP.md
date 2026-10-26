@@ -12,10 +12,11 @@ The source now uses `/blog/{slug}` for public article URLs. Hosting redirects fo
 |---|---|---|
 | `/` | Homepage | Canonical is the `www` root. |
 | `/blogs.html` | Article directory | Canonical is the existing directory URL. |
-| `/anime.html` | Anime directory | Canonical is the existing directory URL. |
+| `/anime` | Anime directory | Rewrites to `anime.html`; canonical is `https://www.animoro.in/anime`. Legacy `/anime.html` permanently redirects here. |
 | `/anime-calendar.html` | Release calendar | Canonical is the existing calendar URL. |
 | `/about.html` | About | Canonical is the existing page URL. |
 | `/contact.html` | Contact | Canonical is the existing page URL. |
+| `/privacy.html` | Privacy notice | Canonical is `https://www.animoro.in/privacy.html`. |
 | `/category.html?category=Anime%20News` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
 | `/category.html?category=Recommendations` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
 | `/category.html?category=Reviews` | Category archive | Query-specific canonical is applied by category-page JavaScript. |

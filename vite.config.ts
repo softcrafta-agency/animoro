@@ -29,6 +29,7 @@ export default defineConfig(() => {
           search: path.resolve(__dirname, 'search.html'),
           about: path.resolve(__dirname, 'about.html'),
           contact: path.resolve(__dirname, 'contact.html'),
+          privacy: path.resolve(__dirname, 'privacy.html'),
           'admin-login': path.resolve(__dirname, 'admin-login.html'),
           admin: path.resolve(__dirname, 'admin.html'),
           'admin-post-editor': path.resolve(__dirname, 'admin-post-editor.html'),

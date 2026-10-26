@@ -32,6 +32,11 @@
         Overview
       </div>
 
+      <div class="admin-nav-item" data-tab="analytics">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-5 5"></path></svg>
+        Visitor Analytics
+      </div>
+
       <div class="admin-nav-item" data-tab="posts">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
         Articles
@@ -214,6 +219,88 @@
             </table>
           </div>
         </div>
+      </section>
+
+      <section class="admin-tab-pane" id="tab-analytics" style="display: none;">
+        <div class="analytics-dashboard-toolbar">
+          <div>
+            <h2>Visitor Analytics</h2>
+            <p>Consent-based, pseudonymous public-page activity. Date boundaries use UTC.</p>
+          </div>
+          <div class="analytics-date-controls">
+            <label class="analytics-control">
+              <span>Date range</span>
+              <select id="analyticsDatePreset" class="form-input">
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="7" selected>Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="custom">Custom Date Range</option>
+              </select>
+            </label>
+            <div id="analyticsCustomDates" class="analytics-custom-dates" hidden>
+              <label class="analytics-control"><span>From</span><input id="analyticsStartDate" class="form-input" type="date" /></label>
+              <label class="analytics-control"><span>To</span><input id="analyticsEndDate" class="form-input" type="date" /></label>
+            </div>
+            <button type="button" id="refreshVisitorAnalytics" class="action-btn-sm">Refresh</button>
+          </div>
+        </div>
+        <div id="analyticsDashboardStatus" class="analytics-dashboard-status" role="status" aria-live="polite"></div>
+
+        <div class="analytics-summary-grid">
+          <article class="analytics-summary-card"><span>Total Page Views</span><strong id="visitorMetricPageViews">0</strong></article>
+          <article class="analytics-summary-card"><span>Unique Visitors</span><strong id="visitorMetricUnique">0</strong></article>
+          <article class="analytics-summary-card"><span>Today's Visitors</span><strong id="visitorMetricToday">0</strong></article>
+          <article class="analytics-summary-card"><span>Active Visitors</span><strong id="visitorMetricActive">0</strong><small id="visitorMetricActiveTime">Activity in last 5 minutes</small></article>
+          <article class="analytics-summary-card"><span>Returning Visitors</span><strong id="visitorMetricReturning">0</strong></article>
+          <article class="analytics-summary-card"><span>Average Engagement</span><strong id="visitorMetricEngagement">0 sec</strong></article>
+        </div>
+
+        <div class="analytics-chart-grid">
+          <article class="analytics-chart-card"><h3>Page Views Over Time</h3><div id="analyticsPageViewsChart"></div></article>
+          <article class="analytics-chart-card"><h3>Unique Visitors Over Time</h3><div id="analyticsUniqueVisitorsChart"></div></article>
+          <article class="analytics-chart-card"><h3>Device Category</h3><div id="analyticsDeviceChart"></div></article>
+          <article class="analytics-chart-card"><h3>Browser Distribution</h3><div id="analyticsBrowserChart"></div></article>
+          <article class="analytics-chart-card"><h3>Operating Systems</h3><div id="analyticsOperatingSystemChart"></div></article>
+          <article class="analytics-chart-card"><h3>Traffic Sources</h3><div id="analyticsTrafficSourceChart"></div></article>
+        </div>
+
+        <article class="analytics-chart-card analytics-top-articles">
+          <h3>Top-Performing Articles</h3>
+          <div class="table-responsive">
+            <table class="admin-table"><thead><tr><th>Article</th><th>Page Views</th></tr></thead><tbody id="analyticsTopArticlesBody"></tbody></table>
+          </div>
+        </article>
+
+        <article class="analytics-activity-card">
+          <div class="analytics-activity-heading">
+            <div><h3>Visitor Activity</h3><p>Newest consented public page events first. Full IP addresses and precise locations are not collected.</p></div>
+          </div>
+          <div class="analytics-activity-filters">
+            <label class="analytics-control"><span>Search visitor/page</span><input id="analyticsEventSearch" class="form-input" type="search" maxlength="100" placeholder="Visitor ID, page, article" /></label>
+            <label class="analytics-control"><span>Device</span><select id="analyticsDeviceFilter" class="form-input"><option value="">All devices</option><option value="mobile">Mobile</option><option value="desktop">Desktop</option><option value="tablet">Tablet</option></select></label>
+            <label class="analytics-control"><span>Article</span><select id="analyticsArticleFilter" class="form-input"><option value="">All articles</option></select></label>
+            <label class="analytics-control"><span>Source</span><select id="analyticsSourceFilter" class="form-input"><option value="">All sources</option><option value="organic_search">Organic search</option><option value="referral">Referral</option><option value="social">Social</option><option value="campaign">Campaign</option><option value="unknown">Unknown / unattributed</option></select></label>
+          </div>
+          <div class="table-responsive">
+            <table class="admin-table analytics-events-table">
+              <thead><tr><th>Visitor ID</th><th>Device</th><th>Browser</th><th>Operating System</th><th>Location</th><th>Page / Article</th><th>Referrer / Source</th><th>Time (UTC)</th><th>Event</th></tr></thead>
+              <tbody id="analyticsEventsBody"><tr><td colspan="9">Choose a date range to load activity.</td></tr></tbody>
+            </table>
+          </div>
+          <div class="analytics-pagination"><span id="analyticsEventsPageStatus" aria-live="polite"></span><div><button type="button" id="analyticsEventsPrevious" class="action-btn-sm" disabled>Previous</button><button type="button" id="analyticsEventsNext" class="action-btn-sm" disabled>Next</button></div></div>
+        </article>
+
+        <article class="analytics-visitor-details" id="analyticsVisitorDetails" hidden>
+          <div class="analytics-activity-heading">
+            <div><h3>Visitor Page-View History</h3><p id="analyticsVisitorDetailsLabel"></p></div>
+            <button type="button" id="closeAnalyticsVisitorDetails" class="action-btn-sm">Close</button>
+          </div>
+          <div class="table-responsive"><table class="admin-table"><thead><tr><th>Page / Article</th><th>Device</th><th>Referrer</th><th>Time (UTC)</th></tr></thead><tbody id="analyticsVisitorHistoryBody"></tbody></table></div>
+          <button type="button" id="analyticsVisitorHistoryNext" class="action-btn-sm" hidden>Load Older Activity</button>
+        </article>
+        <p class="analytics-metric-note">Unique and returning visitors are based on the opted-in random first-party visitor ID. Sessions use a 30-minute inactivity timeout. IDs may change when browser storage is cleared or a different browser/device is used. Engagement is reported when a page is left and may be incomplete if the browser closes abruptly.</p>
       </section>
 
       <!-- ============================================================

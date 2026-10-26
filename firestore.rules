@@ -226,5 +226,30 @@ service cloud.firestore {
       allow create, update: if isSuperOrDocAdmin();
       allow delete: if isSuperOrDocAdmin();
     }
+
+    // Visitor analytics are written/read only through trusted server-side Admin SDK APIs.
+    match /analytics_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /analytics_visitors/{visitorId} {
+      allow read, write: if false;
+    }
+
+    match /analytics_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /analytics_rate_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /analytics_daily_summaries/{dayId} {
+      allow read, write: if false;
+
+      match /visitors/{visitorId} {
+        allow read, write: if false;
+      }
+    }
   }
 }

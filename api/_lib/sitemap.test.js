@@ -37,9 +37,12 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   assert.match(xml, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
   assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/<\/loc>/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/blogs\.html/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime<\/loc>/);
+  assert.doesNotMatch(xml, /<loc>https:\/\/www\.animoro\.in\/anime\.html<\/loc>/);
   assert.doesNotMatch(xml, /https:\/\/www\.animoro\.in\/upcoming-anime\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/about\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/contact\.html/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/privacy\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/anime-calendar\.html/);
   assert.doesNotMatch(xml, /search\.html/);
   assert.match(xml, /category\.html\?category=Anime%20%26%20Manga/);
@@ -49,7 +52,7 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   assert.match(xml, /<lastmod>2026-10-01<\/lastmod>/);
   assert.match(xml, /<lastmod>2026-09-30<\/lastmod>/);
   assert.doesNotMatch(xml, /draft-1|not-public|category=Private/);
-  assert.equal((xml.match(/<loc>/g) || []).length, 10);
+  assert.equal((xml.match(/<loc>/g) || []).length, 11);
 });
 
 test('escapes XML characters in public URLs and omits invalid lastmod values', () => {
@@ -70,7 +73,7 @@ test('escapes XML characters in public URLs and omits invalid lastmod values', (
   assert.match(xml, /category=Drama%20%26%20%3CReviews%3E/);
   assert.doesNotMatch(xml, /<lastmod>/);
   assert.doesNotMatch(xml, /<loc>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
-  assert.equal((xml.match(/<loc>/g) || []).length, 8);
+  assert.equal((xml.match(/<loc>/g) || []).length, 9);
 });
 
 test('deduplicates category and URL entries', () => {
@@ -139,7 +142,7 @@ test('adds only published anime to the sitemap using slug URLs', () => {
   ]);
   const xml = buildSitemap([], [], anime);
 
-  assert.match(xml, /anime\.html\/kagurabachi/);
-  assert.match(xml, /anime\.html\/kagurabachi-2/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime\.html\/kagurabachi<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime\.html\/kagurabachi-2<\/loc>/);
   assert.doesNotMatch(xml, /draft-id|private-anime|search\.html/);
 });

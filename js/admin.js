@@ -17,6 +17,7 @@ import { formatDate, formatViews } from './ui.js';
 import { escapeHtml } from './html-utils.js';
 import { setupAnimeManager } from './admin-anime.js';
 import { setupUpcomingManager } from './admin-upcoming.js';
+import { setupVisitorAnalytics } from './admin-visitor-analytics.js';
 
 let currentAdmin = null;
 
@@ -24,6 +25,7 @@ async function initAdminDashboard() {
   requireAdminAuth(async (user) => {
     currentAdmin = user;
     updateAdminUserDisplay(user);
+    setupVisitorAnalytics();
     setupTabs();
     setupMobileAdminNavigation();
     setupPostsTableControls();
@@ -66,6 +68,7 @@ function setupTabs() {
     if (pageTitle) {
       const titles = {
         overview: 'Dashboard Overview',
+        analytics: 'Visitor Analytics',
         posts: 'Articles Management',
         anime: 'Anime List',
         upcoming: 'Upcoming Anime',
@@ -78,6 +81,9 @@ function setupTabs() {
     }
 
     window.location.hash = tabId;
+    if (tabId === 'analytics') {
+      window.dispatchEvent(new Event('animoro:analytics-tab-open'));
+    }
   }
 
   navItems.forEach(item => {

@@ -3,8 +3,11 @@ import { getAnimePath } from './anime-url.js';
 import { attachMyListToggle } from './my-list.js';
 import { getUpcomingAnimePath } from './upcoming-url.js';
 import { initializeAuthNavigation } from './auth-nav.js';
+import { initializeVisitorAnalytics } from './visitor-analytics.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { formatUpcomingReleaseDate } from './upcoming-date.js';
+
+initializeVisitorAnalytics();
 
 export function formatDate(timestamp) {
   if (!timestamp) return 'Recent';
@@ -204,7 +207,7 @@ export function setupMobileNav() {
   const closeBtn = document.getElementById('drawerCloseBtn');
   const navigationLinks = [
     { href: '/', label: 'Home', key: 'home' },
-    { href: '/anime.html', label: 'Anime List', key: 'anime' },
+    { href: '/anime', label: 'Anime List', key: 'anime' },
     { href: '/upcoming-anime.html', label: 'Upcoming Anime', key: 'upcoming' },
     { href: '/blogs.html', label: 'Articles', key: 'articles' },
     { href: '/search.html', label: 'Search', key: 'search' },
@@ -214,7 +217,7 @@ export function setupMobileNav() {
   const pathname = window.location.pathname;
   const activeKey = pathname === '/'
     ? 'home'
-    : pathname.startsWith('/anime.html')
+    : pathname === '/anime' || pathname.startsWith('/anime.html')
       ? 'anime'
       : pathname.startsWith('/upcoming-anime')
         ? 'upcoming'
@@ -270,7 +273,7 @@ export function setupMobileNav() {
       <a href="/" data-mobile-key="home" aria-label="Home">
         <span aria-hidden="true">⌂</span><small>Home</small>
       </a>
-      <a href="/anime.html" data-mobile-key="anime" aria-label="Anime List">
+      <a href="/anime" data-mobile-key="anime" aria-label="Anime List">
         <span aria-hidden="true">✦</span><small>Anime List</small>
       </a>
       <a href="/search.html" data-mobile-key="search" aria-label="Search">

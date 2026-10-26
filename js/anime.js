@@ -332,7 +332,7 @@ function appendStructuredData(anime, canonicalUrl, path) {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
-      { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://www.animoro.in/anime.html' },
+      { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://www.animoro.in/anime' },
       { '@type': 'ListItem', position: 3, name: anime.title, item: new URL(path, 'https://www.animoro.in').toString() },
     ],
   });
