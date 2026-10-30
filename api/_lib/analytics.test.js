@@ -16,10 +16,12 @@ import {
   sanitizeReferrer,
 } from './analytics.js';
 
-test('analytics identifiers and public paths are strictly validated', () => {
+test('analytics identifiers and remaining public paths are strictly validated', () => {
   assert.equal(isValidAnalyticsId('0123456789abcdef0123456789abcdef'), true);
   assert.equal(isValidAnalyticsId('not-an-id'), false);
-  assert.equal(isAllowedPublicPath('/anime'), true);
+  assert.equal(isAllowedPublicPath('/anime'), false);
+  assert.equal(isAllowedPublicPath('/anime.html/deleted-slug'), false);
+  assert.equal(isAllowedPublicPath('/upcoming-anime.html'), false);
   assert.equal(isAllowedPublicPath('/blog/a-valid-article-9'), true);
   assert.equal(isAllowedPublicPath('/admin.html'), false);
   assert.equal(isAllowedPublicPath('//example.com/path'), false);

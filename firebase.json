@@ -12,26 +12,6 @@
         "destination": "/blog.html"
       },
       {
-        "source": "/anime",
-        "destination": "/anime.html"
-      },
-      {
-        "source": "/anime.html/**",
-        "destination": "/anime.html"
-      },
-      {
-        "source": "/upcoming-anime",
-        "destination": "/upcoming-anime.html"
-      },
-      {
-        "source": "/upcoming-anime.html/**",
-        "destination": "/upcoming-anime.html"
-      },
-      {
-        "source": "/upcoming-anime/**",
-        "destination": "/upcoming-anime.html"
-      },
-      {
         "source": "/my-list",
         "destination": "/my-list.html"
       }
@@ -40,11 +20,6 @@
       {
         "source": "/blog.html/:slug",
         "destination": "/blog/:slug",
-        "type": 301
-      },
-      {
-        "source": "/anime.html",
-        "destination": "/anime",
         "type": 301
       }
     ]

@@ -5,6 +5,10 @@
 **Scope:** Repository source and configuration, production HTML/HTTP responses, `robots.txt`, and the live XML sitemap.  
 **Search Console data:** No Pages or Queries export was present in the repository or workspace files inspected. Findings below are based on observed implementation and live responses, not Search Console performance claims.
 
+## Route cleanup update — 2026-10-30
+
+This update supersedes the older route-preservation notes below. In the current worktree, the `/anime` directory, anime detail pages, Upcoming Anime pages, and `/anime-calendar.html` have been removed from the sitemap, build entries, hosting routes, and public navigation. The calendar depended solely on the `upcomingAnime` collection and its detail links, so it was removed rather than left nonfunctional. Anime and Upcoming Anime database collections and admin managers remain unchanged; Upcoming Anime records are not queried by sitemap generation. After deployment, the retired URLs are expected to return HTTP 404. Production has not yet been updated, and Google indexing status was not checked.
+
 **Deployment verification update (2026-10-13):** The source fixes below are present locally, but production still serves the old homepage/article heading output and robots rules. Category title, description, and query canonical are visible after browser rendering; its new Twitter metadata is absent. The live anime directory reports no published profiles, so no detail page was available to verify client-generated metadata.
 
 **Article routing update (2026-10-22):** The source now generates `/blog/{slug}` links and canonicals, redirects the legacy `/blog.html/{slug}` route, and emits the new article route in the sitemap. These changes are local and require deployment before production behavior changes. The canonical host remains `www.animoro.in` because the apex domain permanently redirects there.

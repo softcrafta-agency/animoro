@@ -5,13 +5,9 @@ const ID_PATTERN = /^[a-f0-9]{32}$/i;
 const MAX_DATE_RANGE_DAYS = 90;
 const PUBLIC_EXACT_PATHS = new Set([
   '/',
-  '/anime',
-  '/anime.html',
-  '/anime-calendar.html',
   '/blogs.html',
   '/category.html',
   '/search.html',
-  '/upcoming-anime.html',
   '/about.html',
   '/contact.html',
   '/privacy.html',

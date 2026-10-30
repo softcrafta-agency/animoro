@@ -60,6 +60,37 @@ test('does not display missing author, category, or publication metadata', () =>
   assert.match(html, /<meta name="description" content="Body text\." \/>/);
 });
 
+test('keeps anime labels on articles without linking to removed anime detail pages', () => {
+  const html = renderArticleDocument(template, {
+    id: 'article-with-anime-tag',
+    title: 'Anime News',
+    slug: 'anime-news',
+    animeSlug: 'deleted-anime-slug',
+    animeTitle: 'Anime Series',
+    content: '<p>Article body.</p>',
+  });
+
+  assert.match(html, /<span class="badge-category">Anime Series<\/span>/);
+  assert.doesNotMatch(html, /anime\.html\/deleted-anime-slug|href="\/anime/);
+});
+
+test('removes stored article links to retired site routes but preserves external links', () => {
+  const content = sanitizeArticleContent(
+    '<a href="/anime">Anime directory</a>' +
+    '<a href="https://www.animoro.in/anime.html/deleted-slug">Anime detail</a>' +
+    '<a href="/upcoming-anime.html/deleted-slug">Upcoming detail</a>' +
+    '<a href="/anime-calendar.html">Calendar</a>' +
+    '<a href="https://example.test/article">External article</a>'
+  );
+
+  assert.match(content, /<span>Anime directory<\/span>/);
+  assert.match(content, /<span>Anime detail<\/span>/);
+  assert.match(content, /<span>Upcoming detail<\/span>/);
+  assert.match(content, /<span>Calendar<\/span>/);
+  assert.match(content, /<a href="https:\/\/example\.test\/article">External article<\/a>/);
+  assert.doesNotMatch(content, /href="(?:\/anime|https:\/\/www\.animoro\.in\/anime|\/upcoming-anime|\/anime-calendar)/);
+});
+
 test('uses SEO metadata independently from the visible headline and escapes fallbacks', () => {
   const html = renderArticleDocument(template, {
     id: 'seo-article',

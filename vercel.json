@@ -5,26 +5,6 @@
                          "destination":  "/api/article"
                      },
                      {
-                         "source":  "/anime",
-                         "destination":  "/anime.html"
-                     },
-                     {
-                         "source":  "/anime.html/:slug*",
-                         "destination":  "/anime.html"
-                     },
-                     {
-                         "source":  "/upcoming-anime",
-                         "destination":  "/upcoming-anime.html"
-                     },
-                     {
-                         "source":  "/upcoming-anime.html/:slug*",
-                         "destination":  "/upcoming-anime.html"
-                     },
-                     {
-                         "source":  "/upcoming-anime/:slug*",
-                         "destination":  "/upcoming-anime.html"
-                     },
-                     {
                          "source":  "/my-list",
                          "destination":  "/my-list.html"
                      },
@@ -48,11 +28,6 @@
                           "source":  "/blog.html/:slug",
                           "destination":  "/blog/:slug",
                           "statusCode":  308
-                      },
-                      {
-                          "source":  "/anime.html",
-                          "destination":  "/anime",
-                          "statusCode":  301
                       }
                   ],
     "headers": [

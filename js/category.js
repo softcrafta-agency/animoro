@@ -63,7 +63,6 @@ async function initCategoryPage() {
   document.title = `${categoryName} — Animoro`;
   const metaDescription = document.querySelector('meta[name="description"]');
   if (metaDescription) metaDescription.setAttribute('content', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
-  ensureMetaTag('name', 'robots', 'noindex, follow');
   ensureMetaTag('property', 'og:title', `${categoryName} — Animoro`);
   ensureMetaTag('property', 'og:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
   ensureMetaTag('property', 'og:url', canonicalUrl);

@@ -1,14 +1,10 @@
 import {
-  createAnimeCard,
   createArticleCard,
-  createUpcomingAnimeCard,
   formatDate,
   setupMobileNav,
 } from './ui.js';
 import { getArticlePath } from './article-url.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
-import { selectPopularAnime } from './anime-popular.js';
-import { getUpcomingReleaseTimestamp } from './upcoming-date.js';
 
 export { createArticleCard, formatDate, formatViews, setupMobileNav } from './ui.js';
 
@@ -664,82 +660,6 @@ async function initTrendingArticles() {
   }
 }
 
-async function initPopularAnime() {
-  const container = document.getElementById('homePopularAnimeContainer');
-  if (!container) return;
-
-  try {
-    const runtime = await getFirestoreDependencies();
-    if (!runtime.isConfigured || !runtime.db) {
-      renderHomeDataMessage(container, 'The anime catalogue is not available right now.');
-      return;
-    }
-
-    const snapshot = await runtime.getDocs(runtime.query(
-      runtime.collection(runtime.db, 'anime'),
-      runtime.where('visibility', '==', 'published'),
-      runtime.orderBy('rating', 'desc'),
-      runtime.limit(12)
-    ));
-    const anime = selectPopularAnime(snapshot.docs.map(document => ({
-      id: document.id,
-      ...document.data(),
-    })), 6);
-
-    if (!anime.length) {
-      renderHomeDataMessage(container, 'No published anime with a catalogue rating are available yet.');
-      return;
-    }
-    container.replaceChildren(...anime.map(createAnimeCard));
-  } catch (error) {
-    console.error('Could not load the homepage popular anime list.', error);
-    renderHomeDataMessage(container, 'Unable to load the rated anime list. Please try again.', () => initPopularAnime());
-  }
-}
-
-async function initUpcomingAnime() {
-  const container = document.getElementById('homeUpcomingAnimeContainer');
-  if (!container) return;
-
-  try {
-    const runtime = await getFirestoreDependencies();
-    if (!runtime.isConfigured || !runtime.db) {
-      renderHomeDataMessage(container, 'Upcoming anime are not available right now.');
-      return;
-    }
-
-    const snapshot = await runtime.getDocs(runtime.query(
-      runtime.collection(runtime.db, 'upcomingAnime'),
-      runtime.where('status', '==', 'published'),
-      runtime.limit(30)
-    ));
-    const seenIds = new Set();
-    const upcoming = snapshot.docs
-      .map(document => ({ id: document.id, ...document.data() }))
-      .filter(item => {
-        if (item.status !== 'published' || seenIds.has(item.id)) return false;
-        seenIds.add(item.id);
-        return true;
-      })
-      .sort((left, right) => {
-        const leftDate = getUpcomingReleaseTimestamp(left.releaseDate);
-        const rightDate = getUpcomingReleaseTimestamp(right.releaseDate);
-        return leftDate - rightDate ||
-          String(left.title || '').localeCompare(String(right.title || ''));
-      })
-      .slice(0, 6);
-
-    if (!upcoming.length) {
-      renderHomeDataMessage(container, 'No upcoming anime have been published yet.');
-      return;
-    }
-    container.replaceChildren(...upcoming.map(createUpcomingAnimeCard));
-  } catch (error) {
-    console.error('Could not load the homepage upcoming anime list.', error);
-    renderHomeDataMessage(container, 'Unable to load upcoming anime. Please try again.', () => initUpcomingAnime());
-  }
-}
-
 function renderHomeDataMessage(container, message, onRetry = null) {
   const state = document.createElement('div');
   state.className = 'empty-state';
@@ -784,8 +704,6 @@ function initHomepage() {
       requestAnimationFrame(() => {
         initLatestArticles();
         initTrendingArticles();
-        initPopularAnime();
-        initUpcomingAnime();
       });
     };
     const heroImage = document.querySelector('#heroSliderContainer .slider-slide.active .slide-bg');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assignAnimeSlugs, assignPostSlugs, buildSitemap } from './sitemap.js';
+import { assignPostSlugs, buildSitemap } from './sitemap.js';
 import { normalizeArticleSlug } from '../../js/article-url.js';
 
 test('builds a sitemap with public URLs and excludes unpublished posts', () => {
@@ -26,24 +26,17 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
         status: 'draft',
         category: 'Private',
       },
-    ],
-    [
-      { name: 'Anime & Manga' },
-      { name: 'Reviews' },
-      { name: 'Unused Category' },
     ]
   );
 
   assert.match(xml, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
   assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/<\/loc>/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/blogs\.html/);
-  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime<\/loc>/);
-  assert.doesNotMatch(xml, /<loc>https:\/\/www\.animoro\.in\/anime\.html<\/loc>/);
+  assert.doesNotMatch(xml, /https:\/\/www\.animoro\.in\/anime(?:\/|\.html|-calendar)/);
   assert.doesNotMatch(xml, /https:\/\/www\.animoro\.in\/upcoming-anime\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/about\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/contact\.html/);
   assert.match(xml, /https:\/\/www\.animoro\.in\/privacy\.html/);
-  assert.match(xml, /https:\/\/www\.animoro\.in\/anime-calendar\.html/);
   assert.doesNotMatch(xml, /search\.html/);
   assert.match(xml, /category\.html\?category=Anime%20%26%20Manga/);
   assert.match(xml, /\/blog\/first-post/);
@@ -52,12 +45,11 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   assert.match(xml, /<lastmod>2026-10-01<\/lastmod>/);
   assert.match(xml, /<lastmod>2026-09-30<\/lastmod>/);
   assert.doesNotMatch(xml, /draft-1|not-public|category=Private/);
-  assert.equal((xml.match(/<loc>/g) || []).length, 11);
+  assert.equal((xml.match(/<loc>/g) || []).length, 9);
 });
 
 test('escapes XML characters in public URLs and omits invalid lastmod values', () => {
-  const xml = buildSitemap(
-    [{
+  const xml = buildSitemap([{
       id: 'post&<"one',
       slug: 'safe-story',
       status: 'published',
@@ -65,25 +57,20 @@ test('escapes XML characters in public URLs and omits invalid lastmod values', (
       updatedAt: 'not a date',
       publishedAt: null,
       createdAt: undefined,
-    }],
-    []
-  );
+    }]);
 
   assert.match(xml, /\/blog\/safe-story/);
   assert.match(xml, /category=Drama%20%26%20%3CReviews%3E/);
   assert.doesNotMatch(xml, /<lastmod>/);
   assert.doesNotMatch(xml, /<loc>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
-  assert.equal((xml.match(/<loc>/g) || []).length, 9);
+  assert.equal((xml.match(/<loc>/g) || []).length, 7);
 });
 
 test('deduplicates category and URL entries', () => {
-  const xml = buildSitemap(
-    [
-      { id: 'same', slug: 'same-post', status: 'published', category: 'Reviews' },
-      { id: 'another', slug: 'same-post', status: 'published', category: 'Reviews' },
-    ],
-    [{ name: 'Reviews' }, { name: 'Reviews' }]
-  );
+  const xml = buildSitemap([
+    { id: 'same', slug: 'same-post', status: 'published', category: 'Reviews' },
+    { id: 'another', slug: 'same-post', status: 'published', category: 'Reviews' },
+  ]);
 
   assert.equal((xml.match(/category\.html\?category=Reviews/g) || []).length, 1);
   assert.equal((xml.match(/\/blog\/same-post/g) || []).length, 1);
@@ -109,7 +96,7 @@ test('sitemap excludes published records without a stored public slug', () => {
   const xml = buildSitemap([
     { id: 'secret-document-id', title: 'Kagurabachi Anime News', status: 'published' },
     { id: 'valid-post', title: 'Kagurabachi Anime News', slug: 'kagurabachi-news', status: 'published' },
-  ], []);
+  ]);
 
   assert.match(xml, /\/blog\/kagurabachi-news/);
   assert.doesNotMatch(xml, /kagurabachi-anime-news/);
@@ -119,11 +106,9 @@ test('sitemap excludes published records without a stored public slug', () => {
 test('excludes invalid stored slugs instead of emitting synthetic sitemap URLs', () => {
   const xml = buildSitemap([
     { id: 'invalid-article', title: 'Article without a valid slug', slug: '../invalid', status: 'published' },
-  ], [], [
-    { title: 'Anime without a slug', visibility: 'published', slug: '' },
   ]);
 
-  assert.doesNotMatch(xml, /\/blog\/article-without-a-valid-slug|anime\.html\/anime-without-a-slug/);
+  assert.doesNotMatch(xml, /\/blog\/article-without-a-valid-slug/);
 });
 
 test('normalizes article titles into URL-safe slugs', () => {
@@ -134,15 +119,10 @@ test('normalizes article titles into URL-safe slugs', () => {
   assert.equal(normalizeArticleSlug(' --Naruto   News-- '), 'naruto-news');
 });
 
-test('adds only published anime to the sitemap using slug URLs', () => {
-  const anime = assignAnimeSlugs([
-    { id: 'anime-1', title: 'Kagurabachi', visibility: 'published' },
-    { id: 'anime-2', title: 'Kagurabachi', visibility: 'published' },
-    { id: 'draft-id', title: 'Private Anime', visibility: 'draft' },
+test('excludes deleted anime and Upcoming Anime route families', () => {
+  const xml = buildSitemap([
+    { id: 'post', slug: 'article', status: 'published', title: 'Anime article' },
   ]);
-  const xml = buildSitemap([], [], anime);
 
-  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime\.html\/kagurabachi<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime\.html\/kagurabachi-2<\/loc>/);
-  assert.doesNotMatch(xml, /draft-id|private-anime|search\.html/);
+  assert.doesNotMatch(xml, /\/anime(?:\/|\.html|-calendar)|\/upcoming-anime/);
 });

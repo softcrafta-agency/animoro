@@ -18,18 +18,16 @@ function createResponse() {
 }
 
 test('sitemap requests do not generate or persist missing slugs', async () => {
+  const queriedCollections = [];
   const records = {
     posts: [
       { id: 'missing-post-slug', title: 'Post without stored slug', status: 'published' },
       { id: 'valid-post', title: 'Valid post', slug: 'valid-post', status: 'published' },
     ],
-    anime: [
-      { id: 'missing-anime-slug', title: 'Anime without stored slug', visibility: 'published' },
-      { id: 'valid-anime', title: 'Valid anime', slug: 'valid-anime', visibility: 'published' },
-    ],
   };
   const firestore = {
     collection(name) {
+      queriedCollections.push(name);
       return {
         where() { return this; },
         async get() {
@@ -55,8 +53,9 @@ test('sitemap requests do not generate or persist missing slugs', async () => {
   assert.match(response.headers['content-type'], /application\/xml/);
   assert.match(response.body, /\/blog\/valid-post/);
   assert.doesNotMatch(response.body, /blog\.html\//);
-  assert.match(response.body, /anime\.html\/valid-anime/);
-  assert.doesNotMatch(response.body, /post-without-stored-slug|anime-without-stored-slug/);
+  assert.doesNotMatch(response.body, /\/anime(?:\/|\.html|-calendar)|\/upcoming-anime/);
+  assert.doesNotMatch(response.body, /post-without-stored-slug/);
+  assert.deepEqual(queriedCollections, ['posts']);
 });
 
 test('sitemap reflects Firestore publication and deletion on each uncached request', async () => {

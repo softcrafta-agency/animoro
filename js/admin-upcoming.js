@@ -832,22 +832,13 @@ function renderUpcomingRows(entries = upcomingEntries, emptyMessage = 'No upcomi
     publishButton.textContent = item.status === 'published' ? 'Unpublish' : 'Publish';
     publishButton.addEventListener('click', () => toggleUpcomingPublish(item));
 
-    const previewButton = document.createElement('button');
-    previewButton.type = 'button';
-    previewButton.className = 'action-btn-sm';
-    previewButton.textContent = 'Preview';
-    previewButton.addEventListener('click', () => window.open(
-      `/upcoming-anime.html/${encodeURIComponent(item.slug || normalizeAnimeSlug(item.title))}?preview=1`,
-      '_blank'
-    ));
-
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
     deleteButton.className = 'action-btn-sm delete';
     deleteButton.textContent = 'Delete';
     deleteButton.addEventListener('click', () => deleteUpcomingEntry(item));
 
-    actionsCell.append(editButton, publishButton, previewButton, deleteButton);
+    actionsCell.append(editButton, publishButton, deleteButton);
     return row;
   };
   if (upcomingTableSelection) upcomingTableSelection.render(filtered, createRow, 10, emptyMessage);
