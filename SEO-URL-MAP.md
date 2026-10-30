@@ -1,31 +1,52 @@
 # Animoro SEO URL map
 
-**Snapshot date:** 2026-10-30
+**Snapshot date:** 2026-10-22
 **Canonical host:** `https://www.animoro.in`  
-**Source:** Repository sitemap generation, canonical tags, and hosting configuration. Search Console data was not supplied, so this map makes no claims about Google indexing or deindexing.
+**Source:** Production `/sitemap.xml`, production canonical tags, repository routing configuration. Search Console Pages/Queries exports were not found, so this map includes no click, impression, CTR, ranking, or query data.
 
-## URLs in the generated sitemap
+The source now uses `/blog/{slug}` for public article URLs. Hosting redirects for legacy URLs and the updated sitemap are configured locally; production must be redeployed before these changes are live.
 
-The sitemap contains the homepage, article directory, About, Contact, Privacy, categories represented by published articles, and published articles with valid stored slugs. Its canonical origin remains `https://www.animoro.in`.
+## Public URLs in the live sitemap
 
-Anime records and Upcoming Anime records are not queried or emitted during sitemap generation.
+| Existing URL | Page type | Indexing/canonical notes |
+|---|---|---|
+| `/` | Homepage | Canonical is the `www` root. |
+| `/blogs.html` | Article directory | Canonical is the existing directory URL. |
+| `/anime` | Anime directory | Rewrites to `anime.html`; canonical is `https://www.animoro.in/anime`. Legacy `/anime.html` permanently redirects here. |
+| `/anime-calendar.html` | Release calendar | Canonical is the existing calendar URL. |
+| `/about.html` | About | Canonical is the existing page URL. |
+| `/contact.html` | Contact | Canonical is the existing page URL. |
+| `/privacy.html` | Privacy notice | Canonical is `https://www.animoro.in/privacy.html`. |
+| `/category.html?category=Anime%20News` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
+| `/category.html?category=Recommendations` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
+| `/category.html?category=Reviews` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
+| `/blog/top-5-upcoming-anime-in-october-2026` | Published article | New source route; canonical is the same article URL. |
+| `/blog/black-clover-spade-kingdom-arc-asta-yuno-noelle-lucifero` | Published article | New source route; canonical is the same article URL. |
+| `/blog/best-magic-fantasy-anime-you-should-definitely-watch` | Published article | New source route; canonical is the same article URL. |
+| `/blog/best-sports-anime-you-should-definitely-watch` | Published article | New source route; canonical is the same article URL. |
+| `/blog/why-does-choso-consider-yuji-his-brother-the-truth-explained` | Published article | New source route; canonical is the same article URL. |
+| `/blog/kagurabachi-anime-release-date-story-characters-powers-everything-you-need-to-know` | Published article | New source route; canonical is the same article URL. |
+| `/blog/why-is-ichigo-the-strongest-character-in-bleach-yhwach-soul-society` | Published article | New source route; canonical is the same article URL. |
+| `/blog/why-was-itachi-forced-to-destroy-his-own-clan` | Published article | New source route; canonical is the same article URL. |
 
-## Removed URL families
+The sitemap also contains published anime detail URLs when those records exist. The current sitemap response inspected for this audit contained no anime details.
 
-The production sitemap response checked on 2026-10-30 still contained `/anime` and `/anime-calendar.html`; it contained no anime detail or Upcoming Anime URLs. The source changes below are not deployed.
+## Existing URL families not listed in the sitemap
 
-| URL family | Source behavior after deployment |
-|---|---|
-| `/anime` | Anime directory, build entry, rewrites, redirects, and internal links removed. Expected HTTP 404. |
-| `/anime.html/{slug}` | Anime detail page and route handling removed. All 25 deleted detail URLs are expected to return HTTP 404. |
-| `/upcoming-anime.html`, `/upcoming-anime.html/{slug}`, `/upcoming-anime/{slug}` | Public pages, build entry, navigation, and route handling removed. Expected HTTP 404. |
-| `/anime-calendar.html` | Removed because its only schedule source was the `upcomingAnime` collection and its cards linked to deleted Upcoming Anime details. |
+| Existing URL family | Current behavior | Decision |
+|---|---|---|
+| `/upcoming-anime.html` and `/upcoming-anime.html/{slug}` | Template emits `noindex, nofollow`; browser initialization requires sign-in; Firestore requires a signed-in user for published upcoming records. | Keep out of sitemap and do not remove the noindex directive without an explicit public-access/indexing decision. |
+| `/search.html` | `noindex, nofollow`; currently disallowed by production `robots.txt`. The local source removes that disallow, but it has not been deployed. | Intentionally excluded. Production currently cannot observe the page-level directive; recheck after approved deployment. |
+| `/my-list.html` | `noindex, nofollow`; user-specific page; currently disallowed by production `robots.txt`. The local source removes that disallow, but it has not been deployed. | Intentionally excluded. Production currently cannot observe the page-level directive; recheck after approved deployment. |
+| Login, register, account, and admin pages | Authentication/administration surfaces; noindex where configured; admin paths disallowed in `robots.txt`. | Intentionally excluded. |
+| `/category.html` with other category values | Same existing category template and query route; the sitemap includes only categories represented by published posts at generation time. | Do not create alternate path forms. Category-specific title/canonical/social values are client-rendered. |
+| `/blog.html/{slug}` | Legacy article URL. Vercel redirects with HTTP 308 and Firebase Hosting with HTTP 301 to `/blog/{slug}`. | Retained only as a redirect source; do not emit it in links or sitemap. |
+| `/anime.html/{slug}` | Existing client-rendered anime detail route. Profile metadata/canonical are set after the Firestore record loads. | Preserve current route and stored slugs. |
 
-Upcoming Anime records and their admin manager remain in Firestore; no collection or unrelated admin functionality was deleted. Admin preview links to removed public detail routes were removed.
+## Host and route consistency
 
-## Remaining route and crawler notes
-
-- Published articles retain `/blog/{slug}` URLs. Legacy `/blog.html/{slug}` URLs retain their existing Vercel 308 and Firebase Hosting 301 redirects.
-- `robots.txt` continues to allow crawlers to request removed paths and retains its sitemap directive. This lets crawlers observe the expected 404 responses.
-- Missing files are expected to return 404 on Vercel and Firebase Hosting after deployment; local source/configuration checks do not verify deployed status codes.
-- Check the deployed sitemap and route statuses after deployment. Google Search Console must be consulted to determine crawl, indexing, or removal status.
+- `https://animoro.in/` permanently redirects to `https://www.animoro.in/` with HTTP 308.
+- The sitemap, `robots.txt` sitemap directive, and source canonical helpers use `https://www.animoro.in`.
+- The article path changes from `/blog.html/{slug}` to `/blog/{slug}`. Article slugs and the existing www canonical host are unchanged.
+- Verify the production redirect, article response, and live sitemap after redeployment; local source/config tests do not verify deployed behavior.
+- URL-level performance prioritization must be completed after the Search Console exports are supplied.

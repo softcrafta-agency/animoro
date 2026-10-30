@@ -1,5 +1,3 @@
-import { isRetiredPublicRoute } from './retired-public-route.js';
-
 const ALLOWED_TAGS = new Set([
   'A', 'B', 'BLOCKQUOTE', 'BR', 'CAPTION', 'CODE', 'DEL', 'DIV', 'EM',
   'FIGCAPTION', 'FIGURE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR',
@@ -68,13 +66,6 @@ function cleanStyle(element) {
 
 function cleanElement(element, options) {
   const tag = element.tagName;
-  if (tag === 'A' && isRetiredPublicRoute(element.getAttribute('href'))) {
-    const replacement = document.createElement('span');
-    replacement.append(...element.childNodes);
-    element.replaceWith(replacement);
-    cleanElement(replacement, options);
-    return;
-  }
   if (tag === 'FONT') {
     const span = document.createElement('span');
     const color = element.getAttribute('color');

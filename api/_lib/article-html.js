@@ -1,8 +1,7 @@
 import sanitizeHtml from 'sanitize-html';
 import { ARTICLE_SITE_ORIGIN, getArticlePath, isValidArticleSlug } from '../../js/article-url.js';
 import { getArticleSeo } from '../../js/article-seo.js';
-import { isValidAnimeSlug } from '../../js/anime-url.js';
-import { isRetiredPublicRoute } from '../../js/retired-public-route.js';
+import { getAnimePath, isValidAnimeSlug } from '../../js/anime-url.js';
 
 export const SITE_ORIGIN = ARTICLE_SITE_ORIGIN;
 
@@ -211,17 +210,15 @@ export function sanitizeArticleContent(value) {
     exclusiveFilter: frame => (frame.tag === 'img' && !frame.attribs.src) ||
       (frame.tag === 'iframe' && !/^https:\/\/(?:www\.youtube-nocookie\.com|www\.youtube\.com)\/embed\/[A-Za-z0-9_-]{6,20}\/?$/i.test(frame.attribs.src || '')),
     transformTags: {
-      a: (tagName, attributes) => isRetiredPublicRoute(attributes.href)
-        ? { tagName: 'span', attribs: {} }
-        : {
-          tagName,
-          attribs: {
-            ...attributes,
-            ...(attributes.target === '_blank'
-              ? { rel: 'noopener noreferrer' }
-              : {}),
-          },
+      a: (tagName, attributes) => ({
+        tagName,
+        attribs: {
+          ...attributes,
+          ...(attributes.target === '_blank'
+            ? { rel: 'noopener noreferrer' }
+            : {}),
         },
+      }),
       img: (tagName, attributes) => ({
         tagName,
         attribs: {
@@ -287,7 +284,7 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
       .join('')
     : '';
   const animeLink = isValidAnimeSlug(post.animeSlug)
-    ? `<span class="badge-category">${escapeHtml(post.animeTitle || 'Anime')}</span>`
+    ? `<a href="${escapeHtml(getAnimePath({ slug: post.animeSlug }))}" class="badge-category">${escapeHtml(post.animeTitle || 'Anime')}</a>`
     : '';
   const relatedHtml = renderRelatedArticles(relatedPosts, currentId);
 

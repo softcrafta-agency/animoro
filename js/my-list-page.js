@@ -53,7 +53,8 @@ function renderMyListPage(list) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <h3 style="font-size: 1.7rem; margin-bottom: 12px;">Your list is empty</h3>
-        <p class="empty-state-desc">Anime you have saved will appear here.</p>
+        <p class="empty-state-desc">Start adding anime you want to watch later.</p>
+        <a href="/anime" class="btn-cta" style="margin-top: 16px;">Explore Anime</a>
       </div>
     `;
     return;

@@ -8,8 +8,9 @@ import {
   startAfter
 } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { createArticleCard, setupMobileNav } from './ui.js';
+import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { getArticlePath } from './article-url.js';
+import { getAnimePath } from './anime-url.js';
 import { normalizeArticleSearchText, scoreArticleSearch } from './article-search.js';
 
 let allPublishedPosts = [];
@@ -18,6 +19,8 @@ let hasMorePosts = true;
 let pendingPageRequest = null;
 let usingFallback = false;
 let isLoaded = false;
+let animeResults = [];
+let isAnimeLoaded = false;
 let searchSuggestions = [];
 let activeSuggestionIndex = -1;
 let searchRequestId = 0;
@@ -125,6 +128,12 @@ async function searchArticles(term) {
         <p class="empty-state-desc">Type keywords above to search across titles, categories, authors, and tags.</p>
       </div>
     `;
+    const animeContainer = document.getElementById('animeSearchResults');
+    const animeSection = document.getElementById('animeSearchSection');
+    if (animeContainer && animeSection) {
+      animeContainer.replaceChildren();
+      animeSection.hidden = true;
+    }
     const resultsCount = document.getElementById('searchResultsCount');
     if (resultsCount) resultsCount.textContent = '';
     updateLoadMoreButton();
@@ -138,7 +147,9 @@ async function searchArticles(term) {
 
   renderSearchLoading(term);
 
-  if (!isLoaded) await loadNextPublishedPage();
+  if (!isLoaded || !isAnimeLoaded) {
+    await Promise.all([loadNextPublishedPage(), loadAnimePage()]);
+  }
   if (requestId !== searchRequestId) return;
   if (!isLoaded) return;
   renderSearchResults(term);
@@ -150,6 +161,26 @@ function updateSearchUrl(term) {
   if (term) url.searchParams.set('q', term);
   else url.searchParams.delete('q');
   window.history.replaceState({}, '', url);
+}
+
+async function loadAnimePage() {
+  if (isAnimeLoaded || !db) return;
+
+  try {
+    const snapshot = await getDocs(query(
+      collection(db, 'anime'),
+      where('visibility', '==', 'published'),
+      limit(50)
+    ));
+    animeResults = snapshot.docs.map(document => ({
+      id: document.id,
+      ...document.data()
+    }));
+    isAnimeLoaded = true;
+  } catch (error) {
+    handleFirestoreError(error, 'list', 'anime');
+    isAnimeLoaded = true;
+  }
 }
 
 function loadNextPublishedPage() {
@@ -217,6 +248,8 @@ function renderSearchLoading(term) {
 function renderSearchResults(term = document.getElementById('searchInput')?.value.trim() || '') {
   const resultsContainer = document.getElementById('searchResultsContainer');
   const resultsCount = document.getElementById('searchResultsCount');
+  const animeContainer = document.getElementById('animeSearchResults');
+  const animeSection = document.getElementById('animeSearchSection');
   if (!resultsContainer) return;
 
   const lower = normalizeArticleSearchText(term);
@@ -224,6 +257,10 @@ function renderSearchResults(term = document.getElementById('searchInput')?.valu
     resultsContainer.replaceChildren();
     renderSearchMessage('Enter a search term with letters or numbers.');
     if (resultsCount) resultsCount.textContent = '';
+    if (animeContainer && animeSection) {
+      animeContainer.replaceChildren();
+      animeSection.hidden = true;
+    }
     updateLoadMoreButton();
     return;
   }
@@ -234,14 +271,33 @@ function renderSearchResults(term = document.getElementById('searchInput')?.valu
     .sort((a, b) => b.score - a.score);
 
   const matched = rankedPosts.map(({ post }) => post);
+  const matchedAnime = animeResults.filter(anime => [
+    anime.title,
+    anime.slug,
+    anime.synopsis,
+    anime.studio,
+    ...(anime.alternativeTitles || []),
+    ...(anime.genres || []),
+    ...(anime.tags || []),
+  ].some(value => normalizeArticleSearchText(value).includes(lower)));
 
   if (resultsCount) {
-    resultsCount.textContent = `Found ${matched.length} matching article${matched.length === 1 ? '' : 's'} in the loaded results.`;
+    resultsCount.textContent = `Found ${matchedAnime.length} anime and ${matched.length} matching article${matched.length === 1 ? '' : 's'} in the loaded results.`;
+  }
+
+  if (animeContainer && animeSection) {
+    animeContainer.replaceChildren();
+    animeSection.hidden = matchedAnime.length === 0;
+    matchedAnime.slice(0, 12).forEach(anime => {
+      animeContainer.appendChild(createAnimeCard(anime));
+    });
   }
 
   if (matched.length === 0) {
     resultsContainer.innerHTML = '';
-    renderSearchMessage(hasMorePosts
+    renderSearchMessage(matchedAnime.length > 0
+      ? 'No matching articles found.'
+      : hasMorePosts
       ? 'No matches in the articles loaded so far. Search older articles to continue.'
       : 'No articles found. Try another search.');
     updateLoadMoreButton();
@@ -259,6 +315,10 @@ function renderSuggestions(term) {
   const container = document.getElementById('searchSuggestions');
   if (!container) return;
   const normalizedTerm = normalizeArticleSearchText(term);
+  const anime = animeResults
+    .filter(item => normalizeArticleSearchText(item.title).includes(normalizedTerm))
+    .slice(0, 3)
+    .map(item => ({ label: item.title, type: 'ANIME', href: getAnimePath(item) }));
   const articles = allPublishedPosts
     .filter(post => [
       post.title,
@@ -283,7 +343,7 @@ function renderSuggestions(term) {
       href: `/category.html?category=${encodeURIComponent(category)}`
     }));
 
-  searchSuggestions = [...articles, ...categories];
+  searchSuggestions = [...anime, ...articles, ...categories];
   activeSuggestionIndex = -1;
   container.replaceChildren();
 

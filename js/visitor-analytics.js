@@ -5,6 +5,9 @@ const VISITOR_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 const PUBLIC_PATHS = new Set([
   '/',
+  '/anime',
+  '/anime.html',
+  '/anime-calendar.html',
   '/blogs.html',
   '/category.html',
   '/search.html',

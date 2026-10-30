@@ -3,10 +3,6 @@
 **Date:** 2026-10-13  
 **Scope:** Evidence-based updates to existing templates, metadata rendering, and anime publishing fields. Existing routes, Firebase integration, publication states, and stored slugs were preserved.
 
-## Route cleanup update — 2026-10-30
-
-A later source cleanup supersedes the route-preservation statements in this historical report. The anime directory and detail pages, Upcoming Anime public pages, and `/anime-calendar.html` have been removed from build entries, hosting routes, public navigation, and sitemap generation. The calendar depended on Upcoming Anime Firestore records and detail links, so it had no independent remaining data source. The anime and `upcomingAnime` collections and their admin managers remain intact. Deleted routes are expected to return 404 after deployment; production status and Google indexing status have not been verified.
-
 ## Deployment status — verified 2026-10-13
 
 The changes below exist in the current worktree. **No deployment was performed; several source changes are not live.**

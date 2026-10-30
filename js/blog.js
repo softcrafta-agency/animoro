@@ -6,7 +6,7 @@ import {
   isValidArticleSlug,
   normalizeArticleSlug
 } from './article-url.js';
-import { isValidAnimeSlug } from './anime-url.js';
+import { getAnimePath, isValidAnimeSlug } from './anime-url.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import { getArticleSeo } from './article-seo.js';
 import { shouldSkipPublicArticleView } from './article-view-policy.js';
@@ -553,9 +553,9 @@ function renderArticle(container, post, canonicalUrl) {
         <div class="article-header-meta">
           ${category ? `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>` : ''}
           ${isValidAnimeSlug(post.animeSlug) ? `
-            <span class="badge-category">
+            <a href="${getAnimePath({ slug: post.animeSlug, title: post.animeTitle })}" class="badge-category">
               ${escapeHtml(post.animeTitle || 'Anime')}
-            </span>
+            </a>
           ` : ''}
           ${visiblePublishedDate ? `<time${isoPublishedDate ? ` datetime="${escapeHtml(isoPublishedDate)}"` : ''}>${escapeHtml(visiblePublishedDate)}</time>` : ''}
         </div>

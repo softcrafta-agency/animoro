@@ -207,7 +207,7 @@ test('resolves a published article slug from the rewritten Vercel request URL', 
   }
 });
 
-test('loads related posts and associated anime profile concurrently', async () => {
+test('loads related posts and linked anime profile concurrently', async () => {
   const article = {
     title: 'Published Story',
     slug: 'published-story',
@@ -269,8 +269,7 @@ test('loads related posts and associated anime profile concurrently', async () =
   assert.ok(bothQueriesStarted);
   assert.equal(response.statusCode, 200);
   assert.match(response.body, /Published article body\./);
-  assert.match(response.body, /<span class="badge-category">Linked Anime<\/span>/);
-  assert.doesNotMatch(response.body, /anime\.html\/linked-anime/);
+  assert.match(response.body, /href="\/anime\.html\/linked-anime" class="badge-category">Linked Anime<\/a>/);
 });
 
 test('returns 404 for missing and unpublished articles', async () => {

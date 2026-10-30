@@ -111,8 +111,8 @@ test('page-view ingestion writes server-side pseudonymous records and daily aggr
     eventId,
     visitorId,
     sessionId,
-    pagePath: '/',
-    pageTitle: 'Home',
+    pagePath: '/anime',
+    pageTitle: 'Anime List',
   }), response);
 
   assert.equal(response.statusCode, 202);
@@ -123,7 +123,7 @@ test('page-view ingestion writes server-side pseudonymous records and daily aggr
   assert.equal(writes.some(write => write.path === `analytics_daily_summaries/2025-02-03`), true);
   assert.equal(writes.some(write => write.path.includes('/visitors/')), true);
   const event = writes.find(write => write.path === `analytics_events/${eventId}`).data;
-  assert.equal(event.pagePath, '/');
+  assert.equal(event.pagePath, '/anime');
   assert.equal(event.operatingSystem, 'Other');
   assert.equal('ipAddress' in event, false);
 });
@@ -176,8 +176,8 @@ test('page-view ingestion rejects draft articles and throttles rapid session eve
     eventId,
     visitorId,
     sessionId,
-    pagePath: '/',
-    pageTitle: 'Home',
+    pagePath: '/anime',
+    pageTitle: 'Anime List',
   }), throttledResponse);
   assert.equal(throttledResponse.body.reason, 'throttled');
   assert.equal(writes.some(write => write.path.startsWith('analytics_events/')), false);
@@ -197,8 +197,8 @@ test('repeated requests are capped per network address even when session IDs cha
     eventId: id,
     visitorId,
     sessionId: session,
-    pagePath: '/',
-    pageTitle: 'Home',
+    pagePath: '/anime',
+    pageTitle: 'Anime List',
   });
   const first = makeResponse();
   const second = makeResponse();
@@ -227,8 +227,8 @@ test('duplicate page-view IDs do not create a second analytics event', async () 
     eventId,
     visitorId,
     sessionId,
-    pagePath: '/',
-    pageTitle: 'Home',
+    pagePath: '/anime',
+    pageTitle: 'Anime List',
   };
   const first = makeResponse();
   const duplicate = makeResponse();
@@ -253,8 +253,8 @@ test('malformed payloads and missing rate-limit configuration fail closed', asyn
     eventId,
     visitorId,
     sessionId,
-    pagePath: '/',
-    pageTitle: 'Home',
+    pagePath: '/anime',
+    pageTitle: 'Anime List',
     injectedField: true,
   }), malformed);
   assert.equal(malformed.statusCode, 400);
@@ -270,8 +270,8 @@ test('malformed payloads and missing rate-limit configuration fail closed', asyn
     eventId,
     visitorId,
     sessionId,
-    pagePath: '/',
-    pageTitle: 'Home',
+    pagePath: '/anime',
+    pageTitle: 'Anime List',
   }, { 'user-agent': requestHeaders['user-agent'] }), missingIp);
   assert.equal(missingIp.statusCode, 503);
 
@@ -286,8 +286,8 @@ test('malformed payloads and missing rate-limit configuration fail closed', asyn
     eventId,
     visitorId,
     sessionId,
-    pagePath: '/',
-    pageTitle: 'Home',
+    pagePath: '/anime',
+    pageTitle: 'Anime List',
   }), missingSecret);
   assert.equal(missingSecret.statusCode, 503);
 });
