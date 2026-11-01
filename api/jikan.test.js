@@ -34,6 +34,28 @@ test('proxies supported Jikan requests and enables shared caching', async () => 
   assert.deepEqual(JSON.parse(response.body), { data: [] });
 });
 
+test('routes upcoming and detail requests to the matching Jikan resources', async () => {
+  const requestedUrls = [];
+  const handler = createJikanHandler({
+    fetchImpl: async url => {
+      requestedUrls.push(url.toString());
+      return { ok: true, status: 200, json: async () => ({ data: { mal_id: 20 } }) };
+    },
+  });
+  const upcomingResponse = createResponse();
+  const detailResponse = createResponse();
+
+  await handler({ method: 'GET', query: { resource: 'upcoming', page: '2', limit: '12' } }, upcomingResponse);
+  await handler({ method: 'GET', query: { resource: 'detail', id: '20' } }, detailResponse);
+
+  assert.deepEqual(requestedUrls, [
+    'https://api.jikan.moe/v4/seasons/upcoming?page=2&limit=12',
+    'https://api.jikan.moe/v4/anime/20/full',
+  ]);
+  assert.equal(upcomingResponse.statusCode, 200);
+  assert.equal(detailResponse.statusCode, 200);
+});
+
 test('preserves upstream rate-limit responses without caching them', async () => {
   const handler = createJikanHandler({
     fetchImpl: async () => ({

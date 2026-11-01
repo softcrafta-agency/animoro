@@ -79,10 +79,20 @@ test('Jikan detail links produce slugs accepted by the detail-page parser', () =
 test('Vercel API route source files and browser endpoint paths agree', async () => {
   const apiAnalytics = await readFile(new URL('api/analytics.js', root), 'utf8');
   const apiIngestion = await readFile(new URL('api/analytics-event.js', root), 'utf8');
+  const apiJikan = await readFile(new URL('api/jikan.js', root), 'utf8');
   const adminClient = await readFile(new URL('js/admin-visitor-analytics.js', root), 'utf8');
   const publicClient = await readFile(new URL('js/visitor-analytics.js', root), 'utf8');
   assert.match(apiAnalytics, /export default createAnalyticsHandler\(\)/);
   assert.match(apiIngestion, /export default createAnalyticsEventHandler\(\)/);
+  assert.match(apiJikan, /export default createJikanHandler\(\)/);
+  assert.match(apiJikan, /getJikanRequestUrl/);
   assert.match(adminClient, /\/api\/analytics\?/);
   assert.match(publicClient, /\/api\/analytics-event/);
+});
+
+test('mobile menu controls declare their drawer state and are non-submit buttons', async () => {
+  for (const file of ['index.html', 'anime.html', 'upcoming-anime.html']) {
+    const html = await readFile(new URL(file, root), 'utf8');
+    assert.match(html, /id="hamburgerBtn"[^>]*type="button"[^>]*aria-controls="mobileNavDrawer"[^>]*aria-expanded="false"/);
+  }
 });

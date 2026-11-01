@@ -62,7 +62,7 @@ async function fetchJson(url) {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(body?.message || `Anime data request failed (${response.status}).`);
+      const error = new Error(body?.message || body?.error || `Anime data request failed (${response.status}).`);
       error.status = response.status;
       throw error;
     }
