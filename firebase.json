@@ -12,11 +12,11 @@
         "destination": "/blog.html"
       },
       {
-        "source": "/anime",
+        "source": "/anime-list",
         "destination": "/anime.html"
       },
       {
-        "source": "/anime.html/**",
+        "source": "/anime/**",
         "destination": "/anime.html"
       },
       {
@@ -44,7 +44,27 @@
       },
       {
         "source": "/anime.html",
-        "destination": "/anime",
+        "destination": "/anime-list",
+        "type": 301
+      },
+      {
+        "source": "/anime",
+        "destination": "/anime-list",
+        "type": 301
+      },
+      {
+        "source": "/anime.html/:slug",
+        "destination": "/anime/:slug",
+        "type": 301
+      },
+      {
+        "source": "/upcoming-anime.html",
+        "destination": "/upcoming-anime",
+        "type": 301
+      },
+      {
+        "source": "/upcoming-anime.html/:slug",
+        "destination": "/upcoming-anime/:slug",
         "type": 301
       }
     ]

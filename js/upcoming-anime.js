@@ -1,460 +1,159 @@
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  limit
-} from 'firebase/firestore';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { setupMobileNav, createUpcomingAnimeCard } from './ui.js';
 import { attachMyListToggle, showPendingMyListActionNotice } from './my-list.js';
-import { getUpcomingAnimeCanonicalUrl, getUpcomingAnimePath } from './upcoming-url.js';
+import { getUpcomingAnimeCanonicalUrl } from './upcoming-url.js';
+import { formatUpcomingReleaseDate, getUpcomingReleaseTimestamp } from './upcoming-date.js';
+import { getUpcomingAnime, searchUpcomingAnime } from './jikan-service.js';
 
-let allPublishedUpcoming = [];
-let activeFilters = {
-  query: '',
-  year: 'all',
-  season: 'all',
-  type: 'all',
-  genre: 'all',
-  sort: 'release-date'
-};
-
-function initUpcomingPage() {
-  setupMobileNav();
-  showPendingMyListActionNotice(
-    document.getElementById('upcomingDetail'),
-    () => window.location.reload()
-  );
-  bindFilterControls();
-  const path = getRequestedUpcomingSlug();
-  if (path) {
-    loadUpcomingDetail(path, new URLSearchParams(window.location.search).get('preview') === '1');
-  } else {
-    loadUpcomingDirectory();
-  }
-}
+const PAGE_SIZE = 24;
+let currentPage = 1;
+let pagination = {};
+let searchTimer = 0;
+let loading = false;
 
 function getRequestedUpcomingSlug() {
-  const candidates = [
-    '/upcoming-anime.html/',
-    '/upcoming-anime/'
-  ];
   const pathname = window.location.pathname;
-  for (const prefix of candidates) {
-    if (!pathname.startsWith(prefix)) continue;
-    const slug = decodeURIComponent(pathname.slice(prefix.length));
-    return slug && !slug.includes('/') ? slug : '';
+  const prefix = pathname.startsWith('/upcoming-anime/') ? '/upcoming-anime/' : pathname.startsWith('/upcoming-anime.html/') ? '/upcoming-anime.html/' : '';
+  if (!prefix) return '';
+  const value = pathname.slice(prefix.length);
+  if (!value || value.includes('/')) return '';
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return '';
   }
-  return '';
 }
 
-async function loadUpcomingDirectory() {
-  const container = document.getElementById('upcomingAnimeSections');
-  if (!container) return;
+function getFilters() {
+  return {
+    query: document.getElementById('upcomingSearchInput')?.value.trim() || '',
+    year: document.getElementById('upcomingYearFilter')?.value || 'all',
+    season: document.getElementById('upcomingSeasonFilter')?.value || 'all',
+    type: document.getElementById('upcomingTypeFilter')?.value || 'all',
+    genre: document.getElementById('upcomingGenreFilter')?.value || 'all',
+    sort: document.getElementById('upcomingSortFilter')?.value || 'release-date',
+  };
+}
 
-  if (!isConfigured || !db) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Upcoming anime is unavailable until Firebase is configured.</p></div>';
-    return;
+function setDataNote(message) {
+  const note = document.getElementById('upcomingDataNote');
+  if (note) note.textContent = message;
+}
+
+function renderMessage(container, message, onRetry = null) {
+  container.replaceChildren();
+  const state = document.createElement('div');
+  state.className = 'empty-state';
+  state.style.gridColumn = '1 / -1';
+  const paragraph = document.createElement('p');
+  paragraph.className = 'empty-state-desc';
+  paragraph.textContent = message;
+  state.appendChild(paragraph);
+  if (onRetry) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'btn-outline';
+    retry.textContent = 'Retry';
+    retry.addEventListener('click', onRetry);
+    state.appendChild(retry);
   }
+  container.appendChild(state);
+}
 
+function renderLoading(container) {
+  container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading upcoming anime"><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
+}
+
+function updatePagination() {
+  const previous = document.getElementById('previousUpcomingBtn');
+  const next = document.getElementById('nextUpcomingBtn');
+  const status = document.getElementById('upcomingPageStatus');
+  if (previous) previous.hidden = currentPage <= 1;
+  if (next) next.hidden = !pagination?.has_next_page;
+  if (status) status.textContent = pagination ? `Page ${currentPage}` : '';
+}
+
+async function loadManualUpcoming() {
+  if (!isConfigured || !db) return [];
   try {
-    const snapshot = await getDocs(query(
-      collection(db, 'upcomingAnime'),
-      where('status', '==', 'published'),
-      limit(200)
-    ));
-    allPublishedUpcoming = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }));
-    renderUpcomingDirectory();
+    const snapshot = await getDocs(query(collection(db, 'upcomingAnime'), where('status', '==', 'published'), limit(120)));
+    return snapshot.docs.map(document => ({ id: document.id, dataSource: 'manual', ...document.data() }));
   } catch (error) {
     handleFirestoreError(error, 'list', 'upcomingAnime');
-    container.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Unable to load upcoming anime right now. Please try again later.</p></div>';
+    return [];
   }
 }
 
-async function loadUpcomingDetail(slug, preview = false) {
-  const detailRoot = document.getElementById('upcomingDetail');
-  const directoryRoot = document.getElementById('upcomingAnimeSections');
-  if (!detailRoot) return;
-  if (directoryRoot) directoryRoot.hidden = true;
-
-  if (!isConfigured || !db) {
-    detailRoot.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Upcoming anime details are unavailable until Firebase is configured.</p></div>';
-    return;
-  }
-
-  try {
-    if (preview) {
-      const [{ auth }, { verifyAdminStatus }] = await Promise.all([
-        import('./auth-init.js'),
-        import('./auth.js'),
-      ]);
-      const user = auth?.currentUser || null;
-      if (!user || !await verifyAdminStatus(user)) {
-        detailRoot.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Admin permission required to preview this upcoming anime.</p></div>';
-        return;
-      }
-    }
-
-    const constraints = [where('slug', '==', slug)];
-    if (!preview) constraints.push(where('status', '==', 'published'));
-    constraints.push(limit(1));
-    const snapshot = await getDocs(query(collection(db, 'upcomingAnime'), ...constraints));
-
-    if (snapshot.empty) {
-      window.location.replace('/404.html');
-      return;
-    }
-
-    const anime = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-    renderUpcomingDetail(anime);
-  } catch (error) {
-    handleFirestoreError(error, 'fetch', `upcomingAnime/${slug}`);
-    detailRoot.innerHTML = '<div class="empty-state"><p class="empty-state-desc">Unable to load this upcoming anime page.</p></div>';
-  }
+function matchesFilters(item, filters) {
+  const text = [item.title, item.japaneseTitle, item.shortDescription, item.description, ...(item.genres || [])].join(' ').toLowerCase();
+  const queryMatches = !filters.query || text.includes(filters.query.toLowerCase());
+  const yearMatches = filters.year === 'all' || String(item.releaseYear || '') === filters.year;
+  const seasonMatches = filters.season === 'all' || String(item.season || '').toLowerCase() === filters.season.toLowerCase();
+  const typeMatches = filters.type === 'all' || String(item.type || '').toLowerCase() === filters.type.toLowerCase();
+  const genreMatches = filters.genre === 'all' || (item.genres || []).some(genre => String(genre).toLowerCase() === filters.genre.toLowerCase());
+  return queryMatches && yearMatches && seasonMatches && typeMatches && genreMatches;
 }
 
-function bindFilterControls() {
-  const searchInput = document.getElementById('upcomingSearchInput');
-  const yearFilter = document.getElementById('upcomingYearFilter');
-  const seasonFilter = document.getElementById('upcomingSeasonFilter');
-  const typeFilter = document.getElementById('upcomingTypeFilter');
-  const genreFilter = document.getElementById('upcomingGenreFilter');
-  const sortFilter = document.getElementById('upcomingSortFilter');
-
-  if (searchInput) {
-    searchInput.addEventListener('input', event => {
-      activeFilters.query = event.target.value.trim().toLowerCase();
-      renderUpcomingDirectory();
-    });
-  }
-  [yearFilter, seasonFilter, typeFilter, genreFilter, sortFilter].forEach(el => {
-    if (!el) return;
-    el.addEventListener('change', () => {
-      activeFilters.year = yearFilter?.value || 'all';
-      activeFilters.season = seasonFilter?.value || 'all';
-      activeFilters.type = typeFilter?.value || 'all';
-      activeFilters.genre = genreFilter?.value || 'all';
-      activeFilters.sort = sortFilter?.value || 'release-date';
-      renderUpcomingDirectory();
-    });
+function sortUpcoming(items, sort) {
+  return [...items].sort((left, right) => {
+    if (sort === 'a-z') return String(left.title || '').localeCompare(String(right.title || ''));
+    if (sort === 'popularity') return Number(right.scoredBy || 0) - Number(left.scoredBy || 0);
+    if (sort === 'rating') return Number(right.rating || 0) - Number(left.rating || 0);
+    return getUpcomingReleaseTimestamp(left.releaseDate) - getUpcomingReleaseTimestamp(right.releaseDate) || String(left.title || '').localeCompare(String(right.title || ''));
   });
 }
 
-function renderUpcomingDirectory() {
+function renderVerifiedAnnouncements(entries, filters) {
+  const section = document.getElementById('verifiedUpcomingSection');
+  const container = document.getElementById('verifiedUpcomingContainer');
+  if (!section || !container) return;
+  const filtered = sortUpcoming(entries.filter(item => matchesFilters(item, filters)), filters.sort).slice(0, 12);
+  section.hidden = !filtered.length;
+  container.replaceChildren(...filtered.map(createUpcomingAnimeCard));
+}
+
+async function loadUpcomingDirectory(page = 1) {
   const container = document.getElementById('upcomingAnimeSections');
-  if (!container) return;
+  if (!container || loading) return;
+  loading = true;
+  currentPage = page;
+  const filters = getFilters();
+  renderLoading(container);
 
-  const filtered = filterUpcomingAnime(allPublishedUpcoming);
-  if (!filtered.length) {
-    const message = activeFilters.query
-      ? 'No anime found matching your search.'
-      : 'No upcoming anime found.';
-    container.innerHTML = `<div class="empty-state"><p class="empty-state-desc">${message}</p></div>`;
-    return;
+  const [manualResult, apiResult] = await Promise.allSettled([
+    loadManualUpcoming(),
+    filters.query ? searchUpcomingAnime({ page, limit: PAGE_SIZE, query: filters.query, type: filters.type === 'all' ? '' : filters.type.toLowerCase() }) : getUpcomingAnime({ page, limit: PAGE_SIZE }),
+  ]);
+  const manual = manualResult.status === 'fulfilled' ? manualResult.value : [];
+  renderVerifiedAnnouncements(manual, filters);
+
+  if (apiResult.status === 'fulfilled') {
+    const result = apiResult.value;
+    const entries = sortUpcoming(result.items.filter(item => matchesFilters(item, filters)), filters.sort);
+    pagination = result.pagination || {};
+    if (entries.length) container.replaceChildren(...entries.map(createUpcomingAnimeCard));
+    else renderMessage(container, 'No upcoming anime on this page match your filters. Try another filter or page.');
+    setDataNote(result.stale
+      ? 'Showing recently cached Jikan results while the live source reconnects. Release dates may change.'
+      : 'Release information is supplied by Jikan. Editor-verified announcements are marked separately; “TBA” means no release date is currently available from the source.');
+  } else if (manual.length) {
+    pagination = { has_next_page: false };
+    renderMessage(container, 'The live upcoming-anime database is temporarily unavailable. See the verified announcements above.');
+    setDataNote('Jikan is temporarily unavailable. Editor-managed announcements remain available.');
+  } else {
+    pagination = { has_next_page: false };
+    renderMessage(container, 'Upcoming anime data is temporarily unavailable. Please retry in a moment.', () => loadUpcomingDirectory(currentPage));
+    setDataNote('Jikan is unavailable and no editor-managed announcements are currently published.');
   }
-
-  const sections = {
-    comingSoon: filtered.filter(item => isSoon(item)),
-    upcomingSeason: filtered.filter(item => item.featured || isCurrentOrNextSeason(item)),
-    laterThisYear: filtered.filter(item => !isSoon(item) && !isCurrentOrNextSeason(item) && item.releaseYear && Number(item.releaseYear) >= new Date().getFullYear())
-  };
-
-  const fragment = document.createDocumentFragment();
-  const orderedSections = [
-    { key: 'comingSoon', title: 'Coming Soon' },
-    { key: 'upcomingSeason', title: 'Upcoming Season' },
-    { key: 'laterThisYear', title: 'Later This Year' }
-  ];
-
-  orderedSections.forEach(({ key, title }) => {
-    const items = sections[key];
-    if (!items.length) return;
-
-    const section = document.createElement('section');
-    section.className = 'section-padded';
-    section.style.paddingTop = '0';
-
-    const heading = document.createElement('div');
-    heading.className = 'section-header';
-    heading.innerHTML = `<div><h2 class="section-title">${title}</h2></div>`;
-    section.appendChild(heading);
-
-    const grid = document.createElement('div');
-    grid.className = 'articles-grid';
-    items.forEach(item => {
-      const card = createUpcomingAnimeCard(item);
-      grid.appendChild(card);
-    });
-    section.appendChild(grid);
-    fragment.appendChild(section);
-  });
-
-  container.innerHTML = '';
-  container.appendChild(fragment);
-}
-
-function filterUpcomingAnime(items) {
-  const query = activeFilters.query;
-  const year = activeFilters.year;
-  const season = activeFilters.season;
-  const type = activeFilters.type;
-  const genre = activeFilters.genre;
-
-  const filtered = items.filter(item => {
-    const matchesQuery = !query || [item.title, item.japaneseTitle, item.slug, item.shortDescription].some(value => String(value || '').toLowerCase().includes(query));
-    const matchesYear = year === 'all' || String(item.releaseYear || '') === String(year);
-    const matchesSeason = season === 'all' || String(item.season || '').toLowerCase() === season.toLowerCase();
-    const matchesType = type === 'all' || String(item.type || '').toLowerCase() === type.toLowerCase();
-    const matchesGenre = genre === 'all' || (Array.isArray(item.genres) && item.genres.some(g => g.toLowerCase() === genre.toLowerCase()));
-    return matchesQuery && matchesYear && matchesSeason && matchesType && matchesGenre;
-  });
-
-  const sortKey = activeFilters.sort || 'release-date';
-  return filtered.sort((a, b) => {
-    if (sortKey === 'a-z') return (a.title || '').localeCompare(b.title || '');
-    if (sortKey === 'rating') return Number(b.featured || 0) - Number(a.featured || 0);
-    if (sortKey === 'popularity') return Number(b.featured || 0) - Number(a.featured || 0);
-    const aDate = getReleaseSortValue(a.releaseDate);
-    const bDate = getReleaseSortValue(b.releaseDate);
-    return aDate - bDate;
-  });
-}
-
-function getReleaseSortValue(value) {
-  const timestamp = value ? new Date(value).getTime() : Number.NaN;
-  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
-}
-
-function isSoon(item) {
-  const releaseDate = item.releaseDate ? new Date(item.releaseDate) : null;
-  if (!releaseDate || Number.isNaN(releaseDate.getTime())) return false;
-  const now = Date.now();
-  const diffDays = (releaseDate.getTime() - now) / 86400000;
-  return diffDays >= 0 && diffDays <= 180;
-}
-
-function isCurrentOrNextSeason(item) {
-  const seasonMap = ['Winter', 'Spring', 'Summer', 'Fall'];
-  const currentSeason = getCurrentSeason();
-  const itemSeason = String(item.season || '');
-  if (!itemSeason) return false;
-  return seasonMap.includes(itemSeason) && (item.featured || itemSeason === currentSeason || itemSeason === getNextSeason(currentSeason));
-}
-
-function getCurrentSeason() {
-  const month = new Date().getMonth();
-  if (month <= 1) return 'Winter';
-  if (month <= 4) return 'Spring';
-  if (month <= 7) return 'Summer';
-  return 'Fall';
-}
-
-function getNextSeason(current) {
-  const order = ['Winter', 'Spring', 'Summer', 'Fall'];
-  const index = order.indexOf(current);
-  return order[(index + 1) % order.length];
-}
-
-function renderUpcomingDetail(anime) {
-  const detail = document.getElementById('upcomingDetail');
-  if (!detail) return;
-
-  const title = anime.title || 'Upcoming Anime';
-  document.title = `${title} — Release Date, Trailer & Details | Animoro`;
-
-  const meta = [
-    ['name', 'description', anime.shortDescription || `Details and release information for ${title}.`],
-    ['property', 'og:title', `${title} — Release Date, Trailer & Details | Animoro`],
-    ['property', 'og:description', anime.shortDescription || `Discover the release details for ${title}.`],
-    ['property', 'og:type', 'website'],
-    ['property', 'og:url', getUpcomingAnimeCanonicalUrl(anime)],
-    ['name', 'twitter:card', 'summary_large_image'],
-    ['name', 'twitter:title', `${title} | Animoro`],
-    ['name', 'twitter:description', anime.shortDescription || `Upcoming anime release details for ${title}.`],
-  ];
-
-  meta.forEach(([attrKey, attrValue, content]) => setMeta(attrKey, attrValue, content));
-  let canonical = document.querySelector('link[rel="canonical"]');
-  if (!canonical) {
-    canonical = document.createElement('link');
-    canonical.rel = 'canonical';
-    document.head.appendChild(canonical);
-  }
-  canonical.href = getUpcomingAnimeCanonicalUrl(anime);
-
-  const imageUrl = getSafeExternalUrl(anime.poster || anime.coverImage) || '/favicon.svg';
-  const shareImage = getSafeExternalUrl(imageUrl);
-  if (shareImage) {
-    setMeta('property', 'og:image', shareImage);
-    setMeta('name', 'twitter:image', shareImage);
-  }
-  const info = document.createElement('div');
-  info.className = 'anime-detail-information';
-  const metaInfo = document.createElement('div');
-  metaInfo.className = 'card-meta';
-  const releaseStatus = document.createElement('span');
-  releaseStatus.textContent = anime.releaseStatus || 'TBA';
-  const season = document.createElement('span');
-  season.textContent = [anime.season || 'TBA', anime.releaseYear].filter(Boolean).join(' ');
-  metaInfo.append(releaseStatus, season);
-
-  const heading = document.createElement('h1');
-  heading.className = 'section-title';
-  heading.style.cssText = 'font-size:clamp(2rem,4vw,3rem);margin:0 0 12px;';
-  heading.textContent = title;
-  info.append(metaInfo, heading);
-  if (anime.japaneseTitle) {
-    const japaneseTitle = document.createElement('p');
-    japaneseTitle.style.cssText = 'color:var(--text-muted);margin-bottom:16px;';
-    japaneseTitle.textContent = anime.japaneseTitle;
-    info.appendChild(japaneseTitle);
-  }
-
-  const buttonRow = document.createElement('div');
-  buttonRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px;';
-  const myListButton = document.createElement('button');
-  myListButton.type = 'button';
-  myListButton.className = 'btn-outline my-list-toggle-btn';
-  myListButton.dataset.kind = 'upcoming';
-  myListButton.setAttribute('aria-pressed', 'false');
-  buttonRow.appendChild(myListButton);
-  info.appendChild(buttonRow);
-
-  const facts = document.createElement('dl');
-  facts.className = 'anime-facts';
-  [
-    ['Release Date', anime.releaseDate || 'TBA'],
-    ['Season', anime.season || 'TBA'],
-    ['Year', anime.releaseYear || 'TBA'],
-    ['Type', anime.type || 'TBA'],
-    ['Genres', Array.isArray(anime.genres) && anime.genres.length ? anime.genres.join(', ') : '—'],
-    ['Studio', anime.studio || '—'],
-    ['Source', anime.source || '—'],
-    ['Episodes', anime.episodes || 'TBA'],
-    ['Duration', anime.duration || '—'],
-    ['Age Rating', anime.ageRating || '—'],
-    ...(anime.rating !== undefined && anime.rating !== '' ? [['Rating', anime.rating]] : []),
-  ].forEach(([label, value]) => {
-    const term = document.createElement('dt');
-    term.textContent = label;
-    const description = document.createElement('dd');
-    description.textContent = String(value);
-    facts.append(term, description);
-  });
-  info.appendChild(facts);
-
-  detail.replaceChildren();
-
-  const image = document.createElement('img');
-  image.className = 'anime-detail-cover';
-  image.src = imageUrl;
-  image.alt = `${title} poster`;
-  image.loading = 'eager';
-  image.decoding = 'async';
-  image.width = 600;
-  image.height = 850;
-  detail.appendChild(image);
-  detail.appendChild(info);
-
-  const description = document.createElement('div');
-  description.className = 'article-content';
-  const descriptionParagraph = document.createElement('p');
-  descriptionParagraph.style.whiteSpace = 'pre-wrap';
-  descriptionParagraph.textContent = anime.description || anime.shortDescription || 'No description provided yet.';
-  description.appendChild(descriptionParagraph);
-  detail.appendChild(description);
-
-  const trailerUrl = getYouTubeEmbedUrl(anime.trailerUrl);
-  if (trailerUrl) {
-    const trailerWrap = document.createElement('div');
-    trailerWrap.style.marginTop = '24px';
-    const trailerHeading = document.createElement('h3');
-    trailerHeading.className = 'section-title';
-    trailerHeading.style.cssText = 'font-size:1.3rem;margin-bottom:10px;';
-    trailerHeading.textContent = 'Trailer';
-    const trailerFrame = document.createElement('iframe');
-    trailerFrame.src = trailerUrl;
-    trailerFrame.title = `${title} trailer`;
-    trailerFrame.loading = 'lazy';
-    trailerFrame.referrerPolicy = 'strict-origin-when-cross-origin';
-    trailerFrame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-    trailerFrame.allowFullscreen = true;
-    trailerFrame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
-    const trailerFrameWrap = document.createElement('div');
-    trailerFrameWrap.style.cssText = 'position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:18px;background:#0b0f18;';
-    trailerFrameWrap.appendChild(trailerFrame);
-    trailerWrap.append(trailerHeading, trailerFrameWrap);
-    detail.appendChild(trailerWrap);
-  }
-
-  const externalLinks = buildExternalLinks(anime);
-  if (externalLinks) detail.appendChild(externalLinks);
-
-  const button = detail.querySelector('.my-list-toggle-btn');
-  if (button) {
-    attachMyListToggle(button, { ...anime, kind: 'upcoming' });
-  }
-}
-
-function buildExternalLinks(anime) {
-  const links = [
-    ['Official Website', anime.officialUrl],
-    ['MyAnimeList', anime.malUrl],
-    ['AniList', anime.anilistUrl],
-    ['Crunchyroll', anime.crunchyrollUrl],
-  ].map(([label, href]) => [label, getSafeExternalUrl(href)])
-    .filter(([, href]) => Boolean(href));
-
-  if (!links.length) return '';
-
-  const section = document.createElement('section');
-  section.style.marginTop = '20px';
-  const heading = document.createElement('h3');
-  heading.className = 'section-title';
-  heading.style.cssText = 'font-size:1.2rem;margin-bottom:12px;';
-  heading.textContent = 'Where to watch / follow';
-  const linkList = document.createElement('div');
-  linkList.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;';
-  links.forEach(([label, href]) => {
-    const link = document.createElement('a');
-    link.href = href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.className = 'btn-outline';
-    link.textContent = label;
-    linkList.appendChild(link);
-  });
-  section.append(heading, linkList);
-  return section;
+  loading = false;
+  updatePagination();
 }
 
 function getSafeExternalUrl(value) {
   try {
     const url = new URL(value);
     return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
-  } catch {
-    return '';
-  }
-}
-
-function getYouTubeEmbedUrl(value) {
-  try {
-    const url = new URL(value);
-    let videoId = '';
-    if (['www.youtube.com', 'youtube.com', 'm.youtube.com'].includes(url.hostname)) {
-      videoId = url.pathname === '/watch'
-        ? url.searchParams.get('v') || ''
-        : url.pathname.startsWith('/embed/')
-          ? url.pathname.split('/')[2]
-          : '';
-    } else if (url.hostname === 'youtu.be') {
-      videoId = url.pathname.slice(1);
-    }
-    return /^[A-Za-z0-9_-]{11}$/.test(videoId)
-      ? `https://www.youtube-nocookie.com/embed/${videoId}`
-      : '';
   } catch {
     return '';
   }
@@ -467,11 +166,153 @@ function setMeta(attribute, name, content) {
     element.setAttribute(attribute, name);
     document.head.appendChild(element);
   }
-  element.content = content;
+  element.content = String(content).slice(0, 1000);
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initUpcomingPage, { once: true });
-} else {
-  initUpcomingPage();
+async function loadUpcomingDetail(slug, preview = false) {
+  const detail = document.getElementById('upcomingDetail');
+  const controls = document.getElementById('upcomingFilters');
+  const database = document.getElementById('upcomingAnimeSections')?.closest('section');
+  const verified = document.getElementById('verifiedUpcomingSection');
+  if (!detail) return;
+  if (controls) controls.hidden = true;
+  if (database) database.hidden = true;
+  if (verified) verified.hidden = true;
+  document.getElementById('upcomingPagination')?.setAttribute('hidden', '');
+
+  if (!isConfigured || !db) {
+    renderMessage(detail, 'This editor-managed announcement is unavailable right now.');
+    return;
+  }
+  try {
+    if (preview) {
+      const [{ auth }, { verifyAdminStatus }] = await Promise.all([import('./auth-init.js'), import('./auth.js')]);
+      if (!auth?.currentUser || !await verifyAdminStatus(auth.currentUser)) {
+        renderMessage(detail, 'Admin permission is required to preview this announcement.');
+        return;
+      }
+    }
+    const constraints = [where('slug', '==', slug)];
+    if (!preview) constraints.push(where('status', '==', 'published'));
+    constraints.push(limit(1));
+    const snapshot = await getDocs(query(collection(db, 'upcomingAnime'), ...constraints));
+    if (snapshot.empty) {
+      window.location.replace('/404.html');
+      return;
+    }
+    renderUpcomingDetail({ id: snapshot.docs[0].id, dataSource: 'manual', ...snapshot.docs[0].data() });
+  } catch (error) {
+    handleFirestoreError(error, 'fetch', `upcomingAnime/${slug}`);
+    renderMessage(detail, 'Unable to load this upcoming anime page. Please try again later.');
+  }
 }
+
+function renderUpcomingDetail(anime) {
+  const detail = document.getElementById('upcomingDetail');
+  if (!detail) return;
+  const title = anime.title || 'Upcoming Anime';
+  const canonicalUrl = getUpcomingAnimeCanonicalUrl(anime);
+  document.title = `${title} — Release Information | Animoro`;
+  setMeta('name', 'description', anime.shortDescription || `Release information for ${title}.`);
+  setMeta('property', 'og:title', `${title} — Release Information | Animoro`);
+  setMeta('property', 'og:description', anime.shortDescription || `Release information for ${title}.`);
+  setMeta('property', 'og:url', canonicalUrl);
+  const canonical = document.querySelector('link[rel="canonical"]') || document.createElement('link');
+  canonical.rel = 'canonical';
+  canonical.href = canonicalUrl;
+  if (!canonical.isConnected) document.head.appendChild(canonical);
+
+  detail.replaceChildren();
+  const poster = getSafeExternalUrl(anime.poster || anime.coverImage);
+  if (poster) {
+    const image = document.createElement('img');
+    image.className = 'anime-detail-cover';
+    image.src = poster;
+    image.alt = `${title} poster`;
+    image.width = 600;
+    image.height = 900;
+    image.loading = 'eager';
+    image.addEventListener('error', () => { image.src = '/favicon.svg'; }, { once: true });
+    detail.appendChild(image);
+    setMeta('property', 'og:image', poster);
+  }
+
+  const info = document.createElement('div');
+  info.className = 'anime-detail-information';
+  const heading = document.createElement('h1');
+  heading.className = 'section-title';
+  heading.textContent = title;
+  const status = document.createElement('p');
+  status.className = 'card-meta';
+  status.textContent = anime.releaseStatus || 'Release Date TBA';
+  info.append(status, heading);
+  if (anime.japaneseTitle) {
+    const japanese = document.createElement('p');
+    japanese.className = 'card-excerpt';
+    japanese.textContent = anime.japaneseTitle;
+    info.appendChild(japanese);
+  }
+  const facts = [
+    ['Release date', anime.releaseDate ? formatUpcomingReleaseDate(anime.releaseDate) : 'Release Date TBA'],
+    ['Release season', [anime.season, anime.releaseYear].filter(Boolean).join(' ') || 'TBA'],
+    ['Type', anime.type || 'TBA'], ['Genres', (anime.genres || []).join(', ') || '—'],
+    ['Last verified', anime.lastVerified || 'Not provided'],
+  ];
+  const list = document.createElement('dl');
+  list.className = 'anime-facts';
+  facts.forEach(([label, value]) => {
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const definition = document.createElement('dd');
+    definition.textContent = value;
+    list.append(term, definition);
+  });
+  info.appendChild(list);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'btn-outline';
+  button.style.cssText = 'padding:10px 16px;border-radius:999px;';
+  attachMyListToggle(button, { ...anime, kind: 'upcoming' });
+  info.appendChild(button);
+  detail.appendChild(info);
+
+  const description = document.createElement('section');
+  description.className = 'article-content';
+  const text = document.createElement('p');
+  text.textContent = anime.description || anime.shortDescription || 'No description has been published yet.';
+  description.appendChild(text);
+  if (anime.officialUrl) {
+    const link = document.createElement('a');
+    link.className = 'btn-outline';
+    link.href = anime.officialUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Official announcement / source';
+    description.appendChild(link);
+  }
+  detail.appendChild(description);
+}
+
+function bindControls() {
+  document.getElementById('upcomingSearchInput')?.addEventListener('input', () => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => loadUpcomingDirectory(1), 350);
+  });
+  ['upcomingYearFilter', 'upcomingSeasonFilter', 'upcomingTypeFilter', 'upcomingGenreFilter', 'upcomingSortFilter'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => loadUpcomingDirectory(1));
+  });
+  document.getElementById('previousUpcomingBtn')?.addEventListener('click', () => loadUpcomingDirectory(Math.max(1, currentPage - 1)));
+  document.getElementById('nextUpcomingBtn')?.addEventListener('click', () => loadUpcomingDirectory(currentPage + 1));
+}
+
+function initUpcomingPage() {
+  setupMobileNav();
+  showPendingMyListActionNotice(document.getElementById('upcomingDetail'), () => window.location.reload());
+  const slug = getRequestedUpcomingSlug();
+  if (slug) return loadUpcomingDetail(slug, new URLSearchParams(window.location.search).get('preview') === '1');
+  bindControls();
+  return loadUpcomingDirectory(1);
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initUpcomingPage, { once: true });
+else initUpcomingPage();

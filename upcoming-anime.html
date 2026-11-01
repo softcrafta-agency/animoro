@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upcoming Anime 2026 &amp; 2027 | New Anime Releases | Animoro</title>
-  <meta name="description" content="Discover upcoming anime releases, new seasons, movies, and release dates for 2026 and 2027 on Animoro." />
+  <title>Upcoming Anime – Release Dates, New Series &amp; Announcements | Animoro</title>
+  <meta name="description" content="Discover upcoming anime, new series, available release dates, and editor-verified announcements on Animoro." />
   <meta name="robots" content="index, follow" />
-  <meta property="og:title" content="Upcoming Anime 2026 & 2027 | New Anime Releases | Animoro" />
-  <meta property="og:description" content="Discover upcoming anime releases, new seasons, movies, and release dates for 2026 and 2027 on Animoro." />
+  <meta property="og:title" content="Upcoming Anime – Release Dates, New Series & Announcements | Animoro" />
+  <meta property="og:description" content="Discover upcoming anime, new series, available release dates, and editor-verified announcements on Animoro." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://www.animoro.in/upcoming-anime.html" />
+  <meta property="og:url" content="https://www.animoro.in/upcoming-anime" />
   <meta property="og:image" content="https://www.animoro.in/logo.png" />
   <meta name="theme-color" content="#080a0f" />
-  <link rel="canonical" href="https://www.animoro.in/upcoming-anime.html" />
+  <link rel="canonical" href="https://www.animoro.in/upcoming-anime" />
   <link rel="icon" type="image/png" href="/favicon-small.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,8 +27,9 @@
       <nav class="main-nav" aria-label="Main Navigation">
         <a href="/" class="nav-link">Home</a>
         <a href="/blogs.html" class="nav-link">Articles</a>
-        <a href="/anime" class="nav-link">Anime</a>
-        <a href="/upcoming-anime.html" class="nav-link active">Upcoming Anime</a>
+        <a href="/anime-list" class="nav-link">Anime List</a>
+        <a href="/upcoming-anime" class="nav-link active">Upcoming Anime</a>
+        <a href="/category.html?category=Anime%20News" class="nav-link">Anime News</a>
         <a href="/my-list.html" class="nav-link">My List</a>
       </nav>
       <div class="header-actions">
@@ -43,8 +44,9 @@
     <div class="drawer-header"><span class="brand-logo-text">ANIMORO</span><button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">&times;</button></div>
     <nav class="mobile-nav-links">
       <a href="/">Home</a>
-      <a href="/anime">Anime List</a>
-      <a href="/upcoming-anime.html" class="active">Upcoming Anime</a>
+      <a href="/anime-list">Anime List</a>
+      <a href="/upcoming-anime" class="active">Upcoming Anime</a>
+      <a href="/category.html?category=Anime%20News">Anime News</a>
       <a href="/my-list.html">My List</a>
       <a href="/blogs.html">Articles</a>
       <a href="/search.html">Search</a>
@@ -62,12 +64,11 @@
 
       <div id="upcomingDetail" aria-live="polite"></div>
 
-      <div id="upcomingFilters" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:24px;">
-        <input id="upcomingSearchInput" class="form-input" type="search" placeholder="Search upcoming anime..." style="max-width: 320px;" />
+      <div id="upcomingFilters" class="anime-directory-controls" aria-label="Upcoming anime filters">
+        <label class="sr-only" for="upcomingSearchInput">Search upcoming anime</label><input id="upcomingSearchInput" class="form-input" type="search" placeholder="Search upcoming anime..." autocomplete="off" />
         <select id="upcomingYearFilter" class="form-select">
           <option value="all">Year: All</option>
-          <option value="2026">2026</option>
-          <option value="2027">2027</option>
+          <option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option>
         </select>
         <select id="upcomingSeasonFilter" class="form-select">
           <option value="all">Season: All</option>
@@ -104,12 +105,17 @@
         </select>
       </div>
 
-      <div id="upcomingAnimeSections" aria-live="polite">
+      <p class="anime-data-note" id="upcomingDataNote" role="status">Release information is supplied by Jikan. Editor-verified announcements are marked separately.</p>
+      <section id="verifiedUpcomingSection" hidden aria-labelledby="verifiedUpcomingHeading"><div class="section-header"><div><h2 class="section-title" id="verifiedUpcomingHeading">Verified Announcements</h2><p class="section-subtitle">Important updates maintained by the Animoro editorial team.</p></div></div><div class="articles-grid" id="verifiedUpcomingContainer"></div></section>
+      <section aria-labelledby="upcomingDatabaseHeading"><div class="section-header"><div><h2 class="section-title" id="upcomingDatabaseHeading">Upcoming Anime Database</h2><p class="section-subtitle">Dates are shown only when available from the source.</p></div></div>
+      <div id="upcomingAnimeSections" class="articles-grid" aria-live="polite">
         <div class="home-loading-state" role="status" aria-label="Loading upcoming anime">
           <span class="home-loading-line"></span>
           <span class="home-loading-line"></span>
         </div>
       </div>
+      <div class="anime-pagination" id="upcomingPagination" aria-label="Upcoming anime pagination"><button class="btn-outline" id="previousUpcomingBtn" type="button" hidden>Previous</button><span id="upcomingPageStatus" aria-live="polite"></span><button class="btn-outline" id="nextUpcomingBtn" type="button" hidden>Next</button></div>
+      </section>
     </div>
   </main>
 

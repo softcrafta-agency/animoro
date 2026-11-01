@@ -9,6 +9,7 @@ import { getArticlePath } from './article-url.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { selectPopularAnime } from './anime-popular.js';
 import { getUpcomingReleaseTimestamp } from './upcoming-date.js';
+import { getTopAnime, getUpcomingAnime } from './jikan-service.js';
 
 export { createArticleCard, formatDate, formatViews, setupMobileNav } from './ui.js';
 
@@ -669,9 +670,18 @@ async function initPopularAnime() {
   if (!container) return;
 
   try {
+    const result = await getTopAnime(6);
+    if (!result.items.length) throw new Error('No anime returned by Jikan.');
+    container.replaceChildren(...result.items.map(item => createAnimeCard({ ...item, featured: true })));
+    return;
+  } catch (error) {
+    console.warn('Could not load the live popular anime feed.', error);
+  }
+
+  try {
     const runtime = await getFirestoreDependencies();
     if (!runtime.isConfigured || !runtime.db) {
-      renderHomeDataMessage(container, 'The anime catalogue is not available right now.');
+      renderHomeDataMessage(container, 'Popular anime are temporarily unavailable.');
       return;
     }
 
@@ -700,6 +710,15 @@ async function initPopularAnime() {
 async function initUpcomingAnime() {
   const container = document.getElementById('homeUpcomingAnimeContainer');
   if (!container) return;
+
+  try {
+    const result = await getUpcomingAnime({ limit: 6 });
+    if (!result.items.length) throw new Error('No upcoming anime returned by Jikan.');
+    container.replaceChildren(...result.items.slice(0, 6).map(item => createUpcomingAnimeCard({ ...item, featured: true })));
+    return;
+  } catch (error) {
+    console.warn('Could not load the live upcoming anime feed.', error);
+  }
 
   try {
     const runtime = await getFirestoreDependencies();

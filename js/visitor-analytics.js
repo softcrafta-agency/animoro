@@ -5,12 +5,14 @@ const VISITOR_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 const PUBLIC_PATHS = new Set([
   '/',
+  '/anime-list',
   '/anime',
   '/anime.html',
   '/anime-calendar.html',
   '/blogs.html',
   '/category.html',
   '/search.html',
+  '/upcoming-anime',
   '/about.html',
   '/contact.html',
   '/privacy.html',
@@ -39,12 +41,16 @@ function createId() {
   return [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
 }
 
-function isPublicPage() {
-  const { pathname, search } = window.location;
-  if (PUBLIC_PATHS.has(pathname)) return true;
-  if (!/^\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname)) return false;
+export function isPublicAnalyticsPage(pathname, search = '') {
   const params = new URLSearchParams(search);
+  if (PUBLIC_PATHS.has(pathname)) return !params.has('preview') && params.get('mode') !== 'preview' && !params.has('adminPreview');
+  if (!/^\/(?:blog|upcoming-anime)\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(pathname) &&
+      !/^\/anime\/[a-z0-9]+(?:-[a-z0-9]+)*(?:--[1-9]\d*)?$/i.test(pathname)) return false;
   return !params.has('preview') && params.get('mode') !== 'preview' && !params.has('adminPreview');
+}
+
+function isPublicPage() {
+  return isPublicAnalyticsPage(window.location.pathname, window.location.search);
 }
 
 function isArticlePage() {
@@ -246,4 +252,22 @@ export function trackArticlePageView(article) {
   if (slug !== article.slug || !/^\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(window.location.pathname)) return;
   pendingArticle = article;
   recordPageView(article);
+}
+
+export function trackAnimeInteraction(eventType, label = '') {
+  const allowed = new Set(['anime_search', 'anime_featured_click', 'anime_related_article_click']);
+  if (!allowed.has(eventType) || getConsent() !== 'accepted' || !isPublicPage()) return;
+  const visitorId = getVisitorId();
+  const sessionId = getSessionId();
+  const eventId = createId();
+  if (!visitorId || !sessionId || !eventId) return;
+  void sendJson({
+    eventType,
+    eventId,
+    visitorId,
+    sessionId,
+    pagePath: window.location.pathname,
+    pageTitle: document.title.slice(0, 200),
+    eventLabel: String(label).slice(0, 200),
+  }, true);
 }

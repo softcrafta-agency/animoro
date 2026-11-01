@@ -837,7 +837,7 @@ function renderUpcomingRows(entries = upcomingEntries, emptyMessage = 'No upcomi
     previewButton.className = 'action-btn-sm';
     previewButton.textContent = 'Preview';
     previewButton.addEventListener('click', () => window.open(
-      `/upcoming-anime.html/${encodeURIComponent(item.slug || normalizeAnimeSlug(item.title))}?preview=1`,
+      `/upcoming-anime/${encodeURIComponent(item.slug || normalizeAnimeSlug(item.title))}?preview=1`,
       '_blank'
     ));
 
@@ -880,8 +880,10 @@ async function saveUpcomingAnime(event) {
     return;
   }
   let poster;
+  let jikanId;
   try {
     poster = normalizeImageUrl(document.getElementById('upcomingPoster').value);
+    jikanId = normalizeJikanId(document.getElementById('upcomingJikanId').value);
   } catch (error) {
     showUpcomingFeedback(feedback, error.message, 'error');
     return;
@@ -890,11 +892,22 @@ async function saveUpcomingAnime(event) {
   submitButton.disabled = true;
   try {
     const currentId = document.getElementById('upcomingDocumentId').value;
-    const currentRecord = currentId ? await getDocs(query(collection(db, 'upcomingAnime'), where('slug', '==', slug))) : { docs: [] };
+    const currentRecord = await getDocs(query(
+      collection(db, 'upcomingAnime'),
+      where('slug', '==', slug),
+      limit(2),
+    ));
     const duplicateExists = currentRecord.docs.some(doc => doc.id !== currentId);
     if (duplicateExists) {
       showUpcomingFeedback(feedback, 'That upcoming anime slug is already in use.', 'error');
       return;
+    }
+    if (jikanId) {
+      const jikanMatches = await getDocs(query(collection(db, 'upcomingAnime'), where('jikanId', '==', jikanId), limit(2)));
+      if (jikanMatches.docs.some(doc => doc.id !== currentId)) {
+        showUpcomingFeedback(feedback, 'That Jikan / MyAnimeList ID is already linked to another upcoming anime record.', 'error');
+        return;
+      }
     }
 
     const payload = {
@@ -904,7 +917,7 @@ async function saveUpcomingAnime(event) {
       poster,
       shortDescription: document.getElementById('upcomingShortDescription').value.trim(),
       description: document.getElementById('upcomingDescription').value.trim(),
-      releaseDate: document.getElementById('upcomingReleaseDate').value || null,
+      releaseDate: normalizeExpectedReleaseDate(document.getElementById('upcomingReleaseDate').value),
       releaseYear: document.getElementById('upcomingReleaseYear').value || null,
       season: document.getElementById('upcomingSeason').value || 'TBA',
       releaseStatus: document.getElementById('upcomingReleaseStatus').value || 'TBA',
@@ -917,6 +930,9 @@ async function saveUpcomingAnime(event) {
       ageRating: document.getElementById('upcomingAgeRating').value.trim(),
       trailerUrl: document.getElementById('upcomingTrailerUrl').value.trim(),
       officialUrl: document.getElementById('upcomingOfficialUrl').value.trim(),
+      lastVerified: normalizeVerifiedDate(document.getElementById('upcomingLastVerified').value),
+      jikanId,
+      dataSource: 'manual',
       malUrl: document.getElementById('upcomingMalUrl').value.trim(),
       anilistUrl: document.getElementById('upcomingAnilistUrl').value.trim(),
       crunchyrollUrl: document.getElementById('upcomingCrunchyrollUrl').value.trim(),
@@ -928,10 +944,10 @@ async function saveUpcomingAnime(event) {
 
     if (currentId) {
       await updateDoc(doc(db, 'upcomingAnime', currentId), payload);
-      showUpcomingFeedback(feedback, 'Upcoming anime updated.', 'success');
+      showUpcomingFeedback(feedback, getUpcomingSaveFeedback('Upcoming anime updated.', payload), 'success');
     } else {
       await addDoc(collection(db, 'upcomingAnime'), payload);
-      showUpcomingFeedback(feedback, 'Upcoming anime created.', 'success');
+      showUpcomingFeedback(feedback, getUpcomingSaveFeedback('Upcoming anime created.', payload), 'success');
     }
 
     resetUpcomingForm();
@@ -1001,7 +1017,7 @@ async function saveUpcomingBulkRecord(item, draft) {
     poster,
     shortDescription: draft.shortDescription.trim(),
     description: draft.description.trim(),
-    releaseDate: draft.releaseDate.trim() || null,
+    releaseDate: normalizeExpectedReleaseDate(draft.releaseDate),
     releaseYear: draft.releaseYear.trim() || null,
     season: draft.season,
     releaseStatus: draft.releaseStatus,
@@ -1014,6 +1030,9 @@ async function saveUpcomingBulkRecord(item, draft) {
     ageRating: draft.ageRating.trim(),
     trailerUrl: draft.trailerUrl.trim(),
     officialUrl: draft.officialUrl.trim(),
+    lastVerified: item.lastVerified || null,
+    jikanId: item.jikanId || null,
+    dataSource: item.dataSource || 'manual',
     malUrl: draft.malUrl.trim(),
     anilistUrl: draft.anilistUrl.trim(),
     crunchyrollUrl: draft.crunchyrollUrl.trim(),
@@ -1053,6 +1072,8 @@ function populateUpcomingForm(item) {
     ['upcomingAgeRating', item.ageRating],
     ['upcomingTrailerUrl', item.trailerUrl],
     ['upcomingOfficialUrl', item.officialUrl],
+    ['upcomingLastVerified', item.lastVerified],
+    ['upcomingJikanId', item.jikanId],
     ['upcomingMalUrl', item.malUrl],
     ['upcomingAnilistUrl', item.anilistUrl],
     ['upcomingCrunchyrollUrl', item.crunchyrollUrl],
@@ -1142,6 +1163,51 @@ function parseList(value) {
     .split(',')
     .map(item => item.trim())
     .filter(Boolean);
+}
+
+function normalizeExpectedReleaseDate(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized || /^tba$/i.test(normalized)) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    const date = new Date(`${normalized}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== normalized) {
+      throw new Error('Release date must be a valid YYYY-MM-DD date, a season/month and year, or TBA.');
+    }
+    return normalized;
+  }
+  if (/^(winter|spring|summer|fall|autumn|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}$/i.test(normalized)) {
+    return normalized;
+  }
+  throw new Error('Release date must be a valid YYYY-MM-DD date, a season/month and year, or TBA.');
+}
+
+function normalizeVerifiedDate(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) throw new Error('Last verified date must use YYYY-MM-DD.');
+  const date = new Date(`${normalized}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== normalized) {
+    throw new Error('Last verified date must be a valid date.');
+  }
+  return normalized;
+}
+
+function normalizeJikanId(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return null;
+  const id = Number.parseInt(normalized, 10);
+  if (!Number.isInteger(id) || id < 1 || String(id) !== normalized) {
+    throw new Error('Jikan / MyAnimeList ID must be a positive whole number.');
+  }
+  return id;
+}
+
+function getUpcomingSaveFeedback(message, payload) {
+  const missing = [];
+  if (!payload.officialUrl) missing.push('official source URL');
+  if (!payload.lastVerified) missing.push('last verified date');
+  if (!payload.releaseDate) missing.push('release date');
+  return missing.length ? `${message} Missing: ${missing.join(', ')}.` : message;
 }
 
 function normalizeImageUrl(value) {

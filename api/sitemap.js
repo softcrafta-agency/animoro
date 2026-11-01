@@ -4,14 +4,16 @@ import { buildSitemap } from './_lib/sitemap.js';
 const CACHE_CONTROL = 'no-store';
 
 async function loadSitemap(firestore) {
-  const [postsSnapshot, animeSnapshot] = await Promise.all([
+  const [postsSnapshot, animeSnapshot, upcomingSnapshot] = await Promise.all([
     firestore.collection('posts').where('status', '==', 'published').get(),
     firestore.collection('anime').where('visibility', '==', 'published').get(),
+    firestore.collection('upcomingAnime').where('status', '==', 'published').get(),
   ]);
 
   const posts = postsSnapshot.docs.map(document => document.data());
   const anime = animeSnapshot.docs.map(document => document.data());
-  return buildSitemap(posts, [], anime);
+  const upcoming = upcomingSnapshot.docs.map(document => document.data());
+  return buildSitemap(posts, [], anime, upcoming);
 }
 
 export function createSitemapHandler({ getServices = getAdminServices, logger = console } = {}) {

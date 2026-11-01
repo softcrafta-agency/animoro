@@ -6,6 +6,26 @@
   display: none;
 }
 
+@media (max-width: 1180px) {
+  .anime-directory-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .anime-directory-controls input {
+    grid-column: span 3;
+  }
+}
+
+@media (max-width: 640px) {
+  .anime-directory-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .anime-directory-controls input {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (min-width: 1025px) {
   .article-reading-layout.has-toc {
     grid-template-columns: minmax(190px, 220px) minmax(0, 820px);

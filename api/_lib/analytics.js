@@ -5,12 +5,14 @@ const ID_PATTERN = /^[a-f0-9]{32}$/i;
 const MAX_DATE_RANGE_DAYS = 90;
 const PUBLIC_EXACT_PATHS = new Set([
   '/',
+  '/anime-list',
   '/anime',
   '/anime.html',
   '/anime-calendar.html',
   '/blogs.html',
   '/category.html',
   '/search.html',
+  '/upcoming-anime',
   '/upcoming-anime.html',
   '/about.html',
   '/contact.html',
@@ -75,7 +77,8 @@ export function sanitizeLabel(value, maxLength = 100) {
 export function isAllowedPublicPath(value) {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return false;
   if (PUBLIC_EXACT_PATHS.has(value)) return true;
-  return /^\/blog\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(value);
+  return /^\/(?:blog|upcoming-anime)\/[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(value) ||
+    /^\/anime\/[a-z0-9]+(?:-[a-z0-9]+)*(?:--[1-9]\d*)?$/i.test(value);
 }
 
 export function parseDateRange(query, now = new Date()) {

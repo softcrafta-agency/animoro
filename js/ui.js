@@ -3,7 +3,7 @@ import { getAnimePath } from './anime-url.js';
 import { attachMyListToggle } from './my-list.js';
 import { getUpcomingAnimePath } from './upcoming-url.js';
 import { initializeAuthNavigation } from './auth-nav.js';
-import { initializeVisitorAnalytics } from './visitor-analytics.js';
+import { initializeVisitorAnalytics, trackAnimeInteraction } from './visitor-analytics.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { formatUpcomingReleaseDate } from './upcoming-date.js';
 
@@ -70,7 +70,7 @@ export function createArticleCard(id, post) {
 
 export function createAnimeCard(anime) {
   const card = document.createElement('article');
-  card.className = 'article-card';
+  card.className = 'article-card anime-card';
 
   const imageLink = document.createElement('a');
   imageLink.className = 'card-img-wrap';
@@ -79,11 +79,13 @@ export function createAnimeCard(anime) {
   image.className = 'card-img';
   image.src = getSafeImageUrl(anime.coverImage, '/favicon.svg');
   image.alt = `${anime.title} cover`;
-  image.width = 800;
-  image.height = 450;
+  image.width = 600;
+  image.height = 900;
   image.loading = 'lazy';
   image.decoding = 'async';
+  image.addEventListener('error', () => { image.src = '/favicon.svg'; }, { once: true });
   imageLink.appendChild(image);
+  if (anime.featured) imageLink.addEventListener('click', () => trackAnimeInteraction('anime_featured_click', anime.title || anime.slug || 'anime'));
 
   const body = document.createElement('div');
   body.className = 'card-body';
@@ -92,6 +94,7 @@ export function createAnimeCard(anime) {
   const titleLink = document.createElement('a');
   titleLink.href = getAnimePath(anime);
   titleLink.textContent = anime.title || 'Untitled anime';
+  if (anime.featured) titleLink.addEventListener('click', () => trackAnimeInteraction('anime_featured_click', anime.title || anime.slug || 'anime'));
   title.appendChild(titleLink);
 
   const details = document.createElement('p');
@@ -132,20 +135,22 @@ export function createAnimeCard(anime) {
 
 export function createUpcomingAnimeCard(item) {
   const card = document.createElement('article');
-  card.className = 'article-card';
+  card.className = 'article-card anime-card upcoming-anime-card';
 
   const imageLink = document.createElement('a');
   imageLink.className = 'card-img-wrap';
-  imageLink.href = getUpcomingAnimePath(item);
+  imageLink.href = item.malId ? getAnimePath(item) : getUpcomingAnimePath(item);
   const image = document.createElement('img');
   image.className = 'card-img';
   image.src = getSafeImageUrl(item.poster || item.coverImage, '/favicon.svg');
   image.alt = `${item.title} poster`;
-  image.width = 800;
-  image.height = 450;
+  image.width = 600;
+  image.height = 900;
   image.loading = 'lazy';
   image.decoding = 'async';
+  image.addEventListener('error', () => { image.src = '/favicon.svg'; }, { once: true });
   imageLink.appendChild(image);
+  if (item.featured) imageLink.addEventListener('click', () => trackAnimeInteraction('anime_featured_click', item.title || item.slug || 'upcoming anime'));
 
   const body = document.createElement('div');
   body.className = 'card-body';
@@ -161,8 +166,9 @@ export function createUpcomingAnimeCard(item) {
   const title = document.createElement('h3');
   title.className = 'card-title';
   const titleLink = document.createElement('a');
-  titleLink.href = getUpcomingAnimePath(item);
+  titleLink.href = item.malId ? getAnimePath(item) : getUpcomingAnimePath(item);
   titleLink.textContent = item.title || 'Untitled upcoming anime';
+  if (item.featured) titleLink.addEventListener('click', () => trackAnimeInteraction('anime_featured_click', item.title || item.slug || 'upcoming anime'));
   title.appendChild(titleLink);
 
   const details = document.createElement('p');
@@ -207,8 +213,9 @@ export function setupMobileNav() {
   const closeBtn = document.getElementById('drawerCloseBtn');
   const navigationLinks = [
     { href: '/', label: 'Home', key: 'home' },
-    { href: '/anime', label: 'Anime List', key: 'anime' },
-    { href: '/upcoming-anime.html', label: 'Upcoming Anime', key: 'upcoming' },
+    { href: '/anime-list', label: 'Anime List', key: 'anime' },
+    { href: '/upcoming-anime', label: 'Upcoming Anime', key: 'upcoming' },
+    { href: '/category.html?category=Anime%20News', label: 'Anime News', key: 'news' },
     { href: '/blogs.html', label: 'Articles', key: 'articles' },
     { href: '/search.html', label: 'Search', key: 'search' },
     { href: '/my-list.html', label: 'My List', key: 'my-list' },
@@ -217,11 +224,13 @@ export function setupMobileNav() {
   const pathname = window.location.pathname;
   const activeKey = pathname === '/'
     ? 'home'
-    : pathname === '/anime' || pathname.startsWith('/anime.html')
+    : pathname === '/anime-list' || pathname === '/anime' || pathname.startsWith('/anime/') || pathname.startsWith('/anime.html')
       ? 'anime'
       : pathname.startsWith('/upcoming-anime')
         ? 'upcoming'
-        : pathname === '/blogs.html' || pathname.startsWith('/blog/') ||
+        : pathname === '/category.html' && new URLSearchParams(window.location.search).get('category') === 'Anime News'
+          ? 'news'
+          : pathname === '/blogs.html' || pathname.startsWith('/blog/') ||
             pathname.startsWith('/blog.html/') ||
             pathname === '/category.html'
           ? 'articles'
@@ -273,7 +282,7 @@ export function setupMobileNav() {
       <a href="/" data-mobile-key="home" aria-label="Home">
         <span aria-hidden="true">⌂</span><small>Home</small>
       </a>
-      <a href="/anime" data-mobile-key="anime" aria-label="Anime List">
+      <a href="/anime-list" data-mobile-key="anime" aria-label="Anime List">
         <span aria-hidden="true">✦</span><small>Anime List</small>
       </a>
       <a href="/search.html" data-mobile-key="search" aria-label="Search">

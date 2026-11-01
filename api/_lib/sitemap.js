@@ -14,7 +14,8 @@ export const SITE_ORIGIN = ARTICLE_SITE_ORIGIN;
 const STATIC_PATHS = [
   '/',
   '/blogs.html',
-  '/anime',
+  '/anime-list',
+  '/upcoming-anime',
   '/anime-calendar.html',
   '/about.html',
   '/contact.html',
@@ -58,7 +59,11 @@ function articleUrl(slug) {
 }
 
 function animeUrl(slug) {
-  return new URL(`/anime.html/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
+  return new URL(`/anime/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
+}
+
+function upcomingAnimeUrl(slug) {
+  return new URL(`/upcoming-anime/${encodeURIComponent(slug)}`, `${SITE_ORIGIN}/`).toString();
 }
 
 export function assignPostSlugs(posts) {
@@ -104,7 +109,7 @@ function appendUrl(urls, location, lastModified = null) {
   );
 }
 
-export function buildSitemap(posts, categories, animeEntries = []) {
+export function buildSitemap(posts, categories, animeEntries = [], upcomingEntries = []) {
   const urls = [];
   const seenLocations = new Set();
 
@@ -124,6 +129,9 @@ export function buildSitemap(posts, categories, animeEntries = []) {
   const publicAnime = animeEntries.filter(anime =>
     anime.visibility === 'published' && isValidAnimeSlug(anime.slug)
   );
+  const publicUpcoming = upcomingEntries.filter(anime =>
+    anime.status === 'published' && isValidAnimeSlug(anime.slug)
+  );
   const categoryLastModified = new Map();
 
   for (const post of publicPosts) {
@@ -140,6 +148,7 @@ export function buildSitemap(posts, categories, animeEntries = []) {
   }
 
   for (const anime of publicAnime) add(animeUrl(anime.slug), getLastModified(anime));
+  for (const anime of publicUpcoming) add(upcomingAnimeUrl(anime.slug), getLastModified(anime));
 
   for (const [name, lastModified] of [...categoryLastModified.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     add(categoryUrl(name), lastModified);

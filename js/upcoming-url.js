@@ -10,7 +10,7 @@ export function getUpcomingAnimeSlug(item) {
 }
 
 export function getUpcomingAnimePath(item) {
-  return `/upcoming-anime.html/${encodeURIComponent(getUpcomingAnimeSlug(item))}`;
+  return `/upcoming-anime/${encodeURIComponent(getUpcomingAnimeSlug(item))}`;
 }
 
 export function getUpcomingAnimeCanonicalUrl(item) {

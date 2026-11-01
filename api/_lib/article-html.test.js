@@ -60,7 +60,7 @@ test('does not display missing author, category, or publication metadata', () =>
   assert.match(html, /<meta name="description" content="Body text\." \/>/);
 });
 
-test('keeps anime labels on articles without linking to removed anime detail pages', () => {
+test('links anime labels on articles to the current anime detail route', () => {
   const html = renderArticleDocument(template, {
     id: 'article-with-anime-tag',
     title: 'Anime News',
@@ -70,8 +70,7 @@ test('keeps anime labels on articles without linking to removed anime detail pag
     content: '<p>Article body.</p>',
   });
 
-  assert.match(html, /<span class="badge-category">Anime Series<\/span>/);
-  assert.doesNotMatch(html, /anime\.html\/deleted-anime-slug|href="\/anime/);
+  assert.match(html, /<a href="\/anime\/deleted-anime-slug" class="badge-category">Anime Series<\/a>/);
 });
 
 test('uses SEO metadata independently from the visible headline and escapes fallbacks', () => {

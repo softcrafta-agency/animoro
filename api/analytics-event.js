@@ -92,6 +92,15 @@ function isValidEngagementPayload(body) {
     body.engagementSeconds <= 3600;
 }
 
+function isValidInteractionPayload(body) {
+  const fields = new Set(['eventType', 'eventId', 'visitorId', 'sessionId', 'pagePath', 'pageTitle', 'eventLabel']);
+  return hasOnlyFields(body, fields) &&
+    isValidAnalyticsId(body.eventId) &&
+    typeof body.pagePath === 'string' &&
+    typeof body.pageTitle === 'string' && body.pageTitle.length <= 200 &&
+    typeof body.eventLabel === 'string' && body.eventLabel.length <= 200;
+}
+
 async function consumeRequestQuota(firestore, request, now, secret, maxRequests) {
   const clientIp = getTrustedClientIp(request);
   if (!clientIp) return { status: 'unavailable' };
@@ -263,6 +272,32 @@ async function saveEngagement(firestore, body, now) {
   return { status: 'recorded' };
 }
 
+async function saveInteraction(firestore, body, request, page, now) {
+  const eventRef = firestore.collection('analytics_events').doc(body.eventId);
+  const dayRef = firestore.collection('analytics_daily_summaries').doc(toUtcDay(now));
+  return firestore.runTransaction(async transaction => {
+    const existing = await transaction.get(eventRef);
+    if (existing.exists) return { status: 'duplicate' };
+    const categories = getClientCategories(String(request.headers?.['user-agent'] || ''));
+    transaction.create(eventRef, {
+      eventType: body.eventType,
+      visitorId: body.visitorId,
+      sessionId: body.sessionId,
+      pagePath: page.pagePath,
+      pageTitle: sanitizeLabel(body.pageTitle, 200),
+      eventLabel: sanitizeLabel(body.eventLabel, 200),
+      ...categories,
+      timestamp: FieldValue.serverTimestamp(),
+      receivedAt: FieldValue.serverTimestamp(),
+      expireAt: Timestamp.fromDate(new Date(now.getTime() + EVENT_RETENTION_DAYS * 86400000)),
+    });
+    transaction.set(dayRef, {
+      interactionCounts: { [body.eventType]: FieldValue.increment(1) },
+    }, { merge: true });
+    return { status: 'recorded' };
+  });
+}
+
 export function createAnalyticsEventHandler({
   getServices = getAdminServices,
   clock = () => new Date(),
@@ -297,11 +332,15 @@ export function createAnalyticsEventHandler({
     if (body.eventType === 'engagement' && !isValidEngagementPayload(body)) {
       return sendJson(response, 400, { error: 'The engagement event payload is invalid.' });
     }
-    if (!['page_view', 'engagement'].includes(body.eventType)) {
+    const interaction = ['anime_search', 'anime_featured_click', 'anime_related_article_click'].includes(body.eventType);
+    if (interaction && !isValidInteractionPayload(body)) {
+      return sendJson(response, 400, { error: 'The interaction event payload is invalid.' });
+    }
+    if (!['page_view', 'engagement', 'anime_search', 'anime_featured_click', 'anime_related_article_click'].includes(body.eventType)) {
       return sendJson(response, 400, { error: 'Unsupported event type.' });
     }
-    const page = body.eventType === 'page_view' ? parsePublicPage(body) : null;
-    if (body.eventType === 'page_view' && !page) {
+    const page = body.eventType === 'page_view' || interaction ? parsePublicPage(body) : null;
+    if ((body.eventType === 'page_view' || interaction) && !page) {
       return sendJson(response, 400, { error: 'The public page path is invalid.' });
     }
     if (typeof rateLimitSecret !== 'string' || Buffer.byteLength(rateLimitSecret, 'utf8') < 32) {
@@ -333,6 +372,10 @@ export function createAnalyticsEventHandler({
           accepted: result.status === 'recorded',
           reason: result.status,
         });
+      }
+      if (interaction) {
+        const result = await saveInteraction(firestore, body, request, page, now);
+        return sendJson(response, 202, { accepted: result.status === 'recorded', reason: result.status });
       }
       const article = await findPublishedArticle(firestore, page.articleSlug);
       if (page.articleSlug && !article) {
