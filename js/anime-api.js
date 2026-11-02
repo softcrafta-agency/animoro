@@ -267,6 +267,9 @@ export function normalizeAnime(item, kind = 'anime') {
     releaseYear: Number.isInteger(year) && year >= 1900 && year < 2200 ? String(year) : '',
     season,
     rating: Number.isFinite(score) && score > 0 ? score : '',
+    popularity: Number.isFinite(Number(item?.popularity)) && Number(item.popularity) > 0
+      ? Number(item.popularity)
+      : '',
     scoredBy: Number.isFinite(Number(item?.scored_by)) ? Number(item.scored_by) : 0,
     episodes: item?.episodes ?? '',
     studio: namesFrom(item?.studios).join(', '),
@@ -294,7 +297,7 @@ function normalizeSort(options = {}) {
   const orderBy = allowed.has(options.orderBy) ? options.orderBy : 'popularity';
   return {
     order_by: orderBy === 'popularity' ? 'popularity' : orderBy,
-    sort: options.sort || (orderBy === 'title' ? 'asc' : 'desc'),
+    sort: options.sort || (orderBy === 'title' || orderBy === 'popularity' ? 'asc' : 'desc'),
   };
 }
 
@@ -306,7 +309,7 @@ export async function getAnimeDirectory(options = {}) {
   const params = buildRequestPath('anime', {
     page: options.page || 1,
     limit: options.limit || 24,
-    q: options.query || '',
+    q: String(options.query || '').trim(),
     type: options.type || '',
     status: options.status || '',
     genres: requestGenre(options),

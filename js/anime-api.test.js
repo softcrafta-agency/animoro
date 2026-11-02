@@ -12,7 +12,7 @@ globalThis.window = {
   clearTimeout: id => globalThis.clearTimeout(id),
 };
 
-const { getAnimeDirectory, getAnimeSchedules, getUpcomingAnime } = await import('./anime-api.js');
+const { getAnimeDirectory, getAnimeSchedules, getUpcomingAnime, normalizeAnime } = await import('./anime-api.js');
 
 function response(status, payload) {
   return {
@@ -56,7 +56,59 @@ test('Tenrai catalogue responses normalize real catalogue fields and preserve MA
   assert.equal(result.items[0].slug, 'naruto--20');
   assert.equal(result.items[0].releaseDate, '2002-10-03');
   assert.equal(result.items[0].coverImage, 'https://images.example/naruto.webp');
+  assert.equal(result.items[0].popularity, '');
   assert.equal(result.pagination.has_next_page, true);
+});
+
+test('Tenrai directory sort fields use rank direction for popularity and preserve score sorting', async () => {
+  storage.clear();
+  const requests = [];
+  globalThis.fetch = async url => {
+    const params = new URL(url, 'https://animoro.in').searchParams;
+    requests.push(params);
+    return response(200, {
+      data: [animeRecord({ popularity: 12, score: 8.5 })],
+      pagination: { has_next_page: false },
+    });
+  };
+
+  const popular = await getAnimeDirectory({ orderBy: 'popularity' });
+  await getAnimeDirectory({ orderBy: 'score', sort: 'desc' });
+
+  assert.equal(requests[0].get('order_by'), 'popularity');
+  assert.equal(requests[0].get('sort'), 'asc');
+  assert.equal(requests[1].get('order_by'), 'score');
+  assert.equal(requests[1].get('sort'), 'desc');
+  assert.equal(popular.items[0].popularity, 12);
+  assert.equal(normalizeAnime(animeRecord({ popularity: null })).popularity, '');
+});
+
+test('Tenrai directory sends every selected filter together and trims search terms', async () => {
+  storage.clear();
+  let requestUrl;
+  globalThis.fetch = async url => {
+    requestUrl = url;
+    return response(200, {
+      data: [animeRecord({ status: 'Currently Airing', type: 'TV' })],
+      pagination: { has_next_page: false },
+    });
+  };
+
+  await getAnimeDirectory({
+    query: '  Naruto ',
+    type: 'tv',
+    status: 'airing',
+    genre: 'Action',
+    orderBy: 'popularity',
+  });
+
+  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+  assert.equal(params.get('q'), 'Naruto');
+  assert.equal(params.get('type'), 'tv');
+  assert.equal(params.get('status'), 'airing');
+  assert.equal(params.get('genres'), '1');
+  assert.equal(params.get('order_by'), 'popularity');
+  assert.equal(params.get('sort'), 'asc');
 });
 
 test('Tenrai upcoming catalogue falls back to anime marked upcoming when seasonal data is empty', async () => {

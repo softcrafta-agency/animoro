@@ -8,7 +8,9 @@ const vercel = JSON.parse(await readFile(new URL('vercel.json', root), 'utf8'));
 const firebase = JSON.parse(await readFile(new URL('firebase.json', root), 'utf8'));
 const vite = await readFile(new URL('vite.config.ts', root), 'utf8');
 const animeHtml = await readFile(new URL('anime.html', root), 'utf8');
+const animeClient = await readFile(new URL('js/anime.js', root), 'utf8');
 const sitemap = await readFile(new URL('api/_lib/sitemap.js', root), 'utf8');
+const robots = await readFile(new URL('public/robots.txt', root), 'utf8');
 const animeUrl = await readFile(new URL('js/anime-url.js', root), 'utf8');
 
 test('Vercel rewrites the anime directory and detail paths and permanently redirects the old page URL', () => {
@@ -46,6 +48,10 @@ test('Firebase Hosting configures matching rewrite and permanent redirect', () =
 
 test('Anime List build entry, canonical metadata, internal links, and sitemap use the clean directory route', () => {
   assert.match(vite, /anime:\s*path\.resolve\(__dirname,\s*'anime\.html'\)/);
+  assert.match(animeHtml, /<title>Anime List – Explore Anime Series, Genres &amp; Ratings \| Animoro<\/title>/);
+  assert.match(animeHtml, /name="description" content="Explore the Animoro anime list to discover anime series, popular titles, genres, ratings, and recommendations for your next watch\."/);
+  assert.match(animeHtml, /<h1[^>]*>Anime List – Explore Anime Series and Details<\/h1>/);
+  assert.match(animeHtml, /name="robots" content="index, follow"/);
   assert.match(animeHtml, /<meta property="og:url" content="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
   assert.match(animeHtml, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
   assert.equal((animeHtml.match(/rel="canonical"/g) || []).length, 1);
@@ -53,6 +59,12 @@ test('Anime List build entry, canonical metadata, internal links, and sitemap us
   assert.match(sitemap, /'\/anime-list'/);
   assert.doesNotMatch(sitemap, /'\/anime\.html'/);
   assert.match(animeUrl, /return `\/anime\//);
+  assert.match(animeClient, /function renderAnimeListStructuredData\(\)/);
+  assert.match(animeClient, /'@type': 'CollectionPage'/);
+  assert.match(animeClient, /'@type': 'BreadcrumbList'/);
+  assert.match(animeClient, /document\.getElementById\('animeListJsonLd'\)\?\.remove\(\)/);
+  assert.match(robots, /^Allow: \/api\/tenrai$/m);
+  assert.match(robots, /^Disallow: \/api\/$/m);
 });
 
 test('Upcoming Anime rewrites and redirects do not target one another', () => {

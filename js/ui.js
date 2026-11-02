@@ -219,7 +219,7 @@ export function setupMobileNav() {
     { href: '/blogs.html', label: 'Articles', key: 'articles' },
     { href: '/search.html', label: 'Search', key: 'search' },
     { href: '/my-list.html', label: 'My List', key: 'my-list' },
-    { href: '/anime-calendar.html', label: 'Release Calendar', key: 'calendar' },
+    { href: '/anime-calendar.html', label: 'Anime Airing Today', key: 'calendar' },
   ];
   const pathname = window.location.pathname;
   const activeKey = pathname === '/'

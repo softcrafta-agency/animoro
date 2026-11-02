@@ -4,6 +4,7 @@ import { getAnimeCanonicalUrl, isValidAnimeDetailSlug } from './anime-url.js';
 import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { attachMyListToggle } from './my-list.js';
 import { getAnimeDetails, getAnimeDirectory, getTopAnime } from './anime-api.js';
+import { filterAndSortAnime } from './anime-directory.js';
 
 const PAGE_SIZE = 24;
 const ARTICLE_SAMPLE_SIZE = 36;
@@ -40,7 +41,10 @@ function getFilters() {
 
 function setDataNote(message) {
   const note = document.getElementById('animeDataNote');
-  if (note) note.textContent = message;
+  if (note) {
+    note.textContent = message;
+    note.hidden = !message;
+  }
 }
 
 function setLoading(container, label) {
@@ -93,21 +97,6 @@ async function loadManualAnime() {
   }
 }
 
-function filterManualAnime(entries, filters) {
-  const term = filters.query.toLowerCase();
-  return entries.filter(anime => {
-    const searchable = [anime.title, anime.japaneseTitle, ...(Array.isArray(anime.alternativeTitles) ? anime.alternativeTitles : [])].join(' ').toLowerCase();
-    const genreMatches = !filters.genre || (anime.genres || []).some(value => String(value).toLowerCase() === filters.genre.toLowerCase());
-    const typeMatches = !filters.type || String(anime.type || '').toLowerCase() === filters.type;
-    const statusMatches = !filters.status || String(anime.status || '').toLowerCase() === filters.status;
-    return (!term || searchable.includes(term)) && genreMatches && typeMatches && statusMatches;
-  }).sort((left, right) => {
-    if (filters.sort === 'title') return String(left.title || '').localeCompare(String(right.title || ''));
-    if (filters.sort === 'start_date') return Number(right.releaseYear || 0) - Number(left.releaseYear || 0);
-    return Number(right.rating || 0) - Number(left.rating || 0);
-  });
-}
-
 async function loadAnimeDirectory(page = 1) {
   const container = document.getElementById('animeDirectoryContainer');
   if (!container) return;
@@ -119,7 +108,7 @@ async function loadAnimeDirectory(page = 1) {
   try {
     const result = await getAnimeDirectory({
       page, limit: PAGE_SIZE, query: filters.query, type: filters.type, status: filters.status,
-      genre: filters.genre, orderBy: filters.sort, sort: filters.sort === 'title' ? 'asc' : 'desc',
+      genre: filters.genre, orderBy: filters.sort,
     });
     if (requestId !== latestDirectoryRequest) return;
     const entries = result.items;
@@ -136,7 +125,7 @@ async function loadAnimeDirectory(page = 1) {
   } catch (error) {
     if (requestId !== latestDirectoryRequest) return;
     console.warn('Could not load the Tenrai anime directory.', error);
-    const manual = filterManualAnime(await loadManualAnime(), filters);
+    const manual = filterAndSortAnime(await loadManualAnime(), filters);
     if (requestId !== latestDirectoryRequest) return;
     latestDirectory = 'manual';
     latestPagination = { has_next_page: false };
@@ -178,9 +167,11 @@ async function loadAnimeDetails(slug) {
   const directory = document.getElementById('animeDirectoryContainer');
   const detail = document.getElementById('animeDetail');
   const popular = document.getElementById('popularAnimeSection');
+  const directorySection = document.getElementById('animeDirectorySection');
   const controls = document.getElementById('animeDirectoryControls');
   if (!detail || !directory) return;
   directory.hidden = true;
+  if (directorySection) directorySection.hidden = true;
   if (popular) popular.hidden = true;
   if (controls) controls.hidden = true;
   document.getElementById('animePagination')?.setAttribute('hidden', '');
@@ -268,6 +259,27 @@ function setJsonLd(id, value) {
   node.textContent = JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
+function renderAnimeListStructuredData() {
+  setJsonLd('animeListJsonLd', {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        name: 'Anime List – Explore Anime Series and Details',
+        description: 'Browse the anime list by title, genre, type, or status. Explore popular titles, ratings, and detailed series information to find your next watch.',
+        url: 'https://www.animoro.in/anime-list',
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
+          { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://www.animoro.in/anime-list' },
+        ],
+      },
+    ],
+  });
+}
+
 function renderAnimeDetails(anime, stale) {
   const detail = document.getElementById('animeDetail');
   const title = document.getElementById('animePageTitle');
@@ -338,23 +350,12 @@ function renderAnimeDetails(anime, stale) {
     });
     information.appendChild(list);
   }
-  if (anime.malUrl) {
-    const source = document.createElement('a');
-    source.className = 'btn-outline';
-    source.href = anime.malUrl;
-    source.target = '_blank';
-    source.rel = 'noopener noreferrer';
-    source.textContent = 'View source data';
-    information.appendChild(source);
-  }
   detail.appendChild(information);
 
-  if (anime.source === 'tenrai') {
+  if (stale) {
     const attribution = document.createElement('p');
     attribution.className = 'anime-data-note';
-    attribution.textContent = stale
-      ? 'Showing cached data from Tenrai while the live service reconnects.'
-      : 'Data supplied by Tenrai. Details can change as source data is updated.';
+    attribution.textContent = 'Showing cached data from Tenrai while the live service reconnects.';
     detail.appendChild(attribution);
   }
   detail.hidden = false;
@@ -393,6 +394,7 @@ async function loadAnimeArticles(anime) {
 function bindDirectoryControls() {
   const search = document.getElementById('animeSearchInput');
   search?.addEventListener('input', () => {
+    latestDirectoryRequest += 1;
     window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(() => loadAnimeDirectory(1), 350);
   });
@@ -408,6 +410,7 @@ async function initAnimePage() {
   const isDetailPath = window.location.pathname.startsWith('/anime/') ||
     window.location.pathname.startsWith('/anime.html/');
   if (isDetailPath) {
+    document.getElementById('animeListJsonLd')?.remove();
     const slug = getRequestedAnimeSlug();
     if (!slug) {
       window.location.replace('/404.html');
@@ -415,6 +418,7 @@ async function initAnimePage() {
     }
     return loadAnimeDetails(slug);
   }
+  renderAnimeListStructuredData();
   bindDirectoryControls();
   await Promise.all([loadAnimeDirectory(1), loadTopAnime()]);
 }

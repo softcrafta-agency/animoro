@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anime List – Explore Popular Anime, Ratings &amp; Details | Animoro</title>
-  <meta name="description" content="Explore popular anime, ratings, genres, episode counts, and detailed series information on Animoro." />
+  <title>Anime List – Explore Anime Series, Genres &amp; Ratings | Animoro</title>
+  <meta name="description" content="Explore the Animoro anime list to discover anime series, popular titles, genres, ratings, and recommendations for your next watch." />
   <meta name="robots" content="index, follow" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Anime List – Explore Popular Anime, Ratings & Details | Animoro" />
-  <meta property="og:description" content="Explore popular anime, ratings, genres, episode counts, and detailed series information on Animoro." />
+  <meta property="og:title" content="Anime List – Explore Anime Series, Genres &amp; Ratings | Animoro" />
+  <meta property="og:description" content="Explore the Animoro anime list to discover anime series, popular titles, genres, ratings, and recommendations for your next watch." />
   <meta property="og:url" content="https://www.animoro.in/anime-list" />
   <meta property="og:image" content="https://www.animoro.in/logo.png" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -32,7 +32,7 @@
         <a href="/upcoming-anime" class="nav-link">Upcoming Anime</a>
         <a href="/category.html?category=Anime%20News" class="nav-link">Anime News</a>
         <a href="/my-list.html" class="nav-link">My List</a>
-        <a href="/anime-calendar.html" class="nav-link">Release Calendar</a>
+        <a href="/anime-calendar.html" class="nav-link">Anime Airing Today</a>
       </nav>
       <div class="header-actions">
         <a href="/search.html" class="search-toggle-btn" aria-label="Search Animoro">Search</a>
@@ -43,17 +43,18 @@
   <div class="mobile-drawer-backdrop" id="mobileBackdrop"></div>
   <aside class="mobile-drawer" id="mobileNavDrawer" aria-label="Mobile Navigation">
     <div class="drawer-header"><span class="brand-logo-text">ANIMORO</span><button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">&times;</button></div>
-    <nav class="mobile-nav-links"><a href="/">Home</a><a href="/anime-list" class="active">Anime List</a><a href="/upcoming-anime">Upcoming Anime</a><a href="/category.html?category=Anime%20News">Anime News</a><a href="/blogs.html">Articles</a><a href="/search.html">Search</a><a href="/my-list.html">My List</a><a href="/anime-calendar.html">Release Calendar</a></nav>
+    <nav class="mobile-nav-links"><a href="/">Home</a><a href="/anime-list" class="active">Anime List</a><a href="/upcoming-anime">Upcoming Anime</a><a href="/category.html?category=Anime%20News">Anime News</a><a href="/blogs.html">Articles</a><a href="/search.html">Search</a><a href="/my-list.html">My List</a><a href="/anime-calendar.html">Anime Airing Today</a></nav>
   </aside>
 
   <main class="section-padded">
     <div class="container">
       <nav class="anime-breadcrumb" id="animeBreadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><span id="animeBreadcrumbCurrent">Anime List</span></nav>
       <header class="section-header">
-        <div><h1 class="section-title" id="animePageTitle">Anime List</h1><p class="section-subtitle" id="animePageDescription">Discover popular anime, detailed series information, and editor-managed picks.</p></div>
+        <div><h1 class="section-title" id="animePageTitle">Anime List – Explore Anime Series and Details</h1><p class="section-subtitle" id="animePageDescription">Browse the anime list by title, genre, type, or status. Explore popular titles, ratings, and detailed series information to find your next watch.</p></div>
         <a class="btn-outline" href="/anime-calendar.html">Anime Release Calendar</a>
       </header>
-      <section class="anime-directory-controls" id="animeDirectoryControls" aria-label="Anime directory filters">
+      <h2 class="section-title" id="animeBrowseHeading">Browse Anime</h2>
+      <section class="anime-directory-controls" id="animeDirectoryControls" aria-labelledby="animeBrowseHeading">
         <label class="sr-only" for="animeSearchInput">Search anime by title</label>
         <input id="animeSearchInput" class="form-input" type="search" placeholder="Search anime by title" autocomplete="off" />
         <label class="sr-only" for="animeTypeFilter">Filter by type</label>
@@ -65,7 +66,7 @@
         <label class="sr-only" for="animeSortFilter">Sort anime</label>
         <select id="animeSortFilter" class="form-select"><option value="popularity">Most popular</option><option value="score">Top rated</option><option value="title">Title A–Z</option><option value="start_date">Newest first</option></select>
       </section>
-      <p class="anime-data-note" id="animeDataNote" role="status">Anime information is supplied by Tenrai, with editor-managed entries shown if the service is unavailable.</p>
+      <p class="anime-data-note" id="animeDataNote" role="status" hidden></p>
       <div class="anime-detail-banner" id="animeBanner" hidden></div>
       <div class="anime-detail-layout" id="animeDetail" hidden></div>
       <section class="anime-popular-section" id="popularAnimeSection" aria-labelledby="popularAnimeHeading">
@@ -82,9 +83,12 @@
           </div>
         </div>
       </section>
-      <div class="articles-grid" id="animeDirectoryContainer" aria-live="polite">
-        <div class="home-loading-state" role="status" aria-label="Loading anime"><span class="home-loading-line"></span><span class="home-loading-line"></span></div>
-      </div>
+      <section id="animeDirectorySection" aria-labelledby="animeDirectoryHeading">
+        <h2 class="section-title" id="animeDirectoryHeading">Anime Series</h2>
+        <div class="articles-grid" id="animeDirectoryContainer" aria-live="polite">
+          <div class="home-loading-state" role="status" aria-label="Loading anime"><span class="home-loading-line"></span><span class="home-loading-line"></span></div>
+        </div>
+      </section>
       <div class="section-padded" id="animeArticleSection" hidden>
         <h2 class="section-title">Related Articles</h2>
         <div class="articles-grid" id="animeArticles"></div>
