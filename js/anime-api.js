@@ -378,7 +378,6 @@ export async function getUpcomingAnime(options = {}) {
     limit: options.limit || 24,
     filter: options.type || '',
     genres: requestGenre(options),
-    ...normalizeSort(options),
   });
   const payload = await requestTenrai(path);
   const items = mapItems(payload, 'upcoming');

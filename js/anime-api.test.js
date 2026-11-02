@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { getAnimePath } from './anime-url.js';
 
 const storage = new Map();
 globalThis.window = {
@@ -11,7 +12,7 @@ globalThis.window = {
   clearTimeout: id => globalThis.clearTimeout(id),
 };
 
-const { getAnimeDirectory, getUpcomingAnime } = await import('./anime-api.js');
+const { getAnimeDirectory, getAnimeSchedules, getUpcomingAnime } = await import('./anime-api.js');
 
 function response(status, payload) {
   return {
@@ -81,6 +82,71 @@ test('Tenrai upcoming catalogue falls back to anime marked upcoming when seasona
   assert.equal(result.items[0].releaseDatePrecision, 'unknown');
 });
 
+test('Tenrai upcoming catalogue omits unsupported ordering and maps real anime records', async () => {
+  storage.clear();
+  let requestUrl;
+  globalThis.fetch = async url => {
+    requestUrl = url;
+    return response(200, {
+      data: [animeRecord({
+        mal_id: 62516,
+        title: 'Dandadan 3rd Season',
+        title_english: 'Dandadan 3rd Season',
+        status: 'Not yet aired',
+        images: { webp: { large_image_url: 'https://images.example/dandadan.webp' } },
+        aired: { from: '2027', prop: { from: { year: 2027, month: null, day: null } } },
+      })],
+      pagination: { current_page: 1, has_next_page: true },
+    });
+  };
+
+  const result = await getUpcomingAnime({ page: 1, limit: 24 });
+  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+
+  assert.equal(params.get('resource'), 'upcoming');
+  assert.equal(params.get('page'), '1');
+  assert.equal(params.get('limit'), '24');
+  assert.equal(params.has('order_by'), false);
+  assert.equal(params.has('sort'), false);
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].title, 'Dandadan 3rd Season');
+  assert.equal(result.items[0].malId, 62516);
+  assert.equal(getAnimePath(result.items[0]), '/anime/dandadan-3rd-season--62516');
+  assert.equal(result.items[0].poster, 'https://images.example/dandadan.webp');
+  assert.equal(result.items[0].releaseDate, '2027');
+  assert.equal(result.items[0].releaseDatePrecision, 'year');
+  assert.equal(result.pagination.has_next_page, true);
+});
+
+test('Tenrai schedule catalogue maps broadcast data from schedule records', async () => {
+  storage.clear();
+  let requestUrl;
+  globalThis.fetch = async url => {
+    requestUrl = url;
+    return response(200, {
+      data: [animeRecord({
+        mal_id: 63409,
+        title: 'Scheduled Anime',
+        broadcast: { day: 'Mondays', time: '21:30', timezone: 'Asia/Tokyo' },
+      })],
+      pagination: { has_next_page: false },
+    });
+  };
+
+  const result = await getAnimeSchedules({ limit: 2 });
+  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+
+  assert.equal(params.get('resource'), 'schedules');
+  assert.equal(params.get('limit'), '2');
+  assert.equal(result.items[0].title, 'Scheduled Anime');
+  assert.equal(result.items[0].malId, 63409);
+  assert.deepEqual(result.items[0].broadcast, {
+    day: 'Mondays',
+    time: '21:30',
+    timezone: 'Asia/Tokyo',
+  });
+});
+
 test('Tenrai HTTP failures remain errors rather than becoming empty catalogues', async () => {
   storage.clear();
   globalThis.fetch = async () => response(503, { error: 'Upstream unavailable' });
@@ -89,4 +155,19 @@ test('Tenrai HTTP failures remain errors rather than becoming empty catalogues',
     getAnimeDirectory({ query: 'unavailable' }),
     error => error.status === 503 && /Upstream unavailable/.test(error.message)
   );
+});
+
+test('Tenrai upcoming request errors are not converted to empty results or hidden by a fallback', async () => {
+  storage.clear();
+  const requestedResources = [];
+  globalThis.fetch = async url => {
+    requestedResources.push(new URL(url, 'https://animoro.in').searchParams.get('resource'));
+    return response(400, { error: 'querystring/order_by must be equal to one of the allowed values' });
+  };
+
+  await assert.rejects(
+    getUpcomingAnime({ page: 1, limit: 24 }),
+    error => error.status === 400 && /order_by/.test(error.message)
+  );
+  assert.deepEqual(requestedResources, ['upcoming']);
 });
