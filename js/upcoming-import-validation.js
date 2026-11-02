@@ -9,6 +9,12 @@ export const UPCOMING_RELEASE_STATUSES = [
   'Completed',
   'Delayed',
 ];
+export const UPCOMING_RELEASE_DATE_CONFIDENCE = [
+  'unknown',
+  'confirmed',
+  'approximate',
+  'unconfirmed',
+];
 
 const IMPORT_FIELDS = {
   title: ['animeTitle', 'title'],
@@ -18,6 +24,7 @@ const IMPORT_FIELDS = {
   shortDescription: ['shortDescription'],
   description: ['fullDescription', 'description'],
   releaseDate: ['releaseDate'],
+  releaseDateConfidence: ['releaseDateConfidence'],
   releaseYear: ['releaseYear'],
   season: ['season'],
   releaseStatus: ['releaseStatus'],
@@ -109,7 +116,7 @@ function normalizeField(field, value) {
 
   if ([
     'title', 'japaneseTitle', 'slug', 'poster', 'shortDescription', 'description', 'releaseDate',
-    'season', 'releaseStatus', 'type', 'studio', 'source', 'duration', 'ageRating', 'trailerUrl',
+    'season', 'releaseDateConfidence', 'releaseStatus', 'type', 'studio', 'source', 'duration', 'ageRating', 'trailerUrl',
     'officialUrl', 'malUrl', 'anilistUrl', 'crunchyrollUrl',
   ].includes(field)) {
     const limits = {
@@ -123,6 +130,7 @@ function normalizeField(field, value) {
 
     const allowed = {
       season: SEASONS,
+      releaseDateConfidence: UPCOMING_RELEASE_DATE_CONFIDENCE,
       releaseStatus: UPCOMING_RELEASE_STATUSES,
       type: TYPES,
       source: SOURCES,

@@ -49,3 +49,15 @@ export function createJikanError(status, message) {
   error.status = status;
   return error;
 }
+
+export function isValidJikanPayload(payload, resource) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || !Object.hasOwn(payload, 'data')) {
+    return false;
+  }
+  if (resource === 'detail') {
+    const id = Number(payload.data?.mal_id);
+    return Boolean(payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) &&
+      Number.isInteger(id) && id > 0);
+  }
+  return Array.isArray(payload.data);
+}

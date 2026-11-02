@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
+  UPCOMING_RELEASE_DATE_CONFIDENCE,
   UPCOMING_RELEASE_STATUSES,
   validateUpcomingImportRecord,
 } from './upcoming-import-validation.js';
@@ -45,6 +46,24 @@ test('allows supported statuses and rejects unsupported enum values', () => {
   const invalid = validateUpcomingImportRecord({ ...sample, releaseStatus: 'In Production' }, 1);
   assert.equal(invalid.valid, false);
   assert.equal(invalid.errors[0].field, 'releaseStatus');
+});
+
+test('accepts supported release-date confidence labels and rejects unknown values', () => {
+  assert.ok(UPCOMING_RELEASE_DATE_CONFIDENCE.includes('confirmed'));
+  const valid = validateUpcomingImportRecord({
+    title: 'Confidence test',
+    slug: 'confidence-test',
+    releaseDateConfidence: 'approximate',
+  }, 1);
+  const invalid = validateUpcomingImportRecord({
+    title: 'Confidence test',
+    slug: 'confidence-test',
+    releaseDateConfidence: 'guaranteed',
+  }, 1);
+  assert.equal(valid.valid, true);
+  assert.equal(valid.payload.releaseDateConfidence, 'approximate');
+  assert.equal(invalid.valid, false);
+  assert.equal(invalid.errors[0].field, 'releaseDateConfidence');
 });
 
 test('accepts empty optional values, numeric years, null episodes, and supported database aliases', () => {

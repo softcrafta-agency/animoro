@@ -5,7 +5,7 @@ import { getUpcomingAnimePath } from './upcoming-url.js';
 import { initializeAuthNavigation } from './auth-nav.js';
 import { initializeVisitorAnalytics, trackAnimeInteraction } from './visitor-analytics.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
-import { formatUpcomingReleaseDate } from './upcoming-date.js';
+import { formatUpcomingReleaseDate, getUpcomingReleaseDescription } from './upcoming-date.js';
 
 initializeVisitorAnalytics();
 
@@ -176,7 +176,7 @@ export function createUpcomingAnimeCard(item) {
   details.textContent = [
     ...(Array.isArray(item.genres) ? item.genres : []),
     item.type,
-    item.releaseStatus || item.status,
+    getUpcomingReleaseDescription(item),
   ].filter(Boolean).join(' · ');
   const japaneseTitle = item.japaneseTitle
     ? document.createElement('p')

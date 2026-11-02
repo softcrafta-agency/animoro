@@ -3,14 +3,18 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { setupMobileNav, createUpcomingAnimeCard } from './ui.js';
 import { attachMyListToggle, showPendingMyListActionNotice } from './my-list.js';
 import { getUpcomingAnimeCanonicalUrl } from './upcoming-url.js';
-import { formatUpcomingReleaseDate, getUpcomingReleaseTimestamp } from './upcoming-date.js';
-import { getUpcomingAnime, searchUpcomingAnime } from './jikan-service.js';
+import {
+  formatUpcomingReleaseDate,
+  getUpcomingReleaseDescription,
+  getUpcomingReleaseTimestamp,
+} from './upcoming-date.js';
+import { getUpcomingAnime } from './anime-api.js';
 
 const PAGE_SIZE = 24;
 let currentPage = 1;
 let pagination = {};
 let searchTimer = 0;
-let loading = false;
+let latestLoad = 0;
 
 function getRequestedUpcomingSlug() {
   const pathname = window.location.pathname;
@@ -41,6 +45,36 @@ function setDataNote(message) {
   if (note) note.textContent = message;
 }
 
+function getGenres(item) {
+  if (Array.isArray(item.genres)) return item.genres;
+  return typeof item.genres === 'string'
+    ? item.genres.split(',').map(genre => genre.trim()).filter(Boolean)
+    : [];
+}
+
+function getReleaseYear(item) {
+  const explicitYear = String(item.releaseYear || '').trim();
+  if (/^\d{4}$/.test(explicitYear)) return explicitYear;
+  const releaseDate = item.releaseDate;
+  if (releaseDate && typeof releaseDate.toDate === 'function') {
+    const date = releaseDate.toDate();
+    return date instanceof Date && Number.isFinite(date.getTime()) ? String(date.getFullYear()) : '';
+  }
+  if (releaseDate instanceof Date && Number.isFinite(releaseDate.getTime())) {
+    return String(releaseDate.getFullYear());
+  }
+  const dateText = typeof releaseDate === 'string' ? releaseDate.trim() : '';
+  return dateText.match(/^((?:19|20|21)\d{2})(?:-\d{2}-\d{2})?$/)?.[1] ||
+    dateText.match(/(?:^|\D)((?:19|20|21)\d{2})$/)?.[1] || '';
+}
+
+function getReleaseSeason(item) {
+  const season = String(item.season || '').trim();
+  if (season && season.toLowerCase() !== 'tba') return season;
+  const dateText = typeof item.releaseDate === 'string' ? item.releaseDate.trim() : '';
+  return dateText.match(/^(winter|spring|summer|fall|autumn)\s+\d{4}$/i)?.[1] || '';
+}
+
 function renderMessage(container, message, onRetry = null) {
   container.replaceChildren();
   const state = document.createElement('div');
@@ -62,6 +96,7 @@ function renderMessage(container, message, onRetry = null) {
 }
 
 function renderLoading(container) {
+  container.setAttribute('aria-busy', 'true');
   container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading upcoming anime"><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
 }
 
@@ -69,6 +104,7 @@ function updatePagination() {
   const previous = document.getElementById('previousUpcomingBtn');
   const next = document.getElementById('nextUpcomingBtn');
   const status = document.getElementById('upcomingPageStatus');
+  document.getElementById('upcomingAnimeSections')?.setAttribute('aria-busy', 'false');
   if (previous) previous.hidden = currentPage <= 1;
   if (next) next.hidden = !pagination?.has_next_page;
   if (status) status.textContent = pagination ? `Page ${currentPage}` : '';
@@ -76,22 +112,18 @@ function updatePagination() {
 
 async function loadManualUpcoming() {
   if (!isConfigured || !db) return [];
-  try {
-    const snapshot = await getDocs(query(collection(db, 'upcomingAnime'), where('status', '==', 'published'), limit(120)));
-    return snapshot.docs.map(document => ({ id: document.id, dataSource: 'manual', ...document.data() }));
-  } catch (error) {
-    handleFirestoreError(error, 'list', 'upcomingAnime');
-    return [];
-  }
+  const snapshot = await getDocs(query(collection(db, 'upcomingAnime'), where('status', '==', 'published'), limit(120)));
+  return snapshot.docs.map(document => ({ id: document.id, dataSource: 'manual', ...document.data() }));
 }
 
 function matchesFilters(item, filters) {
-  const text = [item.title, item.japaneseTitle, item.shortDescription, item.description, ...(item.genres || [])].join(' ').toLowerCase();
+  const genres = getGenres(item);
+  const text = [item.title, item.japaneseTitle, item.shortDescription, item.description, ...genres].join(' ').toLowerCase();
   const queryMatches = !filters.query || text.includes(filters.query.toLowerCase());
-  const yearMatches = filters.year === 'all' || String(item.releaseYear || '') === filters.year;
-  const seasonMatches = filters.season === 'all' || String(item.season || '').toLowerCase() === filters.season.toLowerCase();
+  const yearMatches = filters.year === 'all' || getReleaseYear(item) === filters.year;
+  const seasonMatches = filters.season === 'all' || getReleaseSeason(item).toLowerCase() === filters.season.toLowerCase();
   const typeMatches = filters.type === 'all' || String(item.type || '').toLowerCase() === filters.type.toLowerCase();
-  const genreMatches = filters.genre === 'all' || (item.genres || []).some(genre => String(genre).toLowerCase() === filters.genre.toLowerCase());
+  const genreMatches = filters.genre === 'all' || genres.some(genre => String(genre).toLowerCase() === filters.genre.toLowerCase());
   return queryMatches && yearMatches && seasonMatches && typeMatches && genreMatches;
 }
 
@@ -115,38 +147,70 @@ function renderVerifiedAnnouncements(entries, filters) {
 
 async function loadUpcomingDirectory(page = 1) {
   const container = document.getElementById('upcomingAnimeSections');
-  if (!container || loading) return;
-  loading = true;
+  if (!container) return;
+  const loadId = ++latestLoad;
   currentPage = page;
   const filters = getFilters();
   renderLoading(container);
 
   const [manualResult, apiResult] = await Promise.allSettled([
     loadManualUpcoming(),
-    filters.query ? searchUpcomingAnime({ page, limit: PAGE_SIZE, query: filters.query, type: filters.type === 'all' ? '' : filters.type.toLowerCase() }) : getUpcomingAnime({ page, limit: PAGE_SIZE }),
+    getUpcomingAnime({
+      page,
+      limit: PAGE_SIZE,
+      query: filters.query,
+      year: filters.year === 'all' ? '' : filters.year,
+      season: filters.season === 'all' ? '' : filters.season.toLowerCase(),
+      type: filters.type === 'all' ? '' : filters.type.toLowerCase(),
+      genre: filters.genre === 'all' ? '' : filters.genre,
+    }),
   ]);
   const manual = manualResult.status === 'fulfilled' ? manualResult.value : [];
-  renderVerifiedAnnouncements(manual, filters);
+  const manualUnavailable = !isConfigured || !db || manualResult.status === 'rejected';
+  if (manualResult.status === 'rejected') {
+    handleFirestoreError(manualResult.reason, 'list', 'upcomingAnime');
+  }
+  if (apiResult.status === 'rejected') {
+    console.warn('Could not load upcoming anime from Tenrai.', apiResult.reason);
+  }
 
   if (apiResult.status === 'fulfilled') {
     const result = apiResult.value;
-    const entries = sortUpcoming(result.items.filter(item => matchesFilters(item, filters)), filters.sort);
+    const entries = sortUpcoming(result.items, filters.sort);
+    if (loadId !== latestLoad) return;
+    renderVerifiedAnnouncements(manual, filters);
     pagination = result.pagination || {};
     if (entries.length) container.replaceChildren(...entries.map(createUpcomingAnimeCard));
-    else renderMessage(container, 'No upcoming anime on this page match your filters. Try another filter or page.');
-    setDataNote(result.stale
-      ? 'Showing recently cached Jikan results while the live source reconnects. Release dates may change.'
-      : 'Release information is supplied by Jikan. Editor-verified announcements are marked separately; “TBA” means no release date is currently available from the source.');
+    else if (result.fallbackUsed && !result.items.length) {
+      renderMessage(container, 'Tenrai currently lists no upcoming anime. Editor-managed announcements, if any, are shown above.');
+    } else {
+      renderMessage(container, 'No upcoming anime on this page match your filters. Try another filter or page.');
+    }
+    const sourceNote = result.fallbackUsed
+      ? 'Showing Tenrai anime marked as upcoming because the seasonal endpoint returned no results.'
+      : 'Release information is supplied by Tenrai. Dates are identified as exact or approximate only when Tenrai provides that precision.';
+    setDataNote([
+      result.stale ? 'Showing recently cached Tenrai results while the live source reconnects.' : sourceNote,
+      manualUnavailable ? 'Editor-managed announcements could not be loaded.' : '',
+    ].filter(Boolean).join(' '));
   } else if (manual.length) {
+    if (loadId !== latestLoad) return;
+    const entries = sortUpcoming(manual.filter(item => matchesFilters(item, filters)), filters.sort);
+    document.getElementById('verifiedUpcomingSection')?.setAttribute('hidden', '');
     pagination = { has_next_page: false };
-    renderMessage(container, 'The live upcoming-anime database is temporarily unavailable. See the verified announcements above.');
-    setDataNote('Jikan is temporarily unavailable. Editor-managed announcements remain available.');
+    if (entries.length) container.replaceChildren(...entries.map(createUpcomingAnimeCard));
+    else renderMessage(container, 'No published editor-managed announcements match your filters.');
+    setDataNote('Tenrai is temporarily unavailable. Showing published editor-managed announcements as the fallback.');
   } else {
+    if (loadId !== latestLoad) return;
     pagination = { has_next_page: false };
-    renderMessage(container, 'Upcoming anime data is temporarily unavailable. Please retry in a moment.', () => loadUpcomingDirectory(currentPage));
-    setDataNote('Jikan is unavailable and no editor-managed announcements are currently published.');
+    document.getElementById('verifiedUpcomingSection')?.setAttribute('hidden', '');
+    const sourceMessage = manualUnavailable
+      ? 'Tenrai is temporarily unavailable and editor-managed announcements could not be loaded.'
+      : 'Tenrai is temporarily unavailable, and no editor-managed upcoming anime are currently published.';
+    renderMessage(container, sourceMessage, () => loadUpcomingDirectory(currentPage));
+    setDataNote(sourceMessage);
   }
-  loading = false;
   updatePagination();
 }
 
@@ -244,7 +308,7 @@ function renderUpcomingDetail(anime) {
   heading.textContent = title;
   const status = document.createElement('p');
   status.className = 'card-meta';
-  status.textContent = anime.releaseStatus || 'Release Date TBA';
+  status.textContent = getUpcomingReleaseDescription(anime);
   info.append(status, heading);
   if (anime.japaneseTitle) {
     const japanese = document.createElement('p');
@@ -305,8 +369,25 @@ function bindControls() {
   document.getElementById('nextUpcomingBtn')?.addEventListener('click', () => loadUpcomingDirectory(currentPage + 1));
 }
 
+function populateUpcomingYears() {
+  const select = document.getElementById('upcomingYearFilter');
+  if (!select) return;
+  const currentYear = new Date().getFullYear();
+  const allYears = document.createElement('option');
+  allYears.value = 'all';
+  allYears.textContent = 'Year: All';
+  select.replaceChildren(allYears);
+  for (let year = currentYear - 1; year <= currentYear + 5; year += 1) {
+    const option = document.createElement('option');
+    option.value = String(year);
+    option.textContent = String(year);
+    select.add(option);
+  }
+}
+
 function initUpcomingPage() {
   setupMobileNav();
+  populateUpcomingYears();
   showPendingMyListActionNotice(document.getElementById('upcomingDetail'), () => window.location.reload());
   const slug = getRequestedUpcomingSlug();
   if (slug) return loadUpcomingDetail(slug, new URLSearchParams(window.location.search).get('preview') === '1');

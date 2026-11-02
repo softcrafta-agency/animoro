@@ -1,17 +1,17 @@
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
-import { getAnimeCanonicalUrl, isValidAnimeDetailSlug, normalizeAnimeSlug } from './anime-url.js';
+import { getAnimeCanonicalUrl, isValidAnimeDetailSlug } from './anime-url.js';
 import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { attachMyListToggle } from './my-list.js';
-import { getAnimeDirectory, getJikanAnimeDetails, getTopAnime } from './jikan-service.js';
+import { getAnimeDetails, getAnimeDirectory, getTopAnime } from './anime-api.js';
 
 const PAGE_SIZE = 24;
 const ARTICLE_SAMPLE_SIZE = 36;
-const JIKAN_ID_PATTERN = /^(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)--(?<id>[1-9]\d*)$/i;
+const ANIME_ID_PATTERN = /^(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)--(?<id>[1-9]\d*)$/i;
 let currentPage = 1;
 let latestPagination = {};
 let latestDirectory = null;
-let loadingDirectory = false;
+let latestDirectoryRequest = 0;
 let searchTimer = 0;
 
 function getRequestedAnimeSlug() {
@@ -82,11 +82,6 @@ function updatePagination() {
   if (status) status.textContent = latestDirectory ? `Page ${currentPage}` : '';
 }
 
-function filterByGenre(items, genre) {
-  if (!genre) return items;
-  return items.filter(item => Array.isArray(item.genres) && item.genres.some(value => value.toLowerCase() === genre.toLowerCase()));
-}
-
 async function loadManualAnime() {
   if (!isConfigured || !db) return [];
   try {
@@ -115,8 +110,8 @@ function filterManualAnime(entries, filters) {
 
 async function loadAnimeDirectory(page = 1) {
   const container = document.getElementById('animeDirectoryContainer');
-  if (!container || loadingDirectory) return;
-  loadingDirectory = true;
+  if (!container) return;
+  const requestId = ++latestDirectoryRequest;
   currentPage = page;
   const filters = getFilters();
   setLoading(container, 'Loading anime');
@@ -124,10 +119,11 @@ async function loadAnimeDirectory(page = 1) {
   try {
     const result = await getAnimeDirectory({
       page, limit: PAGE_SIZE, query: filters.query, type: filters.type, status: filters.status,
-      orderBy: filters.sort, sort: filters.sort === 'title' ? 'asc' : 'desc',
+      genre: filters.genre, orderBy: filters.sort, sort: filters.sort === 'title' ? 'asc' : 'desc',
     });
-    const entries = filterByGenre(result.items, filters.genre);
-    latestDirectory = 'jikan';
+    if (requestId !== latestDirectoryRequest) return;
+    const entries = result.items;
+    latestDirectory = 'tenrai';
     latestPagination = result.pagination;
     if (!entries.length) {
       renderMessage(container, filters.genre ? 'No anime on this page match that genre. Try another filter or page.' : 'No anime found. Try a different search or filter.');
@@ -135,23 +131,24 @@ async function loadAnimeDirectory(page = 1) {
       container.replaceChildren(...entries.map(createAnimeCard));
     }
     setDataNote(result.stale
-      ? 'Showing recently cached Jikan data while the live service reconnects.'
-      : 'Anime information is supplied by Jikan. Editor-managed entries remain available if the service is unavailable.');
+      ? 'Showing recently cached Tenrai data while the live service reconnects.'
+      : 'Anime catalogue information is supplied by Tenrai. Editor-managed entries remain available if the service is unavailable.');
   } catch (error) {
-    console.warn('Could not load the Jikan anime directory.', error);
+    if (requestId !== latestDirectoryRequest) return;
+    console.warn('Could not load the Tenrai anime directory.', error);
     const manual = filterManualAnime(await loadManualAnime(), filters);
+    if (requestId !== latestDirectoryRequest) return;
     latestDirectory = 'manual';
     latestPagination = { has_next_page: false };
     if (!manual.length) {
       renderMessage(container, 'The anime database is temporarily unavailable. Please retry in a moment.', () => loadAnimeDirectory(currentPage));
-      setDataNote('Jikan is unavailable and no cached or editor-managed results match this view.');
+      setDataNote('Tenrai is unavailable and no cached or editor-managed results match this view.');
     } else {
       container.replaceChildren(...manual.slice(0, PAGE_SIZE).map(createAnimeCard));
       setDataNote('The live anime database is temporarily unavailable. Showing editor-managed catalogue entries.');
     }
   } finally {
-    loadingDirectory = false;
-    updatePagination();
+    if (requestId === latestDirectoryRequest) updatePagination();
   }
 }
 
@@ -162,7 +159,8 @@ async function loadTopAnime() {
     const result = await getTopAnime(6);
     if (!result.items.length) throw new Error('No top anime returned.');
     container.replaceChildren(...result.items.map(createAnimeCard));
-  } catch {
+  } catch (error) {
+    console.warn('Could not load Tenrai top-rated anime.', error);
     const manual = (await loadManualAnime()).filter(item => Number.isFinite(Number(item.rating)) && Number(item.rating) > 0)
       .sort((left, right) => Number(right.rating) - Number(left.rating)).slice(0, 6);
     if (manual.length) container.replaceChildren(...manual.map(createAnimeCard));
@@ -188,10 +186,10 @@ async function loadAnimeDetails(slug) {
   document.getElementById('animePagination')?.setAttribute('hidden', '');
 
   try {
-    const match = JIKAN_ID_PATTERN.exec(slug);
+    const match = ANIME_ID_PATTERN.exec(slug);
     let anime;
     let stale = false;
-    if (match?.groups?.id) ({ anime, stale } = await getJikanAnimeDetails(match.groups.id));
+    if (match?.groups?.id) ({ anime, stale } = await getAnimeDetails(match.groups.id));
     else anime = await loadManualAnimeDetail(slug);
     if (!anime) {
       window.location.replace('/404.html');
@@ -201,10 +199,19 @@ async function loadAnimeDetails(slug) {
     await loadAnimeArticles(anime);
   } catch (error) {
     console.warn('Could not load anime detail.', error);
-    const fallback = await loadManualAnimeDetail(slug);
+    let fallback = null;
+    try {
+      fallback = await loadManualAnimeDetail(slug);
+    } catch (manualError) {
+      handleFirestoreError(manualError, 'fetch', `anime/${slug}`);
+    }
     if (fallback) {
       renderAnimeDetails(fallback, false);
       await loadAnimeArticles(fallback);
+      return;
+    }
+    if (Number(error?.status) === 404) {
+      window.location.replace('/404.html');
       return;
     }
     renderMessage(directory, 'This anime page is temporarily unavailable. Please try again later.', () => loadAnimeDetails(slug));
@@ -342,12 +349,12 @@ function renderAnimeDetails(anime, stale) {
   }
   detail.appendChild(information);
 
-  if (anime.source === 'jikan') {
+  if (anime.source === 'tenrai') {
     const attribution = document.createElement('p');
     attribution.className = 'anime-data-note';
     attribution.textContent = stale
-      ? 'Showing cached data from Jikan while its live service reconnects.'
-      : 'Data supplied by Jikan, an unofficial MyAnimeList API. Details can change as source data is updated.';
+      ? 'Showing cached data from Tenrai while the live service reconnects.'
+      : 'Data supplied by Tenrai. Details can change as source data is updated.';
     detail.appendChild(attribution);
   }
   detail.hidden = false;
@@ -398,8 +405,16 @@ function bindDirectoryControls() {
 
 async function initAnimePage() {
   setupMobileNav();
-  const slug = getRequestedAnimeSlug();
-  if (slug) return loadAnimeDetails(slug);
+  const isDetailPath = window.location.pathname.startsWith('/anime/') ||
+    window.location.pathname.startsWith('/anime.html/');
+  if (isDetailPath) {
+    const slug = getRequestedAnimeSlug();
+    if (!slug) {
+      window.location.replace('/404.html');
+      return;
+    }
+    return loadAnimeDetails(slug);
+  }
   bindDirectoryControls();
   await Promise.all([loadAnimeDirectory(1), loadTopAnime()]);
 }

@@ -8,6 +8,7 @@ const REQUEST_GAP_MS = 400;
 const REQUEST_TIMEOUT_MS = 9000;
 let requestChain = Promise.resolve();
 let lastRequestAt = 0;
+const inFlightRequests = new Map();
 
 function safeStorage() {
   try {
@@ -26,7 +27,8 @@ function getCached(path, allowStale = false) {
     const raw = safeStorage()?.getItem(cacheKey(path));
     const cached = raw ? JSON.parse(raw) : null;
     if (!cached || !cached.value || !Number.isFinite(cached.expiresAt)) return null;
-    if (!allowStale && cached.expiresAt < Date.now()) return null;
+    if (cached.expiresAt < Date.now() &&
+        (!allowStale || !Number.isFinite(cached.staleUntil) || cached.staleUntil < Date.now())) return null;
     return cached.value;
   } catch {
     return null;
@@ -35,7 +37,11 @@ function getCached(path, allowStale = false) {
 
 function setCached(path, value, ttl) {
   try {
-    safeStorage()?.setItem(cacheKey(path), JSON.stringify({ value, expiresAt: Date.now() + ttl }));
+    safeStorage()?.setItem(cacheKey(path), JSON.stringify({
+      value,
+      expiresAt: Date.now() + ttl,
+      staleUntil: Date.now() + ttl + 24 * 60 * 60 * 1000,
+    }));
   } catch {
     // Storage is only a performance enhancement; rendering still works without it.
   }
@@ -52,7 +58,19 @@ function enqueueRequest(task) {
   return run;
 }
 
-async function fetchJson(url) {
+function isValidJikanPayload(payload, resource) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || !Object.hasOwn(payload, 'data')) {
+    return false;
+  }
+  if (resource === 'detail') {
+    const id = Number(payload.data?.mal_id);
+    return Boolean(payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) &&
+      Number.isInteger(id) && id > 0);
+  }
+  return Array.isArray(payload.data);
+}
+
+async function fetchJson(url, resource) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -60,11 +78,26 @@ async function fetchJson(url) {
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
-    const body = await response.json().catch(() => ({}));
     if (!response.ok) {
+      let body = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
       const error = new Error(body?.message || body?.error || `Anime data request failed (${response.status}).`);
       error.status = response.status;
+      error.fromJikanProxy = response.headers?.get('x-jikan-proxy') === '1';
       throw error;
+    }
+    let body;
+    try {
+      body = await response.json();
+    } catch {
+      throw new Error('Anime data service returned invalid JSON.');
+    }
+    if (!isValidJikanPayload(body, resource)) {
+      throw new Error('Anime data service returned an invalid response.');
     }
     return body;
   } finally {
@@ -105,21 +138,29 @@ async function requestJikan(path, ttl = LIST_CACHE_MS) {
   const cached = getCached(path);
   if (cached) return { ...cached, cached: true, stale: false };
 
+  const pendingRequest = inFlightRequests.get(path);
+  if (pendingRequest) return pendingRequest;
+
+  const resource = new URLSearchParams(path).get('resource');
   try {
-    const payload = await enqueueRequest(async () => {
+    const request = enqueueRequest(async () => {
       try {
-        return await fetchJson(`/api/jikan?${path}`);
+        return await fetchJson(`/api/jikan?${path}`, resource);
       } catch (error) {
-        if (![404, 405].includes(Number(error?.status))) throw error;
-        return fetchJson(getDirectJikanUrl(path));
+        if (![404, 405].includes(Number(error?.status)) || error.fromJikanProxy) throw error;
+        return fetchJson(getDirectJikanUrl(path), resource);
       }
     });
+    inFlightRequests.set(path, request);
+    const payload = await request;
     setCached(path, payload, ttl);
     return { ...payload, cached: false, stale: false };
   } catch (error) {
     const stale = getCached(path, true);
     if (stale) return { ...stale, cached: true, stale: true };
     throw error;
+  } finally {
+    inFlightRequests.delete(path);
   }
 }
 
@@ -139,9 +180,40 @@ function firstImage(images) {
 }
 
 function releaseYear(item) {
-  const date = item?.aired?.from || item?.broadcast?.day;
-  const year = Number(item?.year || item?.aired?.prop?.from?.year || String(date || '').slice(0, 4));
+  const year = Number(item?.aired?.prop?.from?.year || item?.year || String(item?.aired?.from || '').slice(0, 4));
   return Number.isInteger(year) && year > 1900 && year < 2200 ? String(year) : '';
+}
+
+function getJikanReleaseDate(item) {
+  const from = item?.aired?.prop?.from || {};
+  const year = Number(from.year || item?.year || String(item?.aired?.from || '').slice(0, 4));
+  const month = Number(from.month || '');
+  const day = Number(from.day || '');
+  const hasPrecisionMetadata = ['day', 'month', 'year'].some(field => Object.hasOwn(from, field));
+  const rawDate = typeof item?.aired?.from === 'string'
+    ? item.aired.from.match(/^(\d{4}-\d{2}-\d{2})/)
+    : null;
+  if (!hasPrecisionMetadata && rawDate && year > 1900 && year < 2200) {
+    return { date: rawDate[1], precision: 'exact', status: 'Exact date listed by Jikan' };
+  }
+  if (year > 1900 && year < 2200 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+    return {
+      date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      precision: 'exact',
+      status: 'Exact date listed by Jikan',
+    };
+  }
+  if (year > 1900 && year < 2200 && month >= 1 && month <= 12) {
+    return {
+      date: new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1))) + ` ${year}`,
+      precision: 'month',
+      status: 'Approximate month listed by Jikan',
+    };
+  }
+  if (year > 1900 && year < 2200) {
+    return { date: String(year), precision: 'year', status: 'Approximate year listed by Jikan' };
+  }
+  return { date: '', precision: 'unknown', status: 'Release Date TBA' };
 }
 
 function statusFromJikan(status) {
@@ -152,16 +224,12 @@ function statusFromJikan(status) {
   return status || '';
 }
 
-function releaseStatusFromJikan(item) {
-  if (item?.aired?.from) return 'Release date listed by Jikan';
-  return 'Release Date TBA';
-}
-
 export function normalizeJikanAnime(item, kind = 'anime') {
   const malId = Number(item?.mal_id);
   const title = String(item?.title || item?.title_english || item?.title_japanese || 'Untitled anime').trim();
   const baseSlug = normalizeAnimeSlug(item?.title_english || item?.title || title) || 'anime';
   const year = releaseYear(item);
+  const release = getJikanReleaseDate(item);
   const season = typeof item?.season === 'string'
     ? `${item.season.charAt(0).toUpperCase()}${item.season.slice(1)}`
     : '';
@@ -191,8 +259,9 @@ export function normalizeJikanAnime(item, kind = 'anime') {
     themes: [...new Set(arrayOfNames(item?.themes))],
     type: item?.type || '',
     status: statusFromJikan(item?.status),
-    releaseStatus: kind === 'upcoming' ? releaseStatusFromJikan(item) : '',
-    releaseDate: item?.aired?.from || '',
+    releaseStatus: kind === 'upcoming' ? release.status : '',
+    releaseDate: kind === 'upcoming' ? release.date : item?.aired?.from || '',
+    releaseDatePrecision: kind === 'upcoming' ? release.precision : '',
     releaseYear: year,
     season,
     rating: Number.isFinite(Number(item?.score)) && Number(item.score) > 0 ? Number(item.score) : '',
@@ -233,13 +302,53 @@ export async function getTopAnime(limit = 6) {
 }
 
 export async function getUpcomingAnime(options = {}) {
-  const path = toSearchParams({ resource: 'upcoming', page: options.page || 1, limit: options.limit || 24 });
-  const payload = await requestJikan(path);
-  return {
-    items: (payload.data || []).map(item => normalizeJikanAnime(item, 'upcoming')),
-    pagination: payload.pagination || {},
-    stale: Boolean(payload.stale),
-  };
+  const page = options.page || 1;
+  const limit = options.limit || 24;
+  const path = toSearchParams({ resource: 'upcoming', page, limit });
+  let primaryError;
+  let primary;
+  try {
+    primary = await requestJikan(path);
+  } catch (error) {
+    primaryError = error;
+  }
+  const primaryItems = (primary?.data || []).map(item => normalizeJikanAnime(item, 'upcoming'));
+  if (primaryItems.length) {
+    return {
+      items: primaryItems,
+      pagination: primary.pagination || {},
+      stale: Boolean(primary.stale),
+      source: 'season',
+    };
+  }
+
+  try {
+    const fallback = await searchUpcomingAnime({ page, limit });
+    if (fallback.items.length || !primary) {
+      return { ...fallback, source: 'upcoming-status', fallbackUsed: true };
+    }
+    return {
+      items: [],
+      pagination: primary.pagination || {},
+      stale: Boolean(primary.stale),
+      source: 'season',
+      fallbackUnavailable: true,
+    };
+  } catch (fallbackError) {
+    if (primary) {
+      return {
+        items: [],
+        pagination: primary.pagination || {},
+        stale: Boolean(primary.stale),
+        source: 'season',
+        fallbackUnavailable: true,
+      };
+    }
+    const error = new Error('Jikan upcoming anime endpoints are temporarily unavailable.');
+    error.cause = fallbackError || primaryError;
+    error.primaryCause = primaryError;
+    throw error;
+  }
 }
 
 export async function searchUpcomingAnime(options = {}) {

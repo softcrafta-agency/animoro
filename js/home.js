@@ -9,7 +9,7 @@ import { getArticlePath } from './article-url.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { selectPopularAnime } from './anime-popular.js';
 import { getUpcomingReleaseTimestamp } from './upcoming-date.js';
-import { getTopAnime, getUpcomingAnime } from './jikan-service.js';
+import { getTopAnime, getUpcomingAnime } from './anime-api.js';
 
 export { createArticleCard, formatDate, formatViews, setupMobileNav } from './ui.js';
 
@@ -671,7 +671,7 @@ async function initPopularAnime() {
 
   try {
     const result = await getTopAnime(6);
-    if (!result.items.length) throw new Error('No anime returned by Jikan.');
+    if (!result.items.length) throw new Error('No anime returned by Tenrai.');
     container.replaceChildren(...result.items.map(item => createAnimeCard({ ...item, featured: true })));
     return;
   } catch (error) {
@@ -713,7 +713,7 @@ async function initUpcomingAnime() {
 
   try {
     const result = await getUpcomingAnime({ limit: 6 });
-    if (!result.items.length) throw new Error('No upcoming anime returned by Jikan.');
+    if (!result.items.length) throw new Error('No upcoming anime returned by Tenrai.');
     container.replaceChildren(...result.items.slice(0, 6).map(item => createUpcomingAnimeCard({ ...item, featured: true })));
     return;
   } catch (error) {

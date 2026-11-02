@@ -194,9 +194,10 @@ export function getCalendarWindow(now, timeZone, period) {
 
 export function getReleaseInstant(schedule) {
   if (!isValidReleaseSchedule(schedule)) return null;
+  if (!schedule.episodeReleaseTime) return null;
   return getZonedDateTimeInstant(
     schedule.episodeReleaseDate,
-    schedule.episodeReleaseTime || '12:00',
+    schedule.episodeReleaseTime,
     schedule.episodeTimezone
   );
 }
@@ -211,15 +212,134 @@ export function getCalendarDateKey(date, timeZone) {
 
 export function getSchedulesForPeriod(schedules, now, timeZone, period) {
   const window = getCalendarWindow(now, timeZone, period);
+  const { startDate, endDate } = getCalendarDateRange(now, timeZone, period);
   return schedules
-    .map(schedule => ({ ...schedule, releaseInstant: getReleaseInstant(schedule) }))
-    .filter(schedule =>
-      schedule.releaseInstant !== null &&
-      schedule.releaseInstant >= window.start &&
-      schedule.releaseInstant < window.end
-    )
+    .map(schedule => {
+      if (!isValidReleaseSchedule(schedule)) return null;
+      const releaseInstant = getReleaseInstant(schedule);
+      if (releaseInstant !== null) {
+        if (releaseInstant < window.start || releaseInstant >= window.end) return null;
+        return {
+          ...schedule,
+          releaseInstant,
+          calendarDate: getCalendarDateKey(new Date(releaseInstant), timeZone),
+          calendarDateIsInstant: true,
+          calendarSource: 'Animoro episode schedule',
+        };
+      }
+
+      const release = getUpcomingReleaseDate(schedule.episodeReleaseDate, timeZone);
+      if (!release || release.dateKey < startDate || release.dateKey >= endDate) return null;
+      return {
+        ...schedule,
+        releaseInstant: null,
+        calendarDate: release.dateKey,
+        calendarDateIsInstant: false,
+        calendarSource: 'Animoro episode schedule',
+      };
+    })
+    .filter(Boolean)
     .sort((left, right) =>
-      left.releaseInstant - right.releaseInstant ||
+      (left.releaseInstant ?? Number.MAX_SAFE_INTEGER) - (right.releaseInstant ?? Number.MAX_SAFE_INTEGER) ||
+      left.calendarDate.localeCompare(right.calendarDate) ||
       String(left.title || '').localeCompare(String(right.title || ''))
     );
+}
+
+const WEEKDAY_NUMBERS = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
+function normalizeBroadcastDay(value) {
+  const day = String(value || '').trim().toLowerCase().replace(/s$/, '');
+  return Object.hasOwn(WEEKDAY_NUMBERS, day) ? day : '';
+}
+
+function isValidBroadcastTime(value) {
+  return typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function getBroadcastTimezone(schedule, fallbackTimezone) {
+  const timezone = String(schedule?.broadcast?.timezone || '').trim();
+  if (!timezone) return fallbackTimezone;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: timezone }).format();
+    return timezone;
+  } catch {
+    return '';
+  }
+}
+
+export function getBroadcastSchedulesForPeriod(schedules, now, timeZone, period) {
+  const { start, end, startDate, endDate } = getCalendarWindow(now, timeZone, period);
+  const viewerRange = getCalendarDateRange(now, timeZone, period);
+  const occurrences = [];
+
+  for (const schedule of schedules) {
+    const broadcast = schedule?.broadcast;
+    const day = normalizeBroadcastDay(broadcast?.day);
+    const scheduleTimezone = getBroadcastTimezone(schedule, '');
+    if (!day || !scheduleTimezone || !schedule?.malId) continue;
+
+    const localDate = dateStringFromParts(getDateParts(now, scheduleTimezone));
+    const [year, month, dayOfMonth] = localDate.split('-').map(Number);
+    const weekday = new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay();
+    let daysAhead = (WEEKDAY_NUMBERS[day] - weekday + 7) % 7;
+    const hasTime = isValidBroadcastTime(broadcast.time);
+    let occurrenceDate = addCalendarDays(localDate, daysAhead);
+    let releaseInstant = hasTime
+      ? getZonedDateTimeInstant(occurrenceDate, broadcast.time, scheduleTimezone)
+      : null;
+
+    if (hasTime && (releaseInstant === null || releaseInstant < now.getTime())) {
+      daysAhead += 7;
+      occurrenceDate = addCalendarDays(localDate, daysAhead);
+      releaseInstant = getZonedDateTimeInstant(occurrenceDate, broadcast.time, scheduleTimezone);
+    }
+
+    if (hasTime) {
+      while (releaseInstant !== null && releaseInstant < end) {
+        if (releaseInstant >= start) {
+          occurrences.push({
+            ...schedule,
+            calendarDate: getCalendarDateKey(new Date(releaseInstant), timeZone),
+            calendarDateIsInstant: true,
+            releaseInstant,
+            releaseTime: broadcast.time,
+            releaseTimezone: scheduleTimezone,
+            calendarSource: 'Tenrai weekly broadcast schedule',
+            scheduleConfidence: 'weekly',
+          });
+        }
+        occurrenceDate = addCalendarDays(occurrenceDate, 7);
+        releaseInstant = getZonedDateTimeInstant(occurrenceDate, broadcast.time, scheduleTimezone);
+      }
+    } else {
+      const dateKey = occurrenceDate;
+      if (dateKey >= viewerRange.startDate && dateKey < viewerRange.endDate) {
+        occurrences.push({
+          ...schedule,
+          calendarDate: dateKey,
+          calendarDateIsInstant: false,
+          releaseInstant: null,
+          releaseTime: '',
+          releaseTimezone: scheduleTimezone,
+          calendarSource: 'Tenrai weekly broadcast day (time unavailable)',
+          scheduleConfidence: 'weekly',
+        });
+      }
+    }
+  }
+
+  return occurrences.sort((left, right) =>
+    (left.releaseInstant ?? Number.MAX_SAFE_INTEGER) - (right.releaseInstant ?? Number.MAX_SAFE_INTEGER) ||
+    left.calendarDate.localeCompare(right.calendarDate) ||
+    String(left.title || '').localeCompare(String(right.title || ''))
+  );
 }
