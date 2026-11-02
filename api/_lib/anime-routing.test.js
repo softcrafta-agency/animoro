@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { getAnimePath, isValidAnimeDetailSlug } from '../../js/anime-url.js';
 
 const root = new URL('../../', import.meta.url);
@@ -88,6 +88,21 @@ test('Vercel API route source files and browser endpoint paths agree', async () 
   assert.match(apiJikan, /getJikanRequestUrl/);
   assert.match(adminClient, /\/api\/analytics\?/);
   assert.match(publicClient, /\/api\/analytics-event/);
+});
+
+test('Vercel excludes underscore-prefixed root API tests and stays within the Hobby function limit', async () => {
+  const entries = await readdir(new URL('api/', root), { withFileTypes: true });
+  const sourceFiles = entries.filter(entry =>
+    entry.isFile() &&
+    /\.(?:js|mjs|ts)$/.test(entry.name)
+  );
+  const testFiles = sourceFiles.filter(entry => entry.name.endsWith('.test.js'));
+  const functionFiles = sourceFiles.filter(entry => !entry.name.startsWith('_'));
+
+  assert.equal(testFiles.length, 6);
+  assert.ok(testFiles.every(entry => entry.name.startsWith('_')));
+  assert.equal(functionFiles.length, 10);
+  assert.ok(functionFiles.length <= 12);
 });
 
 test('mobile menu controls declare their drawer state and are non-submit buttons', async () => {
