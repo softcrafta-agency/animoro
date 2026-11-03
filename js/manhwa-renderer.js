@@ -1,8 +1,10 @@
 import {
   FEATURED_MANHWA_ID,
+  getManhwaSlug,
   getManhwaPath,
   OFFICIAL_FEATURED_URL,
 } from './manhwa-service.js';
+import { attachMyListToggle } from './my-list.js';
 
 function element(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -22,7 +24,10 @@ function safeImageUrl(value) {
 
 function addCover(parent, manhwa, className, loading = 'lazy') {
   const imageUrl = safeImageUrl(manhwa.coverImage);
-  if (!imageUrl) return null;
+  if (!imageUrl) {
+    parent.appendChild(element('div', 'manhwa-cover-placeholder', 'Cover image unavailable'));
+    return null;
+  }
   const image = element('img', className);
   image.src = imageUrl;
   image.alt = `Cover art for ${manhwa.title}`;
@@ -30,7 +35,9 @@ function addCover(parent, manhwa, className, loading = 'lazy') {
   image.height = 900;
   image.loading = loading;
   image.decoding = 'async';
-  image.addEventListener('error', () => image.remove(), { once: true });
+  image.addEventListener('error', () => {
+    image.replaceWith(element('div', 'manhwa-cover-placeholder', 'Cover image unavailable'));
+  }, { once: true });
   parent.appendChild(image);
   return image;
 }
@@ -153,6 +160,11 @@ export function renderManhwaDetails(container, manhwa) {
   const title = element('h1', 'manhwa-detail-title', manhwa.title);
   title.id = 'manhwaDetailTitle';
   content.appendChild(title);
+  if (!manhwa.synopsis) {
+    const synopsis = element('section', 'manhwa-detail-copy');
+    synopsis.append(element('h2', '', 'Synopsis'), element('p', '', 'Synopsis is not available from the metadata provider.'));
+    content.appendChild(synopsis);
+  }
   if (manhwa.synopsis) {
     const synopsis = element('section', 'manhwa-detail-copy');
     synopsis.append(element('h2', '', 'Synopsis'), element('p', '', manhwa.synopsis));
@@ -163,25 +175,51 @@ export function renderManhwaDetails(container, manhwa) {
     genres.appendChild(element('h2', '', 'Genres'));
     genres.appendChild(createTagList(manhwa.genres));
     content.appendChild(genres);
+  } else {
+    const genres = element('section', 'manhwa-detail-copy');
+    genres.append(element('h2', '', 'Genres'), element('p', '', 'Genre information is not available.'));
+    content.appendChild(genres);
   }
 
   const credits = element('dl', 'manhwa-detail-facts');
   const facts = [
+    ['English title', manhwa.title],
+    ['Original title', manhwa.originalTitle || 'Not available'],
     ['Content type', manhwa.contentType],
-    ['Country of origin', manhwa.countryName],
+    ['Country of origin', manhwa.countryName || 'Unknown'],
     ['Original language', manhwa.originalLanguageName],
-    ['Author', manhwa.authors.join(', ')],
-    ['Artist', manhwa.artists.join(', ')],
-    ['Publication status', manhwa.status],
+    ['Author', manhwa.authors.join(', ') || 'Not available'],
+    ['Artist', manhwa.artists.join(', ') || 'Not available'],
+    ['Release year', manhwa.releaseYear || 'Not available'],
+    ['Publication status', manhwa.status || 'Not available'],
+    ['AniList rating', manhwa.rating ? `${(manhwa.rating / 10).toFixed(1)} / 10` : ''],
   ].filter(([, value]) => value);
   facts.forEach(([label, value]) => {
     credits.append(element('dt', '', label), element('dd', '', value));
   });
   if (facts.length) content.appendChild(credits);
 
+  const tags = element('section', 'manhwa-detail-copy');
+  if (manhwa.tags.length) {
+    tags.appendChild(element('h2', '', 'Tags'));
+    tags.appendChild(createTagList(manhwa.tags));
+  } else {
+    tags.append(element('h2', '', 'Tags'), element('p', '', 'Tag information is not available.'));
+  }
+  content.appendChild(tags);
+
   const actions = element('div', 'manhwa-actions');
+  const save = element('button', 'btn-outline', 'Add to My List');
+  save.setAttribute('aria-label', `Add ${manhwa.title} to My List`);
+  attachMyListToggle(save, {
+    ...manhwa,
+    slug: getManhwaSlug(manhwa),
+    kind: 'comic',
+    releaseYear: manhwa.releaseYear,
+  });
+  actions.appendChild(save);
   if (Number(manhwa.id) === FEATURED_MANHWA_ID) addExternalPlatformButton(actions);
-  const back = element('a', 'btn-outline', 'Browse Comics');
+  const back = element('a', 'btn-outline', 'Back to Comics & Webcomics');
   back.href = '/manhwa';
   actions.appendChild(back);
   content.appendChild(actions);

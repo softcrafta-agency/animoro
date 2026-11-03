@@ -17,6 +17,7 @@ const {
   getManhwaDetailsBySlug,
   filterManhwaByGenre,
   getCountryName,
+  getManhwaPath,
   getManhwaSlug,
   isConfirmedManhwa,
   normalizeManhwa,
@@ -38,6 +39,8 @@ function manhwaRecord(overrides = {}) {
     source: 'OTHER',
     status: 'FINISHED',
     description: 'A civil engineering student wakes up inside a fantasy novel.',
+    startDate: { year: 2020, month: 1, day: 1 },
+    meanScore: 84,
     genres: ['Comedy', 'Fantasy'],
     tags: [{ name: 'Long Strip' }, { name: 'Isekai' }],
     coverImage: { extraLarge: 'https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx140407-1.jpg' },
@@ -148,6 +151,9 @@ test('normalizes alternative titles, contributors, status, and slug', () => {
   assert.deepEqual(normalized.authors, ['Hyeon-Min Lee', 'Baek-Gyeong Mun']);
   assert.deepEqual(normalized.artists, ['Hyeon-Su Kim']);
   assert.equal(normalized.status, 'Completed');
+  assert.equal(normalized.originalTitle, '역대급 영지 설계사');
+  assert.equal(normalized.releaseYear, 2020);
+  assert.equal(normalized.rating, 84);
   assert.equal(getManhwaSlug(normalized), 'the-greatest-estate-developer');
 });
 
@@ -164,6 +170,84 @@ test('preserves the featured title details route and official WEBTOON destinatio
   assert.equal(result.item.contentType, 'Manhwa');
   assert.equal(result.item.countryName, 'South Korea');
   assert.equal(OFFICIAL_FEATURED_URL, 'https://www.webtoons.com/en/fantasy/the-greatest-estate-developer/list?title_no=3596');
+});
+
+test('creates unique detail URLs and loads five AniList comics directly by ID', async () => {
+  storage.clear();
+  const originalSetTimeout = globalThis.setTimeout;
+  const ids = [140408, 140409, 140410, 140411, 140412];
+  const countries = ['KR', 'JP', 'CN', 'US', 'FR'];
+  const requestedIds = [];
+  globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 0, ...args);
+  globalThis.fetch = async (_url, options) => {
+    const id = JSON.parse(options.body).variables.id;
+    requestedIds.push(id);
+    return response({
+      data: {
+        Media: manhwaRecord({
+          id,
+          title: { english: `Comic ${id}`, native: `Original ${id}` },
+          countryOfOrigin: countries[ids.indexOf(id)],
+          tags: [{ name: 'Long Strip' }],
+          recommendations: {
+            nodes: [{
+              mediaRecommendation: manhwaRecord({
+                id: id + 1000,
+                title: { english: `Related Comic ${id}` },
+              }),
+            }],
+          },
+        }),
+      },
+    });
+  };
+
+  try {
+    const slugs = ids.map((id, index) => getManhwaSlug(normalizeManhwa(manhwaRecord({
+      id,
+      title: { english: `Comic ${id}` },
+      countryOfOrigin: countries[index],
+      tags: [{ name: 'Long Strip' }],
+    }))));
+    assert.equal(new Set(slugs).size, ids.length);
+    assert.deepEqual(slugs.map(slug => getManhwaPath({ slug })), ids.map((id, index) =>
+      `/manhwa/comic-${id}--${id}`
+    ));
+
+    for (let index = 0; index < slugs.length; index += 1) {
+      const result = await getManhwaDetailsBySlug(slugs[index]);
+      assert.equal(result.item.id, ids[index]);
+      assert.equal(result.item.countryOfOrigin, countries[index]);
+      assert.equal(result.recommendations[0].title, `Related Comic ${ids[index]}`);
+    }
+    assert.deepEqual(requestedIds, ids);
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+test('returns a 404 only for a confirmed missing comic and keeps API failures retryable', async () => {
+  storage.clear();
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 0, ...args);
+  try {
+    globalThis.fetch = async () => response({ data: { Media: null } });
+    await assert.rejects(
+      getManhwaDetailsBySlug('missing-comic--140499'),
+      error => error.status === 404
+    );
+
+    storage.clear();
+    globalThis.fetch = async () => {
+      throw new Error('Network unavailable');
+    };
+    await assert.rejects(
+      getManhwaDetailsBySlug('temporarily-unavailable--140500'),
+      error => error.status !== 404
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
 });
 
 test('filters by genres, countries, content types, and unknown origin', () => {

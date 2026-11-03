@@ -7,6 +7,9 @@ const featured = {
   title: 'The Greatest Estate Developer',
   contentType: 'Manhwa',
   countryName: 'South Korea',
+  originalTitle: '역대급 영지 설계사',
+  releaseYear: 2020,
+  rating: 84,
   slug: 'the-greatest-estate-developer',
   isConfirmedManhwa: true,
   synopsis: 'A civil engineering student wakes up inside a fantasy novel.',
@@ -34,5 +37,7 @@ test('creates title-specific structured data and canonical breadcrumb', () => {
   assert.equal(series.url, 'https://www.animoro.in/manhwa/the-greatest-estate-developer');
   assert.equal(series.additionalProperty.value, 'Manhwa');
   assert.equal(series.countryOfOrigin.name, 'South Korea');
+  assert.equal(series.alternateName, '역대급 영지 설계사');
+  assert.equal(series.datePublished, '2020');
   assert.equal(breadcrumb.itemListElement.at(-1).name, featured.title);
 });

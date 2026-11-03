@@ -61,6 +61,23 @@
   background: var(--bg-elevated);
 }
 
+.manhwa-cover-placeholder {
+  display: grid;
+  width: 100%;
+  min-height: 120px;
+  aspect-ratio: 2 / 3;
+  place-items: center;
+  padding: 18px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.manhwa-featured-cover .manhwa-cover-placeholder {
+  max-width: 360px;
+}
+
 .manhwa-card-cover {
   width: 100%;
   height: 100%;
@@ -303,6 +320,10 @@
   height: auto;
   aspect-ratio: 2 / 3;
   object-fit: cover;
+}
+
+.manhwa-detail-cover-wrap .manhwa-cover-placeholder {
+  min-height: 300px;
 }
 
 .manhwa-detail-title {

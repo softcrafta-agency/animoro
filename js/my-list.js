@@ -132,7 +132,9 @@ export function getListKey(item) {
 export function buildListRecord(item) {
   const kind = item?.kind || 'anime';
   const slug = item?.slug || item?.id || item?.title || 'item';
-  const malId = Number(item?.malId || String(slug).match(/--([1-9]\d*)$/)?.[1]);
+  const malId = ['anime', 'upcoming'].includes(kind)
+    ? Number(item?.malId || String(slug).match(/--([1-9]\d*)$/)?.[1])
+    : Number(item?.malId);
   const broadcast = item?.broadcast && typeof item.broadcast === 'object'
     ? {
       day: typeof item.broadcast.day === 'string' ? item.broadcast.day : '',
@@ -147,7 +149,7 @@ export function buildListRecord(item) {
     title: item?.title || 'Untitled',
     coverImage: item?.coverImage || item?.poster || '',
     genres: Array.isArray(item?.genres) ? item.genres : [],
-    releaseYear: item?.releaseYear || item?.year || '',
+    releaseYear: item?.releaseYear || item?.startDate?.year || item?.year || '',
     rating: item?.rating ?? '',
     type: item?.type || item?.releaseType || '',
     season: item?.season || '',
@@ -159,6 +161,12 @@ export function buildListRecord(item) {
     featured: Boolean(item?.featured),
     shortDescription: item?.shortDescription || item?.synopsis || '',
     japaneseTitle: item?.japaneseTitle || '',
+    originalTitle: item?.originalTitle || '',
+    contentType: item?.contentType || '',
+    countryName: item?.countryName || '',
+    originalLanguageName: item?.originalLanguageName || '',
+    tags: Array.isArray(item?.tags) ? item.tags : [],
+    synopsis: item?.synopsis || item?.shortDescription || '',
   };
 }
 
@@ -183,6 +191,12 @@ function buildListDocumentPayload(item) {
     broadcast: item.broadcast || null,
     shortDescription: item.shortDescription || '',
     japaneseTitle: item.japaneseTitle || '',
+    originalTitle: item.originalTitle || '',
+    contentType: item.contentType || '',
+    countryName: item.countryName || '',
+    originalLanguageName: item.originalLanguageName || '',
+    tags: item.tags || [],
+    synopsis: item.synopsis || '',
   };
 }
 
@@ -274,7 +288,7 @@ export async function writeUserList(user, items) {
 export async function toggleMyList(item) {
   const user = await resolveAuthenticatedUser();
   if (!user) {
-    const error = new Error('Sign in before saving anime to your list.');
+    const error = new Error('Sign in before saving this title to your list.');
     error.code = 'auth/no-current-user';
     throw error;
   }
@@ -309,7 +323,7 @@ export async function toggleMyList(item) {
 export function getMyListActionErrorMessage(error) {
   const code = typeof error === 'string' ? error : error?.code;
   if (code === 'auth/no-current-user') {
-    return 'Please sign in to save anime to your list.';
+    return 'Please sign in to save this title to your list.';
   }
   if (code === 'permission-denied' || code === 'firestore/permission-denied') {
     return 'You do not have permission to modify this list.';
@@ -347,7 +361,7 @@ export function showPendingMyListActionNotice(target, onSuccess = () => {}) {
     retryButton.textContent = 'Saving…';
     try {
       const list = await applyPendingMyListAction();
-      message.textContent = 'Anime saved to your list.';
+      message.textContent = 'Title saved to your list.';
       notice.setAttribute('role', 'status');
       retryButton.remove();
       await onSuccess(list);

@@ -35,6 +35,7 @@ const CARD_FIELDS = `
     description(asHtml: false)
     genres
     tags { name }
+    meanScore
     coverImage { extraLarge large }
     siteUrl
     trending
@@ -282,6 +283,7 @@ export function normalizeManhwa(media) {
     provider: media.provider || 'anilist',
     providerId: typeof media.providerId === 'string' ? media.providerId : '',
     title: String(title.english || title.userPreferred || title.romaji || title.native || 'Untitled comic').trim(),
+    originalTitle: String(media.originalTitle || title.native || '').trim(),
     alternativeTitles: alternatives,
     countryOfOrigin: typeof media.countryOfOrigin === 'string' ? media.countryOfOrigin.trim().toUpperCase() : '',
     countryName: getCountryName(media.countryOfOrigin),
@@ -297,6 +299,8 @@ export function normalizeManhwa(media) {
     authors: contributors.authors,
     artists: contributors.artists,
     status: getStatus(media.status),
+    releaseYear: numericValue(media.startDate?.year),
+    rating: numericValue(media.meanScore ?? media.rating),
     coverImage: typeof image === 'string' ? image : '',
     siteUrl: typeof media.siteUrl === 'string' ? media.siteUrl : '',
     trending: numericValue(media.trending),
@@ -310,16 +314,27 @@ export function normalizeManhwa(media) {
 
 export function getManhwaSlug(media) {
   if (Number(media?.id) === FEATURED_MANHWA_ID) return FEATURED_MANHWA_SLUG;
+  const savedSlug = typeof media?.slug === 'string' ? media.slug.trim().toLowerCase() : '';
+  if (/^[a-z0-9]+(?:-[a-z0-9]+)*(?:--[1-9]\d*|-md-[0-9a-f-]{36})$/i.test(savedSlug)) {
+    return savedSlug;
+  }
   const title = String(media?.title || '').normalize('NFKD').toLowerCase();
-  const slug = title.replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = title.replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 120).replace(/-+$/g, '');
   if (media?.provider === 'mangadex' && /^[0-9a-f-]{36}$/i.test(media.providerId || '')) {
     return `${slug || 'comic'}-md-${media.providerId.toLowerCase()}`;
   }
-  return slug || `manhwa-${Number(media?.id) || 'title'}`;
+  const id = Number(media?.id);
+  if (Number.isSafeInteger(id) && id > 0) return `${slug || 'comic'}--${id}`;
+  return slug || 'comic';
 }
 
 export function getManhwaPath(media) {
   return `/manhwa/${encodeURIComponent(getManhwaSlug(media))}`;
+}
+
+function getLegacyManhwaSlug(media) {
+  const title = String(media?.title || '').normalize('NFKD').toLowerCase();
+  return title.replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function normalizeResults(values) {
@@ -368,6 +383,9 @@ function normalizeMangaDexRecord(record) {
   };
   const title = localized(attributes.title);
   if (!title) return null;
+  const originalTitle = typeof attributes.title?.[attributes.originalLanguage] === 'string'
+    ? attributes.title[attributes.originalLanguage]
+    : '';
   const tags = Array.isArray(attributes.tags) ? attributes.tags : [];
   const tagValues = tags.map(tag => ({
     name: localized(tag?.attributes?.name),
@@ -399,6 +417,7 @@ function normalizeMangaDexRecord(record) {
     providerId: record.id,
     type: 'MANGA',
     title: { english: title },
+    originalTitle,
     synonyms: names,
     countryOfOrigin: '',
     originalLanguage: attributes.originalLanguage,
@@ -661,7 +680,7 @@ export async function searchManhwa({
 
 export async function getManhwaDetailsBySlug(slug) {
   const safeSlug = String(slug || '');
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(safeSlug)) {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*(?:--[1-9]\d*|-md-[0-9a-f-]{36})?$/i.test(safeSlug)) {
     throw new TypeError('A valid manhwa title slug is required.');
   }
   const mangaDexMatch = safeSlug.match(/-md-([0-9a-f-]{36})$/i);
@@ -677,6 +696,9 @@ export async function getManhwaDetailsBySlug(slug) {
     }
     return { item, recommendations: [], stale: result.stale, cached: result.cached };
   }
+
+  const aniListIdMatch = safeSlug.match(/--([1-9]\d*)$/i);
+  let aniListId = aniListIdMatch ? Number(aniListIdMatch[1]) : null;
   if (safeSlug.toLowerCase() === FEATURED_MANHWA_SLUG) {
     const discoveryCache = readCache('discovery', true);
     if (Number(discoveryCache?.value?.featured?.id) === FEATURED_MANHWA_ID) {
@@ -692,26 +714,50 @@ export async function getManhwaDetailsBySlug(slug) {
         };
       }
     }
-
-    const result = await cachedQuery('featured-details', DETAIL_QUERY, { id: FEATURED_MANHWA_ID });
-    const item = normalizeManhwa(result.data?.Media);
-    if (item?.contentType !== 'Manhwa' || item.id !== FEATURED_MANHWA_ID) throw new Error('AniList did not return verified manhwa metadata for this title.');
-    return {
-      item,
-      recommendations: item.recommendations.filter(candidate =>
-        candidate.type === 'MANGA' && !['NOVEL', 'LIGHT_NOVEL'].includes(candidate.format) && candidate.id !== item.id
-      ),
-      stale: result.stale,
-      cached: result.cached,
-    };
+    aniListId = FEATURED_MANHWA_ID;
   }
 
-  const result = await searchManhwa({ query: safeSlug.replace(/-/g, ' '), perPage: 50 });
-  const item = result.items.find(candidate => getManhwaSlug(candidate) === safeSlug.toLowerCase());
-  if (!item) {
+  if (!aniListId) {
+    const result = await searchManhwa({ query: safeSlug.replace(/-/g, ' '), perPage: 50 });
+    const match = result.items.find(candidate =>
+      getLegacyManhwaSlug(candidate) === safeSlug.toLowerCase()
+    );
+    if (!match) {
+      const error = new Error('No comic title matched this URL.');
+      error.status = 404;
+      throw error;
+    }
+    if (match.provider === 'mangadex') {
+      const detail = await cachedValue(`mangadex:detail:${match.providerId}`, async () =>
+        selectMangaDexResponse(await fetchMangaDexDetails(match.providerId))
+      );
+      const item = normalizeMangaDexRecord(detail.data?.data);
+      if (!item) {
+        const error = new Error('No MangaDex metadata matched this comic URL.');
+        error.status = 404;
+        throw error;
+      }
+      return { item, recommendations: [], stale: detail.stale, cached: detail.cached };
+    }
+    aniListId = match.id;
+  }
+
+  const result = await cachedQuery(`comic:detail:anilist:${aniListId}`, DETAIL_QUERY, { id: aniListId });
+  const item = normalizeManhwa(result.data?.Media);
+  if (!item || item.id !== aniListId) {
     const error = new Error('No comic title matched this URL.');
     error.status = 404;
     throw error;
   }
-  return { item, recommendations: [], stale: result.stale, cached: result.cached };
+  if (aniListId === FEATURED_MANHWA_ID && item.contentType !== 'Manhwa') {
+    throw new Error('AniList did not return verified manhwa metadata for the featured title.');
+  }
+  return {
+    item,
+    recommendations: item.recommendations.filter(candidate =>
+      candidate.type === 'MANGA' && !['NOVEL', 'LIGHT_NOVEL'].includes(candidate.format) && candidate.id !== item.id
+    ),
+    stale: result.stale,
+    cached: result.cached,
+  };
 }

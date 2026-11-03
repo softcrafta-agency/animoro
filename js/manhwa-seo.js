@@ -81,11 +81,23 @@ export function createManhwaDetailStructuredData(manhwa) {
           ? { '@type': 'Country', name: manhwa.countryName }
           : undefined,
         inLanguage: manhwa.originalLanguage || undefined,
+        alternateName: manhwa.originalTitle || undefined,
         additionalProperty: manhwa.contentType ? {
           '@type': 'PropertyValue',
           name: 'Content type',
           value: manhwa.contentType,
         } : undefined,
+        ...(manhwa.releaseYear ? {
+          datePublished: String(manhwa.releaseYear),
+        } : {}),
+        ...(manhwa.rating ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: (manhwa.rating / 10).toFixed(1),
+            bestRating: '10',
+            worstRating: '0',
+          },
+        } : {}),
         creator: [...manhwa.authors, ...manhwa.artists].map(name => ({
           '@type': 'Person',
           name,

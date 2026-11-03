@@ -2,6 +2,7 @@ import { setupMobileNav } from './ui.js';
 import {
   getManhwaDetailsBySlug,
   getManhwaDiscovery,
+  getManhwaPath,
   getManhwaSlug,
   getCountryName,
   searchManhwa,
@@ -17,7 +18,6 @@ import {
 
 const SEARCH_DEBOUNCE_MS = 450;
 const PAGE_SIZE = 24;
-const FEATURED_URL = '/manhwa/the-greatest-estate-developer';
 let selectedGenre = '';
 let selectedCountry = '';
 let selectedContentType = '';
@@ -67,6 +67,8 @@ function setPageMeta({ title, description, canonical, image = '' }) {
   setMeta('property', 'og:url', canonical);
   setMeta('property', 'og:type', 'website');
   setMeta('property', 'og:image', image || 'https://www.animoro.in/logo.png');
+  setMeta('property', 'og:image:alt', image ? `${document.title} cover art` : 'Animoro');
+  setMeta('name', 'twitter:card', 'summary_large_image');
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', description);
   setMeta('name', 'twitter:image', image || 'https://www.animoro.in/logo.png');
@@ -232,7 +234,7 @@ function updateDetailMetadata(manhwa) {
   const title = `${manhwa.title} — ${manhwa.contentType} Details | Animoro`;
   const origin = manhwa.countryName ? ` Country of origin: ${manhwa.countryName}.` : '';
   const description = manhwa.synopsis || `Discover ${manhwa.title}, a ${manhwa.contentType.toLowerCase()} recommendation.${origin} Explore its genres, creators, publication status, and official platform.`;
-  const canonical = `https://www.animoro.in/manhwa/${encodeURIComponent(getManhwaSlug(manhwa))}`;
+  const canonical = `https://www.animoro.in${getManhwaPath(manhwa)}`;
   setPageMeta({ title, description, canonical, image: manhwa.coverImage });
   setStructuredData(createManhwaDetailStructuredData({
     ...manhwa,
@@ -253,16 +255,26 @@ async function loadDetails(slug) {
 
   try {
     const result = await getManhwaDetailsBySlug(slug);
+    const canonicalPath = getManhwaPath(result.item);
+    if (window.location.pathname !== canonicalPath) {
+      window.history.replaceState(window.history.state, '', canonicalPath);
+    }
     renderManhwaDetails(byId('manhwaDetailContainer'), result.item);
     updateDetailMetadata(result.item);
     const recommendations = result.recommendations.slice(0, 8);
     if (recommendations.length) {
       renderManhwaCards(byId('manhwaRecommendations'), recommendations);
-      byId('manhwaRecommendationsSection').hidden = false;
+    } else {
+      renderManhwaCards(
+        byId('manhwaRecommendations'),
+        [],
+        'Related-comic recommendations are not available from this metadata provider yet.'
+      );
     }
+    byId('manhwaRecommendationsSection').hidden = false;
     const breadcrumb = byId('manhwaBreadcrumbCurrentDetail');
     if (breadcrumb) breadcrumb.textContent = result.item.title;
-    setFreshness(result.stale ? 'Showing recently cached AniList metadata while the live API reconnects.' : '');
+    setFreshness(result.stale ? 'Showing recently cached comic metadata while the live API reconnects.' : '');
   } catch (error) {
     console.warn('Comic details could not be loaded.', error);
     if (Number(error?.status) === 404) {

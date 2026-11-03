@@ -20,6 +20,14 @@
         "destination": "/anime.html"
       },
       {
+        "source": "/manhwa",
+        "destination": "/manhwa.html"
+      },
+      {
+        "source": "/manhwa/**",
+        "destination": "/manhwa.html"
+      },
+      {
         "source": "/upcoming-anime",
         "destination": "/upcoming-anime.html"
       },
@@ -50,6 +58,16 @@
       {
         "source": "/anime",
         "destination": "/anime-list",
+        "type": 301
+      },
+      {
+        "source": "/manhwa.html",
+        "destination": "/manhwa",
+        "type": 301
+      },
+      {
+        "source": "/manhwa.html/:slug",
+        "destination": "/manhwa/:slug",
         "type": 301
       },
       {

@@ -1,4 +1,5 @@
 import { setupMobileNav, createAnimeCard, createUpcomingAnimeCard } from './ui.js';
+import { createManhwaCard } from './manhwa-renderer.js';
 import {
   getMyList,
   getListKey,
@@ -118,11 +119,11 @@ function renderMyListPage(list) {
   const items = Array.isArray(list) ? list : (list?.detail?.list || getMyList());
   currentList = items;
   const canonicalUrl = new URL('/my-list.html', 'https://www.animoro.in').toString();
-  document.title = 'My List — Saved Anime | Animoro';
-  ensureMetaTag('name', 'description', 'Save and manage your favorite anime in your personal Animoro list.');
+  document.title = 'My List — Saved Anime & Comics | Animoro';
+  ensureMetaTag('name', 'description', 'Save and manage your favorite anime and comic recommendations in your personal Animoro list.');
   ensureMetaTag('name', 'robots', 'noindex, nofollow');
-  ensureMetaTag('property', 'og:title', 'My List — Saved Anime | Animoro');
-  ensureMetaTag('property', 'og:description', 'Save and manage your favorite anime in your personal Animoro list.');
+  ensureMetaTag('property', 'og:title', 'My List — Saved Anime & Comics | Animoro');
+  ensureMetaTag('property', 'og:description', 'Save and manage your favorite anime and comic recommendations in your personal Animoro list.');
   ensureMetaTag('property', 'og:url', canonicalUrl);
   ensureCanonical(canonicalUrl);
 
@@ -133,8 +134,9 @@ function renderMyListPage(list) {
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <h3 style="font-size: 1.7rem; margin-bottom: 12px;">Your list is empty</h3>
-        <p class="empty-state-desc">Start adding anime you want to watch later.</p>
+        <p class="empty-state-desc">Save anime and comics here to find them again.</p>
         <a href="/anime-list" class="btn-cta" style="margin-top: 16px;">Explore Anime</a>
+        <a href="/manhwa" class="btn-outline" style="margin: 16px 0 0 8px;">Explore Comics</a>
       </div>
     `;
     return;
@@ -143,6 +145,19 @@ function renderMyListPage(list) {
   const fragment = document.createDocumentFragment();
   items.forEach(item => {
     const record = { ...item, kind: item.kind || 'anime' };
+    if (record.kind === 'comic') {
+      const card = createManhwaCard(record);
+      const body = card.querySelector('.manhwa-card-body');
+      if (body) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn-outline';
+        attachMyListToggle(button, record);
+        body.appendChild(button);
+      }
+      fragment.appendChild(card);
+      return;
+    }
     const scheduledRecord = withSchedule(record);
     const card = scheduledRecord.kind === 'upcoming'
       ? createUpcomingAnimeCard(scheduledRecord)
