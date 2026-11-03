@@ -9,6 +9,9 @@ const firebase = JSON.parse(await readFile(new URL('firebase.json', root), 'utf8
 const vite = await readFile(new URL('vite.config.ts', root), 'utf8');
 const animeHtml = await readFile(new URL('anime.html', root), 'utf8');
 const animeClient = await readFile(new URL('js/anime.js', root), 'utf8');
+const homeHtml = await readFile(new URL('index.html', root), 'utf8');
+const calendarHtml = await readFile(new URL('anime-calendar.html', root), 'utf8');
+const uiClient = await readFile(new URL('js/ui.js', root), 'utf8');
 const sitemap = await readFile(new URL('api/_lib/sitemap.js', root), 'utf8');
 const robots = await readFile(new URL('public/robots.txt', root), 'utf8');
 const animeUrl = await readFile(new URL('js/anime-url.js', root), 'utf8');
@@ -65,6 +68,23 @@ test('Anime List build entry, canonical metadata, internal links, and sitemap us
   assert.match(animeClient, /document\.getElementById\('animeListJsonLd'\)\?\.remove\(\)/);
   assert.match(robots, /^Allow: \/api\/tenrai$/m);
   assert.match(robots, /^Disallow: \/api\/$/m);
+});
+
+test('anime detail renderer omits source links and Tenrai attribution while preserving details', () => {
+  const sourceButtonLabel = ['View', 'source data'].join(' ');
+  const attributionText = ['Data supplied by ', 'Tenrai. Details can change as source data is updated.'].join('');
+  assert.doesNotMatch(animeClient, new RegExp(sourceButtonLabel));
+  assert.doesNotMatch(animeClient, new RegExp(attributionText));
+  assert.doesNotMatch(animeClient, /cached data from Tenrai/);
+  assert.match(animeClient, /attachMyListToggle\(button, \{ \.\.\.anime, kind: 'anime' \}\)/);
+  assert.match(animeClient, /getAnimeDetails\(match\.groups\.id\)/);
+});
+
+test('calendar navigation labels are consistent in desktop, mobile, and shared navigation', () => {
+  for (const html of [animeHtml, homeHtml, calendarHtml]) {
+    assert.match(html, /href=["'](?:\/|)anime-calendar\.html["'][^>]*>Anime Airing Today<\/a>/);
+  }
+  assert.match(uiClient, /label: 'Anime Airing Today', key: 'calendar'/);
 });
 
 test('Upcoming Anime rewrites and redirects do not target one another', () => {

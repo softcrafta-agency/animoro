@@ -179,14 +179,13 @@ async function loadAnimeDetails(slug) {
   try {
     const match = ANIME_ID_PATTERN.exec(slug);
     let anime;
-    let stale = false;
-    if (match?.groups?.id) ({ anime, stale } = await getAnimeDetails(match.groups.id));
+    if (match?.groups?.id) ({ anime } = await getAnimeDetails(match.groups.id));
     else anime = await loadManualAnimeDetail(slug);
     if (!anime) {
       window.location.replace('/404.html');
       return;
     }
-    renderAnimeDetails(anime, stale);
+    renderAnimeDetails(anime);
     await loadAnimeArticles(anime);
   } catch (error) {
     console.warn('Could not load anime detail.', error);
@@ -197,7 +196,7 @@ async function loadAnimeDetails(slug) {
       handleFirestoreError(manualError, 'fetch', `anime/${slug}`);
     }
     if (fallback) {
-      renderAnimeDetails(fallback, false);
+      renderAnimeDetails(fallback);
       await loadAnimeArticles(fallback);
       return;
     }
@@ -280,7 +279,7 @@ function renderAnimeListStructuredData() {
   });
 }
 
-function renderAnimeDetails(anime, stale) {
+function renderAnimeDetails(anime) {
   const detail = document.getElementById('animeDetail');
   const title = document.getElementById('animePageTitle');
   const description = document.getElementById('animePageDescription');
@@ -352,12 +351,6 @@ function renderAnimeDetails(anime, stale) {
   }
   detail.appendChild(information);
 
-  if (stale) {
-    const attribution = document.createElement('p');
-    attribution.className = 'anime-data-note';
-    attribution.textContent = 'Showing cached data from Tenrai while the live service reconnects.';
-    detail.appendChild(attribution);
-  }
   detail.hidden = false;
   setJsonLd('animeBreadcrumbJsonLd', {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
