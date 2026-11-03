@@ -1,4 +1,5 @@
 import { normalizeAnimeSlug } from './anime-url.js';
+import { TENRAI_GENRES, TENRAI_GENRE_IDS } from './tenrai-genres.js';
 
 const CACHE_PREFIX = 'animoro_tenrai_v1:';
 const LIST_CACHE_MS = 15 * 60 * 1000;
@@ -6,36 +7,6 @@ const SCHEDULE_CACHE_MS = 15 * 60 * 1000;
 const DETAIL_CACHE_MS = 6 * 60 * 60 * 1000;
 const MAX_STALE_MS = 24 * 60 * 60 * 1000;
 const REQUEST_GAP_MS = 510;
-const TENRAI_GENRES = {
-  action: '1',
-  adventure: '2',
-  'avant-garde': '5',
-  'award-winning': '46',
-  'boys-love': '28',
-  comedy: '4',
-  drama: '8',
-  ecchi: '9',
-  erotica: '49',
-  fantasy: '10',
-  'girls-love': '26',
-  gourmet: '47',
-  hentai: '12',
-  horror: '14',
-  kids: '15',
-  mystery: '7',
-  romance: '22',
-  'sci-fi': '24',
-  'slice-of-life': '36',
-  sports: '30',
-  supernatural: '37',
-  suspense: '41',
-  thriller: '41',
-  'boys love': '28',
-  'girls love': '26',
-  'slice of life': '36',
-  'award winning': '46',
-  'avant garde': '5',
-};
 const VALID_TYPES = new Set(['tv', 'movie', 'ova', 'ona', 'special', 'music', 'cm', 'pv', 'tv_special']);
 const VALID_SEASONS = new Set(['winter', 'spring', 'summer', 'fall']);
 
@@ -304,13 +275,23 @@ export function normalizeAnime(item, kind = 'anime') {
 
 function mapGenreToTenrai(genre) {
   const value = String(genre || '').trim().toLowerCase().replace(/[_–—]/g, '-');
-  if (/^\d+(?:,\d+){0,24}$/.test(value)) return value;
-  return TENRAI_GENRES[value] || '';
+  if (!value) return '';
+  if (/^\d+(?:,\d+){0,24}$/.test(value)) {
+    const ids = value.split(',');
+    if (ids.some(id => !TENRAI_GENRE_IDS.has(id))) {
+      throw new TypeError(`Unsupported Tenrai anime genre ID: ${value}`);
+    }
+    return value;
+  }
+  if (!Object.hasOwn(TENRAI_GENRES, value)) {
+    throw new TypeError(`Unsupported anime genre: ${genre}`);
+  }
+  return TENRAI_GENRES[value];
 }
 
 function requestGenre(options = {}) {
   if (Array.isArray(options.genres)) {
-    return options.genres.map(value => mapGenreToTenrai(value)).filter(Boolean).join(',');
+    return options.genres.map(mapGenreToTenrai).join(',');
   }
   if (options.genres !== undefined && options.genres !== null && options.genres !== '') {
     return mapGenreToTenrai(options.genres);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { filterAndSortAnime } from './anime-directory.js';
+import { deduplicateAnime, filterAndSortAnime } from './anime-directory.js';
 
 const entries = [
   {
@@ -53,6 +53,38 @@ test('search trims whitespace, ignores case, and matches alternative titles with
   );
 });
 
+test('search matches Japanese and alternative titles', () => {
+  const titledAnime = [{
+    title: 'Kimi no Na wa.',
+    japaneseTitle: '君の名は。',
+    alternativeTitles: ['Your Name'],
+    type: 'Movie',
+    genres: ['Romance'],
+  }];
+
+  for (const query of ['kimi no', '君の名は', 'your name']) {
+    assert.equal(filterAndSortAnime(titledAnime, { query }).length, 1, query);
+  }
+});
+
+test('directory results remove duplicate anime IDs without collapsing distinct editions', () => {
+  const duplicates = [
+    { title: 'One', malId: 1 },
+    { title: 'Duplicate One', malId: 1 },
+    { title: 'Two', malId: 2 },
+    { title: 'Unidentified entry' },
+    { title: 'Unidentified entry' },
+  ];
+
+  assert.deepEqual(deduplicateAnime(duplicates), [duplicates[0], duplicates[2], duplicates[3], duplicates[4]]);
+  assert.deepEqual(filterAndSortAnime(duplicates).map(anime => anime.title), [
+    'One',
+    'Two',
+    'Unidentified entry',
+    'Unidentified entry',
+  ]);
+});
+
 test('a nonexistent title returns no results without affecting the empty-search reset', () => {
   assert.deepEqual(filterAndSortAnime(entries, { query: 'no matching anime' }), []);
   assert.equal(filterAndSortAnime(entries, { query: '' }).length, entries.length);
@@ -96,5 +128,18 @@ test('score and newest sorting use their own fields and place missing data last'
   assert.deepEqual(
     filterAndSortAnime(entries, { sort: 'start_date' }).map(anime => anime.title),
     ['Airing Fantasy', 'Boruto', 'Naruto', 'Anime Without Metadata']
+  );
+});
+
+test('title sorting is alphabetic and stable for equal titles', () => {
+  const titledEntries = [
+    { title: 'Naruto' },
+    { title: 'A Name' },
+    { title: 'A Name' },
+  ];
+
+  assert.deepEqual(
+    filterAndSortAnime(titledEntries, { sort: 'title' }),
+    [titledEntries[1], titledEntries[2], titledEntries[0]]
   );
 });

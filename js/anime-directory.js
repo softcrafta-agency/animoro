@@ -54,6 +54,23 @@ function getReleaseTimestamp(value) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
+export function deduplicateAnime(entries) {
+  const seen = new Set();
+  return entries.filter(anime => {
+    const identity = anime?.malId
+      ? `mal:${anime.malId}`
+      : anime?.slug
+        ? `slug:${anime.slug}`
+        : anime?.id
+          ? `id:${anime.id}`
+          : '';
+    if (!identity) return true;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
 export function filterAndSortAnime(entries, filters = {}) {
   const query = normalizeText(filters.query);
   const type = normalizeText(filters.type);
@@ -63,7 +80,7 @@ export function filterAndSortAnime(entries, filters = {}) {
   const requestedSort = normalizeText(filters.sort) || 'popularity';
   const sort = sortAliases[requestedSort] || requestedSort;
 
-  return entries
+  return deduplicateAnime(entries
     .map((anime, index) => ({ anime, index }))
     .filter(({ anime }) => {
       if (!anime || typeof anime !== 'object') return false;
@@ -89,5 +106,5 @@ export function filterAndSortAnime(entries, filters = {}) {
       }
       return comparison || left.index - right.index;
     })
-    .map(({ anime }) => anime);
+    .map(({ anime }) => anime));
 }

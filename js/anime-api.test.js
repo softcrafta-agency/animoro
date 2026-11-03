@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getAnimePath } from './anime-url.js';
+import { TENRAI_GENRES } from './tenrai-genres.js';
 
 const storage = new Map();
 globalThis.window = {
@@ -60,7 +61,7 @@ test('Tenrai catalogue responses normalize real catalogue fields and preserve MA
   assert.equal(result.pagination.has_next_page, true);
 });
 
-test('Tenrai directory sort fields use rank direction for popularity and preserve score sorting', async () => {
+test('Tenrai directory sort fields use the correct fields and directions', async () => {
   storage.clear();
   const requests = [];
   globalThis.fetch = async url => {
@@ -74,11 +75,17 @@ test('Tenrai directory sort fields use rank direction for popularity and preserv
 
   const popular = await getAnimeDirectory({ orderBy: 'popularity' });
   await getAnimeDirectory({ orderBy: 'score', sort: 'desc' });
+  await getAnimeDirectory({ orderBy: 'start_date' });
+  await getAnimeDirectory({ orderBy: 'title' });
 
   assert.equal(requests[0].get('order_by'), 'popularity');
   assert.equal(requests[0].get('sort'), 'asc');
   assert.equal(requests[1].get('order_by'), 'score');
   assert.equal(requests[1].get('sort'), 'desc');
+  assert.equal(requests[2].get('order_by'), 'start_date');
+  assert.equal(requests[2].get('sort'), 'desc');
+  assert.equal(requests[3].get('order_by'), 'title');
+  assert.equal(requests[3].get('sort'), 'asc');
   assert.equal(popular.items[0].popularity, 12);
   assert.equal(normalizeAnime(animeRecord({ popularity: null })).popularity, '');
 });
@@ -139,6 +146,35 @@ test('Tenrai directory integrates movie, TV, status, genre, search, and sort fil
       assert.equal(params.get(name), value, `${name} for ${JSON.stringify(options)}`);
     }
   }
+});
+
+test('every configured Tenrai genre maps to its supported ID and invalid genres are rejected', async () => {
+  for (const [genre, id] of Object.entries(TENRAI_GENRES)) {
+    storage.clear();
+    let requestUrl;
+    globalThis.fetch = async url => {
+      requestUrl = url;
+      return response(200, { data: [], pagination: { has_next_page: false } });
+    };
+
+    await getAnimeDirectory({ genre });
+    assert.equal(
+      new URL(requestUrl, 'https://animoro.in').searchParams.get('genres'),
+      id,
+      `${genre} must map to Tenrai genre ID ${id}`
+    );
+  }
+
+  storage.clear();
+  let requested = false;
+  globalThis.fetch = async () => {
+    requested = true;
+    return response(200, { data: [] });
+  };
+  await assert.rejects(getAnimeDirectory({ genre: 'unsupported-genre' }), /Unsupported anime genre/);
+  await assert.rejects(getAnimeDirectory({ genres: ['Action', 'unsupported-genre'] }), /Unsupported anime genre/);
+  await assert.rejects(getAnimeDirectory({ genres: '999' }), /Unsupported Tenrai anime genre ID/);
+  assert.equal(requested, false);
 });
 
 test('Tenrai pagination changes only the page while preserving the applied filters', async () => {

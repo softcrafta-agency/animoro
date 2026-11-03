@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createAnimeListStructuredData } from './anime-page-seo.js';
+import { TENRAI_GENRES } from './tenrai-genres.js';
 
 const root = new URL('../', import.meta.url);
 const [animeHtml, animeJs, homeHtml, aboutHtml, llms] = await Promise.all([
@@ -103,14 +104,26 @@ test('Anime List applies filters explicitly, supports Enter, resets defaults, an
 
   assert.match(controls, /id="applyAnimeFiltersBtn"[^>]*>Apply Filters<\/button>/);
   assert.match(controls, /id="resetAnimeFiltersBtn"[^>]*>Reset Filters<\/button>/);
-  assert.match(animeJs, /applyButton\?\.addEventListener\('click', \(\) => runApply\(\)\)/);
-  assert.match(animeJs, /search\?\.addEventListener\('keydown', event => \{[\s\S]*?event\.key === 'Enter'[\s\S]*?runApply\(\)/);
+  assert.match(controls, /<option value="music">Music<\/option>/);
+  assert.match(animeJs, /applyButton\?\.addEventListener\('click', applyFilters\)/);
+  assert.match(animeJs, /search\?\.addEventListener\('keydown', event => \{[\s\S]*?event\.key === 'Enter'[\s\S]*?applyFilters\(\)/);
   assert.match(animeJs, /type\.value = ''/);
   assert.match(animeJs, /status\.value = ''/);
   assert.match(animeJs, /genre\.value = ''/);
   assert.match(animeJs, /sort\.value = 'popularity'/);
   assert.match(animeJs, /loadAnimeDirectory\(currentPage \+ 1, appliedFilters\)/);
+  assert.match(animeJs, /showcase\.hidden = true/);
+  assert.match(animeJs, /showcase\.hidden = false/);
+  assert.match(animeJs, /scrollIntoView\?\.\(\{\s*behavior: 'smooth'/);
   assert.doesNotMatch(animeJs, /\['animeTypeFilter', 'animeStatusFilter', 'animeGenreFilter', 'animeSortFilter'\][\s\S]{0,150}addEventListener\('change'/);
+  const genreSelect = controls.match(/<select[^>]*id="animeGenreFilter"[^>]*>([\s\S]*?)<\/select>/)?.[1] || '';
+  const genreOptions = [...genreSelect.matchAll(/<option value="([^"]*)">/g)]
+    .map(match => match[1]).filter(Boolean);
+  assert.equal(genreOptions.length, new Set(genreOptions).size);
+  assert.deepEqual(
+    new Set(genreOptions),
+    new Set(Object.keys(TENRAI_GENRES).filter(genre => !genre.includes(' ')))
+  );
 });
 
 test('llms.txt points to implemented Animoro routes', () => {

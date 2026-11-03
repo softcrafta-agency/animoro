@@ -4,7 +4,7 @@ import { getAnimeCanonicalUrl, isValidAnimeDetailSlug } from './anime-url.js';
 import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { attachMyListToggle } from './my-list.js';
 import { getAnimeDetails, getAnimeDirectory, getTopAnime } from './anime-api.js';
-import { filterAndSortAnime } from './anime-directory.js';
+import { deduplicateAnime, filterAndSortAnime } from './anime-directory.js';
 import { createAnimeListStructuredData } from './anime-page-seo.js';
 
 const PAGE_SIZE = 24;
@@ -116,7 +116,7 @@ async function loadAnimeDirectory(page = 1, filters = appliedFilters) {
       genre: filters.genre, orderBy: filters.sort,
     });
     if (requestId !== latestDirectoryRequest) return;
-    const entries = result.items;
+    const entries = deduplicateAnime(result.items);
     latestDirectory = 'tenrai';
     latestPagination = result.pagination;
     latestDirectoryItems = entries;
@@ -148,6 +148,20 @@ async function loadAnimeDirectory(page = 1, filters = appliedFilters) {
   } finally {
     if (requestId === latestDirectoryRequest) updatePagination();
   }
+}
+
+function showFilteredDirectory() {
+  const showcase = document.getElementById('popularAnimeSection');
+  const heading = document.getElementById('animeDirectoryHeading');
+  if (showcase) showcase.hidden = true;
+  if (heading) heading.textContent = 'Filtered Anime Results';
+}
+
+function restoreDirectoryShowcase() {
+  const showcase = document.getElementById('popularAnimeSection');
+  const heading = document.getElementById('animeDirectoryHeading');
+  if (showcase) showcase.hidden = false;
+  if (heading) heading.textContent = 'Anime Series';
 }
 
 async function loadTopAnime() {
@@ -390,7 +404,7 @@ function bindDirectoryControls() {
   const applyButton = document.getElementById('applyAnimeFiltersBtn');
   const resetButton = document.getElementById('resetAnimeFiltersBtn');
   const runApply = async (filters = getFilters()) => {
-    if (applyingFilters) return;
+    if (applyingFilters) return false;
     applyingFilters = true;
     window.clearTimeout(searchTimer);
     appliedFilters = { ...filters };
@@ -416,15 +430,26 @@ function bindDirectoryControls() {
       if (previousButton) previousButton.disabled = false;
       if (nextButton) nextButton.disabled = false;
     }
+    return true;
   };
-  applyButton?.addEventListener('click', () => runApply());
+  const applyFilters = async () => {
+    if (applyingFilters) return;
+    showFilteredDirectory();
+    await runApply();
+    document.getElementById('animeDirectorySection')?.scrollIntoView?.({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+  applyButton?.addEventListener('click', applyFilters);
   search?.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      runApply();
+      applyFilters();
     }
   });
-  resetButton?.addEventListener('click', () => {
+  resetButton?.addEventListener('click', async () => {
+    if (applyingFilters) return;
     if (search) search.value = '';
     const type = document.getElementById('animeTypeFilter');
     const status = document.getElementById('animeStatusFilter');
@@ -434,7 +459,8 @@ function bindDirectoryControls() {
     if (status) status.value = '';
     if (genre) genre.value = '';
     if (sort) sort.value = 'popularity';
-    runApply({ query: '', type: '', status: '', genre: '', sort: 'popularity' });
+    await runApply({ query: '', type: '', status: '', genre: '', sort: 'popularity' });
+    restoreDirectoryShowcase();
   });
   document.getElementById('previousAnimeBtn')?.addEventListener('click', () =>
     loadAnimeDirectory(Math.max(1, currentPage - 1), appliedFilters));

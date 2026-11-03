@@ -1,3 +1,5 @@
+import { TENRAI_GENRE_IDS } from '../../js/tenrai-genres.js';
+
 const TENRAI_ORIGIN = 'https://api.tenrai.org/v1/';
 const ANIME_TYPES = new Set(['tv', 'movie', 'ova', 'special', 'ona', 'music', 'cm', 'pv', 'tv_special']);
 const ANIME_STATUSES = new Set(['airing', 'complete', 'upcoming']);
@@ -50,7 +52,14 @@ function addCommonListParams(url, query, { genres = true, typeName = 'type' } = 
   url.searchParams.set('page', positiveInteger(query, 'page', 1, 20000));
   url.searchParams.set('limit', positiveInteger(query, 'limit', 24, 100));
   addParam(url, query, typeName, { allowed: ANIME_TYPES, alias: typeName === 'type' ? undefined : typeName });
-  if (genres) addParam(url, query, 'genres', { pattern: /^\d+(?:,\d+){0,24}$/ });
+  if (genres) {
+    const genreIds = singleValue(query, 'genres');
+    if (genreIds && (!/^\d+(?:,\d+){0,24}$/.test(genreIds) ||
+        genreIds.split(',').some(id => !TENRAI_GENRE_IDS.has(id)))) {
+      throw requestError(400, 'The genres parameter contains an unsupported genre ID.');
+    }
+    if (genreIds) url.searchParams.set('genres', genreIds);
+  }
   addParam(url, query, 'order_by', { allowed: ANIME_ORDER_BY });
   addParam(url, query, 'sort', { allowed: new Set(['asc', 'desc']) });
 }
