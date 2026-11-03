@@ -1326,9 +1326,57 @@ html.auth-checking body {
 
 .anime-directory-controls {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(130px, 1fr));
+  grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(110px, 1fr)) repeat(2, minmax(110px, 0.9fr));
   gap: 12px;
   margin: 0 0 12px;
+}
+
+.anime-directory-controls .form-input,
+.anime-directory-controls .form-select {
+  height: 46px;
+}
+
+.apply-anime-filters-btn,
+.reset-anime-filters-btn {
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--accent-crimson);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.apply-anime-filters-btn {
+  background: var(--accent-crimson);
+}
+
+.reset-anime-filters-btn {
+  background: transparent;
+}
+
+.apply-anime-filters-btn:hover,
+.reset-anime-filters-btn:hover {
+  background: var(--accent-crimson-hover);
+  border-color: var(--accent-crimson-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--accent-crimson-glow);
+}
+
+.apply-anime-filters-btn:focus-visible,
+.reset-anime-filters-btn:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+}
+
+.apply-anime-filters-btn:disabled,
+.reset-anime-filters-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+  transform: none;
 }
 
 .anime-data-note {

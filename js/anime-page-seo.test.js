@@ -4,8 +4,9 @@ import { readFile } from 'node:fs/promises';
 import { createAnimeListStructuredData } from './anime-page-seo.js';
 
 const root = new URL('../', import.meta.url);
-const [animeHtml, homeHtml, aboutHtml, llms] = await Promise.all([
+const [animeHtml, animeJs, homeHtml, aboutHtml, llms] = await Promise.all([
   readFile(new URL('anime.html', root), 'utf8'),
+  readFile(new URL('js/anime.js', root), 'utf8'),
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('about.html', root), 'utf8'),
   readFile(new URL('public/llms.txt', root), 'utf8'),
@@ -95,6 +96,21 @@ test('Anime List has a 50–60 character title and visible FAQ matches its struc
   assert.match(animeHtml, /https:\/\/myanimelist\.net\//);
   assert.equal((animeHtml.match(/<h1\b/g) || []).length, 1);
   assert.equal((animeHtml.match(/rel="canonical"/g) || []).length, 1);
+});
+
+test('Anime List applies filters explicitly, supports Enter, resets defaults, and preserves filters across pages', () => {
+  const controls = animeHtml.match(/<section class="anime-directory-controls"[\s\S]*?<\/section>/)?.[0] || '';
+
+  assert.match(controls, /id="applyAnimeFiltersBtn"[^>]*>Apply Filters<\/button>/);
+  assert.match(controls, /id="resetAnimeFiltersBtn"[^>]*>Reset Filters<\/button>/);
+  assert.match(animeJs, /applyButton\?\.addEventListener\('click', \(\) => runApply\(\)\)/);
+  assert.match(animeJs, /search\?\.addEventListener\('keydown', event => \{[\s\S]*?event\.key === 'Enter'[\s\S]*?runApply\(\)/);
+  assert.match(animeJs, /type\.value = ''/);
+  assert.match(animeJs, /status\.value = ''/);
+  assert.match(animeJs, /genre\.value = ''/);
+  assert.match(animeJs, /sort\.value = 'popularity'/);
+  assert.match(animeJs, /loadAnimeDirectory\(currentPage \+ 1, appliedFilters\)/);
+  assert.doesNotMatch(animeJs, /\['animeTypeFilter', 'animeStatusFilter', 'animeGenreFilter', 'animeSortFilter'\][\s\S]{0,150}addEventListener\('change'/);
 });
 
 test('llms.txt points to implemented Animoro routes', () => {

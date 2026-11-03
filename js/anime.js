@@ -16,6 +16,8 @@ let latestDirectory = null;
 let latestDirectoryItems = [];
 let latestDirectoryRequest = 0;
 let searchTimer = 0;
+let appliedFilters = { query: '', type: '', status: '', genre: '', sort: 'popularity' };
+let applyingFilters = false;
 
 function getRequestedAnimeSlug() {
   const pathname = window.location.pathname;
@@ -99,14 +101,13 @@ async function loadManualAnime() {
   }
 }
 
-async function loadAnimeDirectory(page = 1) {
+async function loadAnimeDirectory(page = 1, filters = appliedFilters) {
   const container = document.getElementById('animeDirectoryContainer');
   if (!container) return;
   const requestId = ++latestDirectoryRequest;
   currentPage = page;
   latestDirectoryItems = [];
   renderAnimeListStructuredData();
-  const filters = getFilters();
   setLoading(container, 'Loading anime');
 
   try {
@@ -137,7 +138,7 @@ async function loadAnimeDirectory(page = 1) {
     latestPagination = { has_next_page: false };
     latestDirectoryItems = manual.slice(0, PAGE_SIZE);
     if (!manual.length) {
-      renderMessage(container, 'The anime database is temporarily unavailable. Please retry in a moment.', () => loadAnimeDirectory(currentPage));
+      renderMessage(container, 'The anime database is temporarily unavailable. Please retry in a moment.', () => loadAnimeDirectory(currentPage, filters));
       setDataNote('Tenrai is unavailable and no cached or editor-managed results match this view.');
     } else {
       container.replaceChildren(...latestDirectoryItems.map(createAnimeCard));
@@ -386,16 +387,59 @@ async function loadAnimeArticles(anime) {
 
 function bindDirectoryControls() {
   const search = document.getElementById('animeSearchInput');
-  search?.addEventListener('input', () => {
-    latestDirectoryRequest += 1;
+  const applyButton = document.getElementById('applyAnimeFiltersBtn');
+  const resetButton = document.getElementById('resetAnimeFiltersBtn');
+  const runApply = async (filters = getFilters()) => {
+    if (applyingFilters) return;
+    applyingFilters = true;
     window.clearTimeout(searchTimer);
-    searchTimer = window.setTimeout(() => loadAnimeDirectory(1), 350);
+    appliedFilters = { ...filters };
+    const originalText = applyButton?.textContent || 'Apply Filters';
+    if (applyButton) {
+      applyButton.disabled = true;
+      applyButton.textContent = 'Applying...';
+    }
+    if (resetButton) resetButton.disabled = true;
+    const previousButton = document.getElementById('previousAnimeBtn');
+    const nextButton = document.getElementById('loadMoreAnimeBtn');
+    if (previousButton) previousButton.disabled = true;
+    if (nextButton) nextButton.disabled = true;
+    try {
+      await loadAnimeDirectory(1, appliedFilters);
+    } finally {
+      applyingFilters = false;
+      if (applyButton) {
+        applyButton.disabled = false;
+        applyButton.textContent = originalText;
+      }
+      if (resetButton) resetButton.disabled = false;
+      if (previousButton) previousButton.disabled = false;
+      if (nextButton) nextButton.disabled = false;
+    }
+  };
+  applyButton?.addEventListener('click', () => runApply());
+  search?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      runApply();
+    }
   });
-  ['animeTypeFilter', 'animeStatusFilter', 'animeGenreFilter', 'animeSortFilter'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', () => loadAnimeDirectory(1));
+  resetButton?.addEventListener('click', () => {
+    if (search) search.value = '';
+    const type = document.getElementById('animeTypeFilter');
+    const status = document.getElementById('animeStatusFilter');
+    const genre = document.getElementById('animeGenreFilter');
+    const sort = document.getElementById('animeSortFilter');
+    if (type) type.value = '';
+    if (status) status.value = '';
+    if (genre) genre.value = '';
+    if (sort) sort.value = 'popularity';
+    runApply({ query: '', type: '', status: '', genre: '', sort: 'popularity' });
   });
-  document.getElementById('previousAnimeBtn')?.addEventListener('click', () => loadAnimeDirectory(Math.max(1, currentPage - 1)));
-  document.getElementById('loadMoreAnimeBtn')?.addEventListener('click', () => loadAnimeDirectory(currentPage + 1));
+  document.getElementById('previousAnimeBtn')?.addEventListener('click', () =>
+    loadAnimeDirectory(Math.max(1, currentPage - 1), appliedFilters));
+  document.getElementById('loadMoreAnimeBtn')?.addEventListener('click', () =>
+    loadAnimeDirectory(currentPage + 1, appliedFilters));
 }
 
 async function initAnimePage() {

@@ -111,6 +111,88 @@ test('Tenrai directory sends every selected filter together and trims search ter
   assert.equal(params.get('sort'), 'asc');
 });
 
+test('Tenrai directory integrates movie, TV, status, genre, search, and sort filters', async () => {
+  storage.clear();
+  const requests = [];
+  globalThis.fetch = async url => {
+    requests.push(new URL(url, 'https://animoro.in').searchParams);
+    return response(200, { data: [], pagination: { has_next_page: false } });
+  };
+
+  const cases = [
+    [{ type: 'movie', genre: 'Action' }, { type: 'movie', genres: '1', order_by: 'popularity', sort: 'asc' }],
+    [{ type: 'tv', status: 'airing' }, { type: 'tv', status: 'airing' }],
+    [{ type: 'tv', status: 'completed' }, { type: 'tv', status: 'complete' }],
+    [{ type: 'movie', orderBy: 'top-rated' }, { type: 'movie', order_by: 'score', sort: 'desc' }],
+    [{ query: '  naruto ', genre: 'Fantasy' }, { q: 'naruto', genres: '10' }],
+    [
+      { query: 'One Piece', type: 'tv', status: 'completed', genre: 'Action', orderBy: 'score', page: 3, limit: 24 },
+      { q: 'One Piece', type: 'tv', status: 'complete', genres: '1', order_by: 'score', sort: 'desc', page: '3', limit: '24' },
+    ],
+  ];
+
+  for (const [options, expected] of cases) {
+    const requestIndex = requests.length;
+    await getAnimeDirectory(options);
+    const params = requests[requestIndex];
+    for (const [name, value] of Object.entries(expected)) {
+      assert.equal(params.get(name), value, `${name} for ${JSON.stringify(options)}`);
+    }
+  }
+});
+
+test('Tenrai pagination changes only the page while preserving the applied filters', async () => {
+  storage.clear();
+  const requests = [];
+  globalThis.fetch = async url => {
+    requests.push(new URL(url, 'https://animoro.in').searchParams);
+    return response(200, { data: [], pagination: { has_next_page: false } });
+  };
+  const filters = {
+    query: 'Naruto',
+    type: 'tv',
+    status: 'completed',
+    genre: 'Action',
+    orderBy: 'score',
+    limit: 24,
+  };
+
+  await getAnimeDirectory({ ...filters, page: 1 });
+  await getAnimeDirectory({ ...filters, page: 2 });
+
+  const firstPage = requests[0];
+  const secondPage = requests[1];
+  for (const name of ['q', 'type', 'status', 'genres', 'order_by', 'sort', 'limit']) {
+    assert.equal(secondPage.get(name), firstPage.get(name), `${name} should persist on the next page`);
+  }
+  assert.equal(firstPage.get('page'), '1');
+  assert.equal(secondPage.get('page'), '2');
+});
+
+test('reset filter defaults request the unfiltered popular directory', async () => {
+  storage.clear();
+  let requestUrl;
+  globalThis.fetch = async url => {
+    requestUrl = url;
+    return response(200, { data: [], pagination: { has_next_page: false } });
+  };
+
+  await getAnimeDirectory({
+    query: '',
+    type: '',
+    status: '',
+    genre: '',
+    orderBy: 'popularity',
+    page: 1,
+  });
+
+  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+  for (const name of ['q', 'type', 'status', 'genres']) assert.equal(params.has(name), false);
+  assert.equal(params.get('order_by'), 'popularity');
+  assert.equal(params.get('sort'), 'asc');
+  assert.equal(params.get('page'), '1');
+});
+
 test('Tenrai upcoming catalogue falls back to anime marked upcoming when seasonal data is empty', async () => {
   storage.clear();
   const requestedResources = [];

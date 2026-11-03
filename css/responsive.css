@@ -24,6 +24,11 @@
   .anime-directory-controls input {
     grid-column: 1 / -1;
   }
+
+  .apply-anime-filters-btn,
+  .reset-anime-filters-btn {
+    width: 100%;
+  }
 }
 
 @media (min-width: 1025px) {
