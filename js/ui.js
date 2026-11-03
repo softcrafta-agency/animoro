@@ -214,6 +214,7 @@ export function setupMobileNav() {
   const navigationLinks = [
     { href: '/', label: 'Home', key: 'home' },
     { href: '/anime-list', label: 'Anime List', key: 'anime' },
+    { href: '/manhwa', label: 'Manhwa', key: 'manhwa' },
     { href: '/upcoming-anime', label: 'Upcoming Anime', key: 'upcoming' },
     { href: '/category.html?category=Anime%20News', label: 'Anime News', key: 'news' },
     { href: '/blogs.html', label: 'Articles', key: 'articles' },
@@ -222,7 +223,7 @@ export function setupMobileNav() {
     { href: '/anime-calendar.html', label: 'Anime Airing Today', key: 'calendar' },
   ];
   const pathname = window.location.pathname;
-  const activeKey = pathname === '/'
+  const fallbackActiveKey = pathname === '/'
     ? 'home'
     : pathname === '/anime-list' || pathname === '/anime' || pathname.startsWith('/anime/') || pathname.startsWith('/anime.html')
       ? 'anime'
@@ -241,6 +242,10 @@ export function setupMobileNav() {
               : pathname === '/anime-calendar.html'
                 ? 'calendar'
                 : '';
+  const activeKey = pathname === '/manhwa' || pathname.startsWith('/manhwa/') ||
+    pathname.startsWith('/manhwa.html')
+    ? 'manhwa'
+    : fallbackActiveKey;
 
   const desktopNavigation = document.querySelector('.main-nav');
   if (desktopNavigation) {

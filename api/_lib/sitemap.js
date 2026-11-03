@@ -15,6 +15,8 @@ const STATIC_PATHS = [
   '/',
   '/blogs.html',
   '/anime-list',
+  '/manhwa',
+  '/manhwa/the-greatest-estate-developer',
   '/upcoming-anime',
   '/anime-calendar.html',
   '/about.html',

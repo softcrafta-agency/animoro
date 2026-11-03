@@ -90,6 +90,7 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/responsive.css" />
+  <link rel="stylesheet" href="/css/manhwa.css" />
 </head>
 <body>
 
@@ -105,6 +106,7 @@
       <nav class="main-nav" aria-label="Main Navigation">
         <a href="/" class="nav-link active">Home</a>
         <a href="/anime-list" class="nav-link">Anime List</a>
+        <a href="/manhwa" class="nav-link">Manhwa</a>
         <a href="/upcoming-anime" class="nav-link">Upcoming Anime</a>
         <a href="/category.html?category=Anime%20News" class="nav-link">Anime News</a>
         <a href="blogs.html" class="nav-link">Articles</a>
@@ -135,6 +137,7 @@
     <nav class="mobile-nav-links">
       <a href="/" class="active">Home</a>
       <a href="/anime-list">Anime List</a>
+      <a href="/manhwa">Manhwa</a>
       <a href="/upcoming-anime">Upcoming Anime</a>
       <a href="/category.html?category=Anime%20News">Anime News</a>
       <a href="blogs.html">Articles</a>
@@ -236,6 +239,23 @@
         </div>
         <div class="articles-grid" id="homePopularAnimeContainer" aria-live="polite">
           <div class="home-loading-state" role="status" aria-label="Loading popular anime">
+            <span class="home-loading-line"></span><span class="home-loading-line"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-padded manhwa-home-section" aria-labelledby="homeFeaturedManhwaHeading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="homeFeaturedManhwaHeading">Explore Manhwa</h2>
+            <p class="section-subtitle">Discover Korean manhwa recommendations and find official publishing platforms.</p>
+          </div>
+          <a href="/manhwa" class="btn-outline">View All</a>
+        </div>
+        <div id="homeFeaturedManhwa" aria-live="polite">
+          <div class="home-loading-state" role="status" aria-label="Loading featured manhwa">
             <span class="home-loading-line"></span><span class="home-loading-line"></span>
           </div>
         </div>
@@ -364,5 +384,6 @@
   </footer>
 
   <script type="module" src="/js/home.js"></script>
+  <script type="module" src="/js/manhwa-home.js"></script>
 </body>
 </html>

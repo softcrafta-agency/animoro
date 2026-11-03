@@ -9,6 +9,18 @@
                          "destination":  "/anime.html"
                      },
                      {
+                         "source":  "/manhwa.html/:slug*",
+                         "destination":  "/manhwa.html"
+                     },
+                     {
+                         "source":  "/manhwa",
+                         "destination":  "/manhwa.html"
+                     },
+                     {
+                         "source":  "/manhwa/:slug*",
+                         "destination":  "/manhwa.html"
+                     },
+                     {
                          "source":  "/anime/:slug*",
                          "destination":  "/anime.html"
                      },
@@ -56,6 +68,16 @@
                       {
                           "source":  "/anime.html",
                           "destination":  "/anime-list",
+                          "statusCode":  301
+                      },
+                      {
+                          "source":  "/manhwa.html",
+                          "destination":  "/manhwa",
+                          "statusCode":  301
+                      },
+                      {
+                          "source":  "/manhwa.html/:slug*",
+                          "destination":  "/manhwa/:slug*",
                           "statusCode":  301
                       },
                       {

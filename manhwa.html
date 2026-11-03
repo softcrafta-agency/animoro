@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Discover Manhwa &amp; Webtoons | Animoro</title>
+  <meta name="description" content="Discover confirmed Korean manhwa and webtoons. Explore recommendations, browse genres, and find official publishing platforms on Animoro." />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Discover Manhwa &amp; Webtoons | Animoro" />
+  <meta property="og:description" content="Discover confirmed Korean manhwa and webtoons. Explore recommendations, browse genres, and find official publishing platforms on Animoro." />
+  <meta property="og:url" content="https://www.animoro.in/manhwa" />
+  <meta property="og:image" content="https://www.animoro.in/logo.png" />
+  <meta property="og:image:alt" content="Animoro" />
+  <meta property="og:site_name" content="Animoro" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Discover Manhwa &amp; Webtoons | Animoro" />
+  <meta name="twitter:description" content="Discover confirmed Korean manhwa and webtoons. Explore recommendations, browse genres, and find official publishing platforms on Animoro." />
+  <meta name="twitter:image" content="https://www.animoro.in/logo.png" />
+  <meta name="twitter:image:alt" content="Animoro" />
+  <link rel="canonical" href="https://www.animoro.in/manhwa" />
+  <meta name="theme-color" content="#080a0f" />
+  <link rel="icon" type="image/png" href="/favicon-small.png" />
+  <script id="manhwaJsonLd" type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "CollectionPage",
+          "@id": "https://www.animoro.in/manhwa#page",
+          "name": "Discover Manhwa | Animoro",
+          "description": "Discover confirmed Korean manhwa and webtoons, browse genres, and find official platforms.",
+          "url": "https://www.animoro.in/manhwa",
+          "isPartOf": { "@id": "https://www.animoro.in/#website" },
+          "publisher": { "@id": "https://www.animoro.in/#organization" }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.animoro.in/" },
+            { "@type": "ListItem", "position": 2, "name": "Manhwa", "item": "https://www.animoro.in/manhwa" }
+          ]
+        }
+      ]
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/responsive.css" />
+  <link rel="stylesheet" href="/css/manhwa.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="brand-logo" aria-label="Animoro Home">
+        <img class="brand-logo-image" src="/logo-small.webp" alt="Animoro logo" width="176" height="118" />
+      </a>
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/anime-list" class="nav-link">Anime List</a>
+        <a href="/manhwa" class="nav-link active" aria-current="page">Manhwa</a>
+        <a href="/upcoming-anime" class="nav-link">Upcoming Anime</a>
+        <a href="/category.html?category=Anime%20News" class="nav-link">Anime News</a>
+        <a href="/blogs.html" class="nav-link">Articles</a>
+        <a href="/my-list.html" class="nav-link">My List</a>
+        <a href="/anime-calendar.html" class="nav-link">Anime Airing Today</a>
+      </nav>
+      <div class="header-actions">
+        <a href="/search.html" class="nav-search-btn" aria-label="Search Animoro" title="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+        </a>
+        <button class="hamburger-btn" id="hamburgerBtn" type="button" aria-controls="mobileNavDrawer" aria-expanded="false" aria-label="Toggle navigation menu"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+  <div class="mobile-drawer-backdrop" id="mobileBackdrop"></div>
+  <aside class="mobile-drawer" id="mobileNavDrawer" aria-label="Mobile Navigation">
+    <div class="drawer-header"><span class="brand-logo-text">ANIMORO</span><button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">&times;</button></div>
+    <nav class="mobile-nav-links">
+      <a href="/">Home</a>
+      <a href="/anime-list">Anime List</a>
+      <a href="/manhwa" class="active" aria-current="page">Manhwa</a>
+      <a href="/upcoming-anime">Upcoming Anime</a>
+      <a href="/category.html?category=Anime%20News">Anime News</a>
+      <a href="/blogs.html">Articles</a>
+      <a href="/search.html">Search</a>
+      <a href="/my-list.html">My List</a>
+      <a href="/anime-calendar.html">Anime Airing Today</a>
+    </nav>
+  </aside>
+
+  <main class="section-padded manhwa-main">
+    <div class="container">
+      <nav class="manhwa-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a><span aria-hidden="true">/</span><a href="/manhwa">Manhwa</a><span id="manhwaBreadcrumbCurrent" hidden></span>
+      </nav>
+
+      <div id="manhwaLanding">
+        <header class="manhwa-hero">
+          <p class="manhwa-eyebrow">Animoro Manhwa Recommendations</p>
+          <h1 class="section-title">Discover Manhwa</h1>
+          <p class="section-subtitle">Find your next favorite Korean comic, explore genres, and discover official publishing platforms. Animoro is a discovery and recommendation site, not a reading platform.</p>
+        </header>
+
+        <section class="manhwa-section" aria-labelledby="manhwaFeaturedHeading">
+          <div class="section-header"><div><h2 class="section-title" id="manhwaFeaturedHeading">Featured Manhwa</h2><p class="section-subtitle">A recommendation selected for discovery.</p></div></div>
+          <div id="manhwaFeatured" aria-live="polite"><div class="home-loading-state" role="status" aria-label="Loading featured manhwa"><span class="home-loading-line"></span><span class="home-loading-line"></span></div></div>
+        </section>
+
+        <section class="manhwa-section" id="manhwaTrendingSection" aria-labelledby="manhwaTrendingHeading" hidden>
+          <div class="section-header"><div><h2 class="section-title" id="manhwaTrendingHeading">Trending Manhwa</h2><p class="section-subtitle">Trending order supplied by AniList.</p></div></div>
+          <div class="articles-grid manhwa-card-grid" id="manhwaTrending" aria-live="polite"></div>
+        </section>
+
+        <section class="manhwa-section" aria-labelledby="manhwaPopularHeading">
+          <div class="section-header"><div><h2 class="section-title" id="manhwaPopularHeading">Popular Manhwa</h2><p class="section-subtitle">Popularity order supplied by AniList; no popularity counts are invented.</p></div></div>
+          <div class="articles-grid manhwa-card-grid" id="manhwaPopular" aria-live="polite"><div class="home-loading-state" role="status" aria-label="Loading popular manhwa"><span class="home-loading-line"></span><span class="home-loading-line"></span></div></div>
+        </section>
+
+        <section class="manhwa-section" aria-labelledby="manhwaRecommendedHeading">
+          <div class="section-header"><div><h2 class="section-title" id="manhwaRecommendedHeading">Recommended For You</h2><p class="section-subtitle">Related to The Greatest Estate Developer in AniList’s recommendation data.</p></div></div>
+          <div class="articles-grid manhwa-card-grid" id="manhwaRecommended" aria-live="polite"><div class="home-loading-state" role="status" aria-label="Loading recommendations"><span class="home-loading-line"></span><span class="home-loading-line"></span></div></div>
+        </section>
+
+        <section class="manhwa-section" aria-labelledby="manhwaGenresHeading">
+          <div class="section-header"><div><h2 class="section-title" id="manhwaGenresHeading">Browse By Genre</h2><p class="section-subtitle">Choose a genre to apply it to the title search results below.</p></div></div>
+          <div class="manhwa-genre-list" aria-label="Manhwa genres">
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Action" aria-pressed="false">Action</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Adventure" aria-pressed="false">Adventure</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Fantasy" aria-pressed="false">Fantasy</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Comedy" aria-pressed="false">Comedy</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Romance" aria-pressed="false">Romance</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Drama" aria-pressed="false">Drama</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Horror" aria-pressed="false">Horror</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Thriller" aria-pressed="false">Thriller</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Mystery" aria-pressed="false">Mystery</button>
+            <button type="button" class="manhwa-genre-button" data-manhwa-genre="Isekai" aria-pressed="false">Isekai</button>
+          </div>
+        </section>
+
+        <section class="manhwa-section" aria-labelledby="manhwaRecentHeading">
+          <div class="section-header"><div><h2 class="section-title" id="manhwaRecentHeading">Recently Added</h2><p class="section-subtitle">Newest AniList catalogue records, not a claim about publication dates.</p></div></div>
+          <div class="articles-grid manhwa-card-grid" id="manhwaRecent" aria-live="polite"><div class="home-loading-state" role="status" aria-label="Loading recently added manhwa"><span class="home-loading-line"></span><span class="home-loading-line"></span></div></div>
+        </section>
+
+        <section class="manhwa-section" aria-labelledby="manhwaSearchHeading">
+          <div class="section-header"><div><h2 class="section-title" id="manhwaSearchHeading">Search Manhwa</h2><p class="section-subtitle">Search titles and alternative titles. Results stay combined with the selected genre.</p></div></div>
+          <form id="manhwaSearchForm" class="manhwa-search-form" role="search">
+            <label class="sr-only" for="manhwaSearchInput">Search manhwa by title or alternative title</label>
+            <input id="manhwaSearchInput" class="form-input" type="search" placeholder="Search title or alternative title" autocomplete="off" />
+            <button class="btn-cta" id="manhwaSearchButton" type="submit">Search</button>
+          </form>
+          <p id="manhwaSearchStatus" class="manhwa-search-status" role="status" aria-live="polite"></p>
+          <div class="articles-grid manhwa-card-grid" id="manhwaSearchResults" aria-live="polite"></div>
+          <nav class="manhwa-pagination" aria-label="Manhwa search result pages">
+            <button class="btn-outline" id="manhwaPrevious" type="button" hidden>Previous</button>
+            <span id="manhwaPageStatus" aria-live="polite"></span>
+            <button class="btn-outline" id="manhwaNext" type="button" hidden>Next</button>
+          </nav>
+        </section>
+        <p id="manhwaLandingFreshnessNote" class="manhwa-freshness-note" role="status" hidden></p>
+        <p class="manhwa-attribution">Manhwa metadata and recommendation order are supplied by <a href="https://anilist.co/" target="_blank" rel="noopener noreferrer">AniList</a>. Cover images and titles belong to their respective creators and publishers.</p>
+      </div>
+
+      <section id="manhwaDetailPage" class="manhwa-detail-page" hidden aria-labelledby="manhwaDetailTitle">
+        <nav class="manhwa-breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/manhwa">Manhwa</a><span aria-hidden="true">/</span><span id="manhwaBreadcrumbCurrentDetail">Details</span></nav>
+        <div id="manhwaDetailContainer" aria-live="polite"></div>
+        <p id="manhwaDetailFreshnessNote" class="manhwa-freshness-note" role="status" hidden></p>
+        <p class="manhwa-attribution">Metadata supplied by <a href="https://anilist.co/" target="_blank" rel="noopener noreferrer">AniList</a>. Official platform links are shown when verified for a title.</p>
+        <section id="manhwaRecommendationsSection" class="manhwa-section" hidden aria-labelledby="manhwaSimilarHeading">
+          <div class="section-header"><div><h2 class="section-title" id="manhwaSimilarHeading">Similar Recommendations</h2><p class="section-subtitle">Related titles from AniList, shown only when their Korean manhwa classification is confirmed.</p></div></div>
+          <div class="articles-grid manhwa-card-grid" id="manhwaRecommendations" aria-live="polite"></div>
+        </section>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer"><div class="container footer-bottom"><div>&copy; 2026 Animoro. All rights reserved.</div><a href="/">Back to Homepage</a></div></footer>
+  <script type="module" src="/js/manhwa-search.js"></script>
+</body>
+</html>
