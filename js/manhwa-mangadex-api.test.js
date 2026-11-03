@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { requestMangaDex, searchMangaDex } = await import('./manhwa-mangadex-api.js');
+const { getMangaDexDetails, requestMangaDex, searchMangaDex } = await import('./manhwa-mangadex-api.js');
 
 function response(status, payload, headers = new Headers()) {
   return {
@@ -53,5 +53,13 @@ test('retries MangaDex rate limits and surfaces API errors', async () => {
   await assert.rejects(
     requestMangaDex('/manga', { limit: 1 }),
     /MangaDex request failed \(503\)/
+  );
+});
+
+test('treats a missing MangaDex detail record as confirmed not found', async () => {
+  globalThis.fetch = async () => response(404, { result: 'error' });
+  await assert.rejects(
+    getMangaDexDetails('ef525177-734a-4ae0-bc66-b2d377f3ada9'),
+    error => error.status === 404 && error.notFound === true
   );
 });

@@ -231,10 +231,15 @@ test('returns a 404 only for a confirmed missing comic and keeps API failures re
   const originalSetTimeout = globalThis.setTimeout;
   globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 0, ...args);
   try {
+    await assert.rejects(
+      getManhwaDetailsBySlug('../invalid'),
+      error => error.status === 404 && error.notFound === true
+    );
+
     globalThis.fetch = async () => response({ data: { Media: null } });
     await assert.rejects(
       getManhwaDetailsBySlug('missing-comic--140499'),
-      error => error.status === 404
+      error => error.status === 404 && error.notFound === true
     );
 
     storage.clear();
@@ -243,8 +248,95 @@ test('returns a 404 only for a confirmed missing comic and keeps API failures re
     };
     await assert.rejects(
       getManhwaDetailsBySlug('temporarily-unavailable--140500'),
-      error => error.status !== 404
+      error => error.notFound !== true
     );
+
+    storage.clear();
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      json: async () => ({ message: 'Upstream endpoint unavailable' }),
+    });
+    await assert.rejects(
+      getManhwaDetailsBySlug('upstream-error--140501'),
+      error => error.status === 404 && error.notFound !== true
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+test('does not turn a partial provider outage into a legacy-slug 404', async () => {
+  storage.clear();
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 0, ...args);
+  globalThis.fetch = async url => {
+    if (String(url).startsWith('https://api.mangadex.org')) {
+      return response({ result: 'ok', data: [], total: 0 });
+    }
+    return {
+      ok: false,
+      status: 403,
+      headers: new Headers(),
+      json: async () => ({ message: 'AniList request blocked' }),
+    };
+  };
+  try {
+    await assert.rejects(
+      getManhwaDetailsBySlug('return-of-the-blossoming-blade'),
+      error => error instanceof AggregateError && error.notFound !== true
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+test('resolves existing title-only URLs to the matching AniList record ID', async () => {
+  storage.clear();
+  const originalSetTimeout = globalThis.setTimeout;
+  const requestedIds = [];
+  globalThis.setTimeout = (callback, _delay, ...args) => originalSetTimeout(callback, 0, ...args);
+  globalThis.fetch = async (url, options) => {
+    if (String(url).startsWith('https://api.mangadex.org')) {
+      return response({ result: 'ok', data: [], total: 0 });
+    }
+    const request = JSON.parse(options.body);
+    if (request.query.includes('SearchManhwa')) {
+      return response({
+        data: {
+          Page: {
+            pageInfo: { currentPage: 1, hasNextPage: false, total: 1 },
+            media: [manhwaRecord({
+              id: 132144,
+              title: {
+                english: 'Return of the Blossoming Blade',
+                romaji: 'Hwasangwihwan',
+                native: '화산귀환',
+              },
+            })],
+          },
+        },
+      });
+    }
+    requestedIds.push(request.variables.id);
+    return response({
+      data: {
+        Media: manhwaRecord({
+          id: request.variables.id,
+          title: {
+            english: 'Return of the Blossoming Blade',
+            romaji: 'Hwasangwihwan',
+            native: '화산귀환',
+          },
+        }),
+      },
+    });
+  };
+  try {
+    const result = await getManhwaDetailsBySlug('return-of-the-blossoming-blade');
+    assert.equal(result.item.id, 132144);
+    assert.deepEqual(requestedIds, [132144]);
   } finally {
     globalThis.setTimeout = originalSetTimeout;
   }
@@ -407,7 +499,7 @@ test('resolves MangaDex recommendations through the existing detail route withou
     assert.match(url, /^https:\/\/api\.mangadex\.org\/manga\//);
     return response({ result: 'ok', response: 'entity', data: mangaDexRecord() });
   };
-  const slug = 'lore-olympus-md-ef525177-734a-4ae0-bc66-b2d377f3ada9';
+  const slug = 'previous-title-md-ef525177-734a-4ae0-bc66-b2d377f3ada9';
   const result = await getManhwaDetailsBySlug(slug);
   assert.equal(result.item.title, 'Lore Olympus');
   assert.equal(result.item.contentType, 'Webcomics');

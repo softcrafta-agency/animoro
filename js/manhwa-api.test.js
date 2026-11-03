@@ -43,3 +43,23 @@ test('surfaces GraphQL errors instead of returning an empty success response', a
   });
   await assert.rejects(requestAniList('query { invalid }'), /Invalid query field/);
 });
+
+test('marks only AniList missing-media responses as confirmed not found', async () => {
+  globalThis.fetch = async () => response(404, {
+    errors: [{ message: 'Not Found.', status: 404 }],
+    data: { Media: null },
+  });
+  await assert.rejects(
+    requestAniList('query($id: Int!) { Media(id: $id) { id } }', { id: 999999999 }),
+    error => error.status === 404 && error.notFound === true
+  );
+
+  globalThis.fetch = async () => response(404, {
+    errors: [{ message: 'Proxy route unavailable.', status: 404 }],
+    data: null,
+  });
+  await assert.rejects(
+    requestAniList('query($id: Int!) { Media(id: $id) { id } }', { id: 132144 }),
+    error => error.status === 404 && error.notFound !== true
+  );
+});

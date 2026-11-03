@@ -277,7 +277,7 @@ async function loadDetails(slug) {
     setFreshness(result.stale ? 'Showing recently cached comic metadata while the live API reconnects.' : '');
   } catch (error) {
     console.warn('Comic details could not be loaded.', error);
-    if (Number(error?.status) === 404) {
+    if (error?.notFound === true) {
       window.location.replace('/404.html');
       return;
     }

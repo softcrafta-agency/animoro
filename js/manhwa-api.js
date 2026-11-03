@@ -69,6 +69,19 @@ async function postGraphQL(query, variables) {
     );
     error.status = response.status;
     error.retryAfter = response.status === 429 ? getRetryDelay(response) : 0;
+    if (
+      response.status === 404 &&
+      Number.isSafeInteger(variables?.id) &&
+      variables.id > 0 &&
+      Object.hasOwn(payload?.data || {}, 'Media') &&
+      payload.data.Media === null &&
+      Array.isArray(payload.errors) &&
+      payload.errors.some(item =>
+        Number(item?.status) === 404 && /^not found\.?$/i.test(String(item?.message || '').trim())
+      )
+    ) {
+      error.notFound = true;
+    }
     throw error;
   }
   if (!payload || !Object.hasOwn(payload, 'data')) {

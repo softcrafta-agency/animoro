@@ -128,5 +128,8 @@ export function searchMangaDex({ title = '', limit = 12, offset = 0 } = {}) {
 export function getMangaDexDetails(id) {
   return requestMangaDex(`/manga/${id}`, {
     'includes[]': ['cover_art', 'author', 'artist'],
+  }).catch(error => {
+    if (Number(error?.status) === 404) error.notFound = true;
+    throw error;
   });
 }
