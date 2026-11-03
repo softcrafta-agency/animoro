@@ -39,6 +39,9 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /"@type":"BreadcrumbList"/);
   assert.match(html, /"datePublished":"2026-10-01T10:00:00\.000Z"/);
   assert.match(html, /"dateModified":"2026-10-03T10:00:00\.000Z"/);
+  assert.match(html, /Published <time datetime="2026-10-01T10:00:00\.000Z">Oct 1, 2026<\/time>/);
+  assert.match(html, /Updated <time datetime="2026-10-03T10:00:00\.000Z">Oct 3, 2026<\/time>/);
+  assert.match(html, /Published by <a href="\/about\.html" class="article-author-name">Animoro<\/a>/);
 });
 
 test('does not display missing author, category, or publication metadata', () => {
@@ -53,9 +56,11 @@ test('does not display missing author, category, or publication metadata', () =>
   const intro = html.match(/<header class="article-header">([\s\S]*?)<\/header>/)?.[1] || '';
 
   assert.doesNotMatch(breadcrumbs, /category\.html/);
-  assert.doesNotMatch(intro, /class="badge-category"|class="article-author-details"|<time datetime=/);
+  assert.doesNotMatch(intro, /class="badge-category"|<time datetime=/);
   assert.doesNotMatch(html, /"author":\{"@type":"Person"/);
   assert.doesNotMatch(html, /"datePublished":/);
+  assert.doesNotMatch(html, />Updated <time/);
+  assert.match(html, /Published by <a href="\/about\.html" class="article-author-name">Animoro<\/a>/);
   assert.match(html, /<title>Article Without Display Metadata — Animoro<\/title>/);
   assert.match(html, /<meta name="description" content="Body text\." \/>/);
 });
@@ -88,6 +93,20 @@ test('uses SEO metadata independently from the visible headline and escapes fall
   assert.match(html, /<h1 class="article-page-title">Visible &lt;Headline&gt;<\/h1>/);
   assert.match(html, /<meta name="description" content="SEO &amp; description" \/>/);
   assert.match(html, /<meta property="og:title" content="Search &lt;Title&gt;" \/>/);
+});
+
+test('does not present a publication timestamp as a later content update', () => {
+  const html = renderArticleDocument(template, {
+    id: 'unchanged-article',
+    title: 'Unchanged Article',
+    slug: 'unchanged-article',
+    content: '<p>Body.</p>',
+    publishedAt: new Date('2026-10-01T10:00:00Z'),
+    updatedAt: new Date('2026-10-01T10:00:00Z'),
+  });
+
+  assert.doesNotMatch(html, />Updated <time/);
+  assert.doesNotMatch(html, /"dateModified":/);
 });
 
 test('keeps SEO targeting fields private while rendering one canonical H1 and useful metadata', () => {

@@ -6,7 +6,7 @@ function normalizeText(value) {
 
 function normalizeStatus(value) {
   const status = normalizeText(value);
-  if (status.includes('finish') || status === 'complete') return 'completed';
+  if (status.includes('finish') || status === 'complete' || status === 'completed') return 'completed';
   if (status.includes('airing')) return 'airing';
   if (status.includes('not yet') || status === 'upcoming') return 'upcoming';
   return status;
@@ -59,7 +59,9 @@ export function filterAndSortAnime(entries, filters = {}) {
   const type = normalizeText(filters.type);
   const status = normalizeStatus(filters.status);
   const genre = normalizeText(filters.genre);
-  const sort = normalizeText(filters.sort) || 'popularity';
+  const sortAliases = { 'top-rated': 'score', top_rated: 'score', newest: 'start_date', 'newest-first': 'start_date', popular: 'popularity' };
+  const requestedSort = normalizeText(filters.sort) || 'popularity';
+  const sort = sortAliases[requestedSort] || requestedSort;
 
   return entries
     .map((anime, index) => ({ anime, index }))
@@ -81,7 +83,7 @@ export function filterAndSortAnime(entries, filters = {}) {
           getReleaseTimestamp(getReleaseValue(right.anime))
         );
       } else if (sort === 'score') {
-        comparison = compareNumeric(left.anime.score ?? left.anime.rating, right.anime.score ?? right.anime.rating);
+        comparison = compareNumeric(left.anime.score ?? left.anime.rating, right.anime.score ?? right.anime.rating, 'desc');
       } else {
         comparison = compareNumeric(left.anime.popularity, right.anime.popularity, 'asc');
       }

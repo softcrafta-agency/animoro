@@ -51,9 +51,13 @@ test('Firebase Hosting configures matching rewrite and permanent redirect', () =
 
 test('Anime List build entry, canonical metadata, internal links, and sitemap use the clean directory route', () => {
   assert.match(vite, /anime:\s*path\.resolve\(__dirname,\s*'anime\.html'\)/);
-  assert.match(animeHtml, /<title>Anime List – Explore Anime Series, Genres &amp; Ratings \| Animoro<\/title>/);
-  assert.match(animeHtml, /name="description" content="Explore the Animoro anime list to discover anime series, popular titles, genres, ratings, and recommendations for your next watch\."/);
-  assert.match(animeHtml, /<h1[^>]*>Anime List – Explore Anime Series and Details<\/h1>/);
+  assert.match(animeHtml, /<title>Anime List: Explore Anime Series &amp; Genres \| Animoro<\/title>/);
+  assert.match(animeHtml, /name="description" content="Explore anime by title, genre, format, airing status, popularity, and available ratings\./);
+  assert.match(animeHtml, /<h1[^>]*>Anime List: Explore Anime Series &amp; Genres<\/h1>/);
+  assert.match(animeHtml, /What is the Animoro Anime List\?/);
+  assert.match(animeHtml, /id="animeListFaq"/);
+  assert.match(animeHtml, /id="animeFaqJsonLd" type="application\/ld\+json"/);
+  assert.match(animeHtml, /id="animeListFreshness"/);
   assert.match(animeHtml, /name="robots" content="index, follow"/);
   assert.match(animeHtml, /<meta property="og:url" content="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
   assert.match(animeHtml, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
@@ -63,8 +67,8 @@ test('Anime List build entry, canonical metadata, internal links, and sitemap us
   assert.doesNotMatch(sitemap, /'\/anime\.html'/);
   assert.match(animeUrl, /return `\/anime\//);
   assert.match(animeClient, /function renderAnimeListStructuredData\(\)/);
-  assert.match(animeClient, /'@type': 'CollectionPage'/);
-  assert.match(animeClient, /'@type': 'BreadcrumbList'/);
+  assert.match(animeClient, /createAnimeListStructuredData\(latestDirectoryItems\)/);
+  assert.match(animeClient, /hideAnimeListContent\(\)/);
   assert.match(animeClient, /document\.getElementById\('animeListJsonLd'\)\?\.remove\(\)/);
   assert.match(robots, /^Allow: \/api\/tenrai$/m);
   assert.match(robots, /^Disallow: \/api\/$/m);

@@ -63,7 +63,14 @@ export function getTenraiRequestUrl(query = {}) {
     url = new URL('anime', TENRAI_ORIGIN);
     addCommonListParams(url, query);
     addParam(url, query, 'q', { maxLength: 300 });
-    addParam(url, query, 'status', { allowed: ANIME_STATUSES });
+    const requestedStatus = singleValue(query, 'status').trim().toLowerCase();
+    const normalizedStatus = ['completed', 'finished', 'finished airing'].includes(requestedStatus)
+      ? 'complete'
+      : requestedStatus;
+    if (normalizedStatus && !ANIME_STATUSES.has(normalizedStatus)) {
+      throw requestError(400, 'The status parameter is not supported.');
+    }
+    if (normalizedStatus) url.searchParams.set('status', normalizedStatus);
     addParam(url, query, 'year', { pattern: /^[1-9]\d{0,3}$/ });
     addParam(url, query, 'season', { allowed: SEASONS });
     addParam(url, query, 'season_year', { pattern: /^(?:19|20|21)\d{2}$/ });

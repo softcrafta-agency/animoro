@@ -4,36 +4,84 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Animoro – Anime News, Reviews, Guides & Upcoming Anime</title>
-  <meta name="description" content="Animoro covers the latest anime news, reviews, rankings, guides, and upcoming release coverage for fans looking for practical recommendations and deeper insight." />
+  <meta name="description" content="Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, anime listings, upcoming titles, and airing schedules." />
   <meta name="robots" content="index, follow" />
-  <meta property="og:title" content="Animoro – Anime News, Reviews, Guides & Upcoming Anime" />
-  <meta property="og:description" content="Animoro covers the latest anime news, reviews, rankings, guides, and upcoming release coverage for fans looking for practical recommendations and deeper insight." />
+  <meta property="og:title" content="Animoro – Anime News, Reviews & Anime Discovery" />
+  <meta property="og:description" content="Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, anime listings, upcoming titles, and airing schedules." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.animoro.in/" />
   <meta property="og:image" content="https://www.animoro.in/logo.png" />
+  <meta property="og:image:alt" content="Animoro" />
+  <meta property="og:site_name" content="Animoro" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Animoro – Anime News, Reviews & Anime Discovery" />
+  <meta name="twitter:description" content="Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, anime listings, upcoming titles, and airing schedules." />
+  <meta name="twitter:image" content="https://www.animoro.in/logo.png" />
+  <meta name="twitter:image:alt" content="Animoro" />
   <meta name="theme-color" content="#080a0f" />
   <link rel="canonical" href="https://www.animoro.in/" />
   <link rel="icon" type="image/png" href="/favicon-small.png" />
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Animoro",
-      "url": "https://www.animoro.in/",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://www.animoro.in/search.html?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      },
-      "publisher": {
-        "@type": "Organization",
-        "name": "Animoro",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "https://www.animoro.in/logo.png"
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What can I find on Animoro?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, a searchable anime catalogue, upcoming-anime information, and an airing schedule."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I browse anime on Animoro?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Open the Anime List to search by title, filter by available genre, type, or status, sort catalogue results, and open anime detail pages. Upcoming Anime and Anime Airing Today provide separate release and schedule views."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Who publishes Animoro?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Animoro is the publisher identity used across this website. Visit the About page for information about Animoro's coverage and the Contact page to send an inquiry or correction."
+          }
         }
-      }
+      ]
+    }
+  </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.animoro.in/#organization",
+          "name": "Animoro",
+          "url": "https://www.animoro.in/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.animoro.in/logo.png"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.animoro.in/#website",
+          "name": "Animoro",
+          "url": "https://www.animoro.in/",
+          "publisher": {
+            "@id": "https://www.animoro.in/#organization"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://www.animoro.in/search.html?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
     }
   </script>
   <link rel="apple-touch-icon" href="/favicon-small.png" />
@@ -49,7 +97,7 @@
   <header class="site-header">
     <div class="container header-inner">
       <a href="/" class="brand-logo" aria-label="Animoro Home">
-        <img class="brand-logo-image" src="/logo-small.webp" alt="Animoro logo" />
+        <img class="brand-logo-image" src="/logo-small.webp" alt="Animoro logo" width="176" height="118" />
         
         
       </a>
@@ -114,12 +162,23 @@
 
     <!-- Main Content Layout (Articles + Sidebar) -->
     <section class="section-padded">
+      <div class="container" style="margin-bottom: 32px;">
+        <h1 class="section-title">Anime News, Reviews &amp; Anime Discovery</h1>
+        <p class="section-subtitle">Animoro brings anime fans together with news, reviews, rankings, watch guides, recommendations, a searchable anime list, upcoming anime coverage, and an airing schedule.</p>
+        <nav aria-label="Explore Animoro" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px;">
+          <a href="/anime-list" class="btn-outline">Anime List</a>
+          <a href="/upcoming-anime" class="btn-outline">Upcoming Anime</a>
+          <a href="/anime-calendar.html" class="btn-outline">Anime Airing Today</a>
+          <a href="/category.html?category=Anime%20News" class="btn-outline">Anime News</a>
+          <a href="/blogs.html" class="btn-outline">Anime Articles</a>
+        </nav>
+      </div>
       <div class="container home-layout-grid">
         <!-- Latest Articles Column -->
         <div class="latest-articles-column">
           <div class="section-header">
             <div>
-              <h1 class="section-title">Latest Articles</h1>
+              <h2 class="section-title">Latest Articles</h2>
               <p class="section-subtitle">Freshly written anime guides, news updates, and deep dives</p>
             </div>
             <a href="blogs.html" class="btn-outline">Browse All &rarr;</a>
@@ -244,6 +303,26 @@
         </div>
       </div>
     </section>
+
+    <section class="section-padded" aria-labelledby="homeFaqHeading">
+      <div class="container">
+        <h2 class="section-title" id="homeFaqHeading">About Animoro</h2>
+        <div class="anime-list-faq">
+          <section aria-labelledby="homeFaqCoverage">
+            <h3 id="homeFaqCoverage">What can I find on Animoro?</h3>
+            <p>Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, a searchable anime catalogue, upcoming-anime information, and an airing schedule.</p>
+          </section>
+          <section aria-labelledby="homeFaqBrowse">
+            <h3 id="homeFaqBrowse">How can I browse anime on Animoro?</h3>
+            <p>Open the <a href="/anime-list">Anime List</a> to search by title, filter by available genre, type, or status, sort catalogue results, and open anime detail pages. <a href="/upcoming-anime">Upcoming Anime</a> and <a href="/anime-calendar.html">Anime Airing Today</a> provide separate release and schedule views.</p>
+          </section>
+          <section aria-labelledby="homeFaqPublisher">
+            <h3 id="homeFaqPublisher">Who publishes Animoro?</h3>
+            <p>Animoro is the publisher identity used across this website. Visit <a href="/about.html">About Animoro</a> for information about its coverage, or <a href="/contact.html">contact Animoro</a> with an inquiry or correction.</p>
+          </section>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- Site Footer -->
@@ -253,7 +332,7 @@
         <span class="brand-logo-text" style="font-size: 1.6rem;">ANIMORO</span>
         <p class="footer-tagline">Your Daily Dose of Anime.</p>
         <p class="footer-desc">
-          Animoro is an independent anime publication dedicated to delivering high-caliber journalism, thoughtful criticism, and passionate storytelling for fans worldwide.
+          Animoro brings together anime news, reviews, rankings, guides, recommendations, seasonal coverage, and anime catalogue information.
         </p>
       </div>
 

@@ -17,7 +17,7 @@ function createAuthControls(container) {
         </svg>
       </span>
       <button type="button" class="header-avatar-button" id="headerAvatarButton" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded="false">
-        <img class="header-avatar-image" id="headerAvatarImage" alt="" hidden />
+        <img class="header-avatar-image" id="headerAvatarImage" alt="" width="48" height="48" hidden />
         <span class="header-avatar-fallback" id="headerAvatarFallback" aria-hidden="true">A</span>
       </button>
       <div class="header-user-dropdown" id="headerUserDropdown" role="menu" aria-label="Profile menu" hidden>
@@ -138,4 +138,3 @@ export function initializeAuthNavigation() {
 
   watchAuthState((user) => setAuthenticatedUser(user));
 }
-

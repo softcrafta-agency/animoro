@@ -9,13 +9,32 @@ const REQUEST_GAP_MS = 510;
 const TENRAI_GENRES = {
   action: '1',
   adventure: '2',
+  'avant-garde': '5',
+  'award-winning': '46',
+  'boys-love': '28',
   comedy: '4',
   drama: '8',
+  ecchi: '9',
+  erotica: '49',
   fantasy: '10',
+  'girls-love': '26',
+  gourmet: '47',
+  hentai: '12',
+  horror: '14',
+  kids: '15',
   mystery: '7',
   romance: '22',
   'sci-fi': '24',
+  'slice-of-life': '36',
+  sports: '30',
+  supernatural: '37',
+  suspense: '41',
   thriller: '41',
+  'boys love': '28',
+  'girls love': '26',
+  'slice of life': '36',
+  'award winning': '46',
+  'avant garde': '5',
 };
 const VALID_TYPES = new Set(['tv', 'movie', 'ova', 'ona', 'special', 'music', 'cm', 'pv', 'tv_special']);
 const VALID_SEASONS = new Set(['winter', 'spring', 'summer', 'fall']);
@@ -284,20 +303,48 @@ export function normalizeAnime(item, kind = 'anime') {
 }
 
 function mapGenreToTenrai(genre) {
-  const value = String(genre || '').trim().toLowerCase();
+  const value = String(genre || '').trim().toLowerCase().replace(/[_–—]/g, '-');
+  if (/^\d+(?:,\d+){0,24}$/.test(value)) return value;
   return TENRAI_GENRES[value] || '';
 }
 
-function requestGenre(options) {
-  return options.genres || mapGenreToTenrai(options.genre);
+function requestGenre(options = {}) {
+  if (Array.isArray(options.genres)) {
+    return options.genres.map(value => mapGenreToTenrai(value)).filter(Boolean).join(',');
+  }
+  if (options.genres !== undefined && options.genres !== null && options.genres !== '') {
+    return mapGenreToTenrai(options.genres);
+  }
+  return mapGenreToTenrai(options.genre);
+}
+
+function normalizeApiStatus(status) {
+  const value = String(status || '').trim().toLowerCase();
+  if (['completed', 'complete', 'finished', 'finished airing'].includes(value)) return 'complete';
+  if (['airing', 'currently airing'].includes(value)) return 'airing';
+  if (['upcoming', 'not yet aired', 'not yet airing'].includes(value)) return 'upcoming';
+  return value;
 }
 
 function normalizeSort(options = {}) {
+  const aliases = {
+    popular: 'popularity',
+    'most-popular': 'popularity',
+    'top-rated': 'score',
+    'top_rated': 'score',
+    newest: 'start_date',
+    'newest-first': 'start_date',
+    'newest_first': 'start_date',
+  };
+  const requested = String(options.orderBy || 'popularity').trim().toLowerCase();
+  const normalized = aliases[requested] || requested;
   const allowed = new Set(['popularity', 'score', 'title', 'start_date', 'members']);
-  const orderBy = allowed.has(options.orderBy) ? options.orderBy : 'popularity';
+  const orderBy = allowed.has(normalized) ? normalized : 'popularity';
+  const requestedDirection = String(options.sort || '').trim().toLowerCase();
+  const defaultDirection = orderBy === 'title' || orderBy === 'popularity' ? 'asc' : 'desc';
   return {
-    order_by: orderBy === 'popularity' ? 'popularity' : orderBy,
-    sort: options.sort || (orderBy === 'title' || orderBy === 'popularity' ? 'asc' : 'desc'),
+    order_by: orderBy,
+    sort: ['asc', 'desc'].includes(requestedDirection) ? requestedDirection : defaultDirection,
   };
 }
 
@@ -311,7 +358,7 @@ export async function getAnimeDirectory(options = {}) {
     limit: options.limit || 24,
     q: String(options.query || '').trim(),
     type: options.type || '',
-    status: options.status || '',
+    status: normalizeApiStatus(options.status),
     genres: requestGenre(options),
     ...normalizeSort(options),
   });

@@ -106,11 +106,20 @@ function getPublishedDate(post) {
   return post.publishedAt || null;
 }
 
+function getModifiedDate(post, publishedDate) {
+  const updatedAt = toIsoDateTime(post.updatedAt);
+  if (!updatedAt) return null;
+  const publishedAt = toIsoDateTime(publishedDate);
+  return !publishedAt || Date.parse(updatedAt) > Date.parse(publishedAt)
+    ? updatedAt
+    : null;
+}
+
 function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
   const { title, description } = getArticleSeo(post);
   const image = getSafeImageUrl(post.coverImage);
   const datePublished = toIsoDateTime(getPublishedDate(post));
-  const dateModified = toIsoDateTime(post.updatedAt);
+  const dateModified = getModifiedDate(post, getPublishedDate(post));
   const authorName = typeof post.authorName === 'string' && post.authorName.trim()
     ? post.authorName.trim()
     : '';
@@ -125,6 +134,7 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
     publisher: {
       '@type': 'Organization',
+      '@id': `${SITE_ORIGIN}/#organization`,
       name: 'Animoro',
       url: `${SITE_ORIGIN}/`,
       logo: {
@@ -168,6 +178,8 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
       `<meta property="og:title" content="${escapeHtml(title)}" />`,
       `<meta property="og:description" content="${escapeHtml(description)}" />`,
       `<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />`,
+      ...(datePublished ? [`<meta property="article:published_time" content="${escapeHtml(datePublished)}" />`] : []),
+      ...(dateModified ? [`<meta property="article:modified_time" content="${escapeHtml(dateModified)}" />`] : []),
       ...(image ? [`<meta property="og:image" content="${escapeHtml(image)}" />`] : []),
       `<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}" />`,
       `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
@@ -270,6 +282,8 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
   const publishedDate = getPublishedDate(post);
   const dateTime = toIsoDateTime(publishedDate);
   const visibleDate = formatDate(publishedDate);
+  const modifiedDate = getModifiedDate(post, publishedDate);
+  const visibleModifiedDate = formatDate(modifiedDate);
   const title = String(post.title || 'Untitled Article');
   const authorName = typeof post.authorName === 'string' && post.authorName.trim()
     ? post.authorName.trim()
@@ -294,15 +308,18 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
         <div class="article-header-meta">
           ${category ? `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>` : ''}
           ${animeLink}
-          ${visibleDate ? `<time datetime="${escapeHtml(dateTime)}">${escapeHtml(visibleDate)}</time>` : ''}
+          ${visibleDate ? `<span>Published <time datetime="${escapeHtml(dateTime)}">${escapeHtml(visibleDate)}</time></span>` : ''}
+          ${visibleModifiedDate ? `<span>Updated <time datetime="${escapeHtml(modifiedDate)}">${escapeHtml(visibleModifiedDate)}</time></span>` : ''}
         </div>
         <h1 class="article-page-title">${escapeHtml(title)}</h1>
         ${post.excerpt ? `<p class="article-excerpt-lead">${escapeHtml(post.excerpt)}</p>` : ''}
         <div class="article-author-bar">
-          ${authorName ? `<div class="article-author-details">
+          <div class="article-author-details">
+            ${authorName ? `
             <div class="article-author-avatar-lg" aria-hidden="true">${escapeHtml(authorName.charAt(0).toUpperCase())}</div>
-            <span class="article-author-name">${escapeHtml(authorName)}</span>
-          </div>` : ''}
+            <span class="article-author-name">${escapeHtml(authorName)}</span>` : ''}
+            <span>Published by <a href="/about.html" class="article-author-name">Animoro</a></span>
+          </div>
           <span class="article-reading-time">${readingTime} min read</span>
         </div>
       </div>

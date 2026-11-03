@@ -6,6 +6,12 @@
 
 The source now uses `/blog/{slug}` for public article URLs. Hosting redirects for legacy URLs and the updated sitemap are configured locally; production must be redeployed before these changes are live.
 
+## Source routing and indexability follow-up (reviewed 2026-11-03)
+
+The current source differs from some historical production observations below. `upcoming-anime.html` is indexable in source (`index, follow`), its directory is publicly rendered, and the sitemap includes the static `/upcoming-anime` page plus only valid-slug records with `status: published`. Firestore rules allow public reads of published entries; authentication is required only for an admin preview of an unpublished entry. The 2026-10-22 production snapshot below is historical and should not be read as current source behavior.
+
+The current source sitemap also includes `/anime-list` and `/upcoming-anime` as static routes. Confirm the deployed sitemap and rendered pages after release.
+
 ## Public URLs in the live sitemap
 
 | Existing URL | Page type | Indexing/canonical notes |
@@ -31,7 +37,7 @@ The source now uses `/blog/{slug}` for public article URLs. Hosting redirects fo
 
 The sitemap also contains published anime detail URLs when those records exist. The current sitemap response inspected for this audit contained no anime details.
 
-## Existing URL families not listed in the sitemap
+## URL families not listed in the 2026-10-22 production sitemap
 
 | Existing URL family | Current behavior | Decision |
 |---|---|---|

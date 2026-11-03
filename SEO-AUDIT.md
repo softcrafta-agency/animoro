@@ -1,5 +1,31 @@
 # Animoro SEO audit
 
+## Homepage and Anime List follow-up (source review 2026-11-03)
+
+This source-level follow-up addresses the Rankify findings and scores supplied by the site owner. The original report exports were not available, and no new Rankify measurements or production deployment verification were performed.
+
+### Findings mapped to implementation
+
+| Finding | Relevant files | Resolution / remaining limitation |
+|---|---|---|
+| Homepage entity and publisher identity were not explicit enough for answer engines. | `index.html`, `about.html`, `api/_lib/article-html.js` | Added consistent Animoro Organization/WebSite identity, publisher references, and a concise site summary. No unsupported organization details or person-author credentials were added. |
+| Homepage section relationships and answer-first context needed improvement. | `index.html` | Added a labelled introduction, links to existing news, anime list, upcoming, airing-today, and article destinations, plus visible FAQs matching structured data. SearchAction is included because the site search route is functional. |
+| Anime List title and opening copy did not define the page directly. | `anime.html` | Updated the title to a 50–60 character description, added a direct definition and browsing/genre/popularity guidance based on actual controls and routes. |
+| Anime List needed AEO content and applicable structured data. | `anime.html`, `js/anime-page-seo.js`, `js/anime.js`, `css/style.css` | Added visible FAQs, matching FAQPage data, CollectionPage/BreadcrumbList, and an ItemList only when rendered results exist. Detail routes hide the list-only FAQ and do not retain list schema. |
+| Listing data has no reliable external refresh timestamp. | `anime.html`, `js/anime.js` | Do not invent a “last updated” date. The page identifies the source and explains that a refresh timestamp is not available; the existing stale-cache state is identified when applicable. |
+| Publisher/about copy and article date attribution needed consistency. | `about.html`, `api/_lib/article-html.js` | Use Animoro as publisher; preserve real optional article authors and stored dates only. `dateModified` is omitted unless a valid update timestamp is later than publication. |
+| AI-readable site index was missing. | `public/llms.txt` | Added the site description and existing key routes; Vite copies it to `dist/llms.txt`. |
+| Static image layout could shift while loading. | Static HTML templates, `js/auth-nav.js` | Added intrinsic dimensions to static images and the dynamically populated profile avatar while preserving current assets and alt text. |
+| Existing article/listing implementations could be duplicated or conflict. | `api/_lib/article-html.js`, `js/anime.js`, `js/anime-page-seo.js` | Article SEO remains server-rendered; anime directory metadata remains client-rendered. No separate `seo-pages.js` or `seo-renderer.js` was found. Existing route, robots, sitemap, and data policies were retained. |
+
+### Verification and limitations
+
+- Full tests: 185 passed, 0 failed. TypeScript lint and Vite production build passed.
+- All 19 static HTML templates were checked for static images missing alt, width, or height; none were found. Build output contains `dist/llms.txt`.
+- Existing sitemap source includes dynamic records only when their publication status and slug are valid. Existing `robots.txt` policy and canonical routes were not changed.
+- The build still reports an approximately 891 kB minified `auth` chunk. No Lighthouse, live mobile-browser, Core Web Vitals, or external schema validator run was performed.
+- Current production behavior remains unverified; source changes require deployment. The owner-provided Rankify scores are baselines only and were not re-measured.
+
 **Audit date:** 2026-10-13  
 **Production origin:** `https://www.animoro.in/`  
 **Scope:** Repository source and configuration, production HTML/HTTP responses, `robots.txt`, and the live XML sitemap.  

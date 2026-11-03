@@ -3,18 +3,125 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Anime List – Explore Anime Series, Genres &amp; Ratings | Animoro</title>
-  <meta name="description" content="Explore the Animoro anime list to discover anime series, popular titles, genres, ratings, and recommendations for your next watch." />
+  <title>Anime List: Explore Anime Series &amp; Genres | Animoro</title>
+  <meta name="description" content="Explore anime by title, genre, format, airing status, popularity, and available ratings. Browse Animoro's catalogue and open a series for its available details." />
   <meta name="robots" content="index, follow" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Anime List – Explore Anime Series, Genres &amp; Ratings | Animoro" />
-  <meta property="og:description" content="Explore the Animoro anime list to discover anime series, popular titles, genres, ratings, and recommendations for your next watch." />
+  <meta property="og:title" content="Anime List: Explore Anime Series &amp; Genres | Animoro" />
+  <meta property="og:description" content="Explore anime by title, genre, format, airing status, popularity, and available ratings. Browse Animoro's catalogue and open a series for its available details." />
   <meta property="og:url" content="https://www.animoro.in/anime-list" />
   <meta property="og:image" content="https://www.animoro.in/logo.png" />
+  <meta property="og:image:alt" content="Animoro" />
+  <meta property="og:site_name" content="Animoro" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Anime List: Explore Anime Series &amp; Genres | Animoro" />
+  <meta name="twitter:description" content="Explore anime by title, genre, format, airing status, popularity, and available ratings. Browse Animoro's catalogue and open a series for its available details." />
+  <meta name="twitter:image" content="https://www.animoro.in/logo.png" />
+  <meta name="twitter:image:alt" content="Animoro" />
   <link rel="canonical" href="https://www.animoro.in/anime-list" />
   <meta name="theme-color" content="#080a0f" />
   <link rel="icon" type="image/png" href="/favicon-small.png" />
+  <script id="animeListJsonLd" type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "CollectionPage",
+          "@id": "https://www.animoro.in/anime-list#page",
+          "name": "Anime List: Explore Anime Series & Genres",
+          "description": "Explore anime by title, genre, format, airing status, popularity, and available ratings. Browse Animoro's catalogue and open a series for its available details.",
+          "url": "https://www.animoro.in/anime-list",
+          "isPartOf": {
+            "@id": "https://www.animoro.in/#website"
+          },
+          "publisher": {
+            "@id": "https://www.animoro.in/#organization"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.animoro.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Anime List",
+              "item": "https://www.animoro.in/anime-list"
+            }
+          ]
+        }
+      ]
+    }
+  </script>
+  <script id="animeFaqJsonLd" type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is an anime list?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "An anime list is a catalogue of animated series and films organized to make titles easier to find and compare. The Animoro Anime List lets you search catalogue entries, browse available genres, filter by format or status, sort results, and open a detail page for information present in each record."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I find anime by genre?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Choose a genre from the Genre filter above. You can combine that selection with a title search, type, or status filter, then choose a sorting option. The results show catalogue entries matching the selected filters; available genres depend on the catalogue data."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where can I discover popular anime?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Choose Most popular in the Sort anime menu to order the directory using the catalogue's popularity field. The separate Top-Rated Anime section uses the score supplied with each record when available. Animoro does not generate scores or popularity values."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I find upcoming anime?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Visit Upcoming Anime to browse entries by title, year, season, type, or genre. Release dates and approximate windows are shown only when the source provides them, and editor-managed announcements are separated from catalogue results."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How are anime ratings displayed?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "When an anime record includes a score, its detail page displays that score and, when available, the number of submitted scores. Animoro does not calculate or independently review the value. Records without a supplied score do not receive a made-up rating."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where can I find anime release information?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Anime detail pages show a release year when the catalogue provides one. Use Anime Airing Today for the schedule view and Upcoming Anime for available future release dates or approximate windows. A missing date remains unspecified rather than being inferred."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where does anime catalogue information come from?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Anime catalogue information and available scores are served by Tenrai, an unofficial API for MyAnimeList catalogue data. Coverage varies by title, and Animoro does not independently create those values. Check the Tenrai API documentation and MyAnimeList for source information."
+          }
+        }
+      ]
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -50,9 +157,22 @@
     <div class="container">
       <nav class="anime-breadcrumb" id="animeBreadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><span id="animeBreadcrumbCurrent">Anime List</span></nav>
       <header class="section-header">
-        <div><h1 class="section-title" id="animePageTitle">Anime List – Explore Anime Series and Details</h1><p class="section-subtitle" id="animePageDescription">Browse the anime list by title, genre, type, or status. Explore popular titles, ratings, and detailed series information to find your next watch.</p></div>
+        <div><h1 class="section-title" id="animePageTitle">Anime List: Explore Anime Series &amp; Genres</h1><p class="section-subtitle" id="animePageDescription">The Animoro Anime List is a searchable catalogue of Japanese animated series. Browse titles by genre, format, or airing status, sort by popularity or available score, and open a series to see the details provided with its record.</p></div>
         <a class="btn-outline" href="/anime-calendar.html">Anime Release Calendar</a>
       </header>
+      <section class="anime-list-guide" id="animeListGuide" aria-labelledby="animeListGuideHeading">
+        <h2 class="section-title" id="animeListGuideHeading">What is the Animoro Anime List?</h2>
+        <p>The Animoro Anime List brings anime catalogue entries into one directory so you can find a title, compare the details supplied for each series, and choose what to explore next. It is a catalogue rather than an Animoro review or rating service.</p>
+        <h3>How to browse anime</h3>
+        <ul>
+          <li>Search by title or narrow results by TV, movie, OVA, ONA, or special format.</li>
+          <li>Filter by airing status or an available genre, then sort by popularity, score, title, or newest first.</li>
+          <li>Open an anime card for available synopsis, genre, release year, format, status, and score details.</li>
+        </ul>
+        <h3>Find more anime coverage</h3>
+        <p>Browse <a href="/upcoming-anime">Upcoming Anime</a>, check <a href="/anime-calendar.html">Anime Airing Today</a>, read <a href="/category.html?category=Anime%20News">Anime News</a>, or explore the <a href="/blogs.html">anime article archive</a>. Learn about the <a href="/about.html">Animoro publisher</a> or <a href="/contact.html">contact Animoro</a>.</p>
+      </section>
+      <p class="anime-data-note" id="animeListFreshness"><strong>Data freshness:</strong> This dynamically loaded catalogue has no verified per-entry refresh timestamp. When stale cached catalogue data is used, the page labels it; this is not a publication date. Catalogue data is served by <a href="https://api.tenrai.org/documentation" target="_blank" rel="noopener noreferrer">Tenrai</a> from <a href="https://myanimelist.net/" target="_blank" rel="noopener noreferrer">MyAnimeList catalogue records</a>.</p>
       <h2 class="section-title" id="animeBrowseHeading">Browse Anime</h2>
       <section class="anime-directory-controls" id="animeDirectoryControls" aria-labelledby="animeBrowseHeading">
         <label class="sr-only" for="animeSearchInput">Search anime by title</label>
@@ -93,6 +213,37 @@
         <h2 class="section-title">Related Articles</h2>
         <div class="articles-grid" id="animeArticles"></div>
       </div>
+      <section class="anime-list-faq" id="animeListFaq" aria-labelledby="animeListFaqHeading">
+        <h2 class="section-title" id="animeListFaqHeading">Anime List FAQs</h2>
+        <section aria-labelledby="animeFaqWhat">
+          <h3 id="animeFaqWhat">What is an anime list?</h3>
+          <p>An anime list is a catalogue of animated series and films organized to make titles easier to find and compare. The Animoro Anime List lets you search catalogue entries, browse available genres, filter by format or status, sort results, and open a detail page for information present in each record.</p>
+        </section>
+        <section aria-labelledby="animeFaqGenre">
+          <h3 id="animeFaqGenre">How can I find anime by genre?</h3>
+          <p>Choose a genre from the Genre filter above. You can combine that selection with a title search, type, or status filter, then choose a sorting option. The results show catalogue entries matching the selected filters; available genres depend on the catalogue data.</p>
+        </section>
+        <section aria-labelledby="animeFaqPopular">
+          <h3 id="animeFaqPopular">Where can I discover popular anime?</h3>
+          <p>Choose Most popular in the Sort anime menu to order the directory using the catalogue's popularity field. The separate Top-Rated Anime section uses the score supplied with each record when available. Animoro does not generate scores or popularity values.</p>
+        </section>
+        <section aria-labelledby="animeFaqUpcoming">
+          <h3 id="animeFaqUpcoming">How can I find upcoming anime?</h3>
+          <p>Visit <a href="/upcoming-anime">Upcoming Anime</a> to browse entries by title, year, season, type, or genre. Release dates and approximate windows are shown only when the source provides them, and editor-managed announcements are separated from catalogue results.</p>
+        </section>
+        <section aria-labelledby="animeFaqRatings">
+          <h3 id="animeFaqRatings">How are anime ratings displayed?</h3>
+          <p>When an anime record includes a score, its detail page displays that score and, when available, the number of submitted scores. Animoro does not calculate or independently review the value. Records without a supplied score do not receive a made-up rating.</p>
+        </section>
+        <section aria-labelledby="animeFaqRelease">
+          <h3 id="animeFaqRelease">Where can I find anime release information?</h3>
+          <p>Anime detail pages show a release year when the catalogue provides one. Use <a href="/anime-calendar.html">Anime Airing Today</a> for the schedule view and <a href="/upcoming-anime">Upcoming Anime</a> for available future release dates or approximate windows. A missing date remains unspecified rather than being inferred.</p>
+        </section>
+        <section aria-labelledby="animeFaqSource">
+          <h3 id="animeFaqSource">Where does anime catalogue information come from?</h3>
+          <p>Anime catalogue information and available scores are served by Tenrai, an unofficial API for MyAnimeList catalogue data. Coverage varies by title, and Animoro does not independently create those values. Check the <a href="https://api.tenrai.org/documentation" target="_blank" rel="noopener noreferrer">Tenrai API documentation</a> and <a href="https://myanimelist.net/" target="_blank" rel="noopener noreferrer">MyAnimeList</a> for source information.</p>
+        </section>
+      </section>
       <div class="anime-pagination" id="animePagination" aria-label="Anime results pagination">
         <button class="btn-outline" id="previousAnimeBtn" type="button" hidden>Previous</button>
         <span id="animePageStatus" aria-live="polite"></span>

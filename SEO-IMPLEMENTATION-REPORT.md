@@ -1,5 +1,37 @@
 # Animoro SEO implementation report
 
+## Homepage and Anime List follow-up (source review 2026-11-03)
+
+This follow-up implements the provided Rankify recommendations in the existing website. The original Rankify report exports were not available, so the scores below are the user-provided baseline, not a new measurement. No production deployment or post-deployment Rankify recheck was performed.
+
+| Target | User-provided baseline | Source implementation |
+|---|---|---|
+| Homepage | SEO 83, GEO 67, AEO 70 | Added a concise site description, connected links to the existing main sections, consistent Organization/WebSite identity, SearchAction for the working site search, and visible FAQ content matching its FAQPage data. |
+| Anime List (`/anime-list`) | SEO 87, GEO 53, AEO 28 | Added a 50–60 character title, answer-first definition and browse guidance, source attribution, visible FAQ content with matching schema, collection/breadcrumb data, and result-backed ItemList data only when actual anime results are rendered. |
+
+### Other implementation changes
+
+| File(s) | Change |
+|---|---|
+| `js/anime-page-seo.js`, `js/anime.js` | Generate collection and breadcrumb data for the list; create an ItemList only from the actual displayed results. Remove list-specific schema and guide/FAQ visibility on anime detail routes. |
+| `api/_lib/article-html.js` | Display Animoro as the publisher, display only stored publication/update dates, and emit `dateModified` only when a valid stored update is later than publication. Existing article URLs and stored data are unchanged. |
+| `about.html` | Align publisher and FAQ copy with verifiable site sections; remove unsupported editorial/founding claims. |
+| `public/llms.txt` | Add an AI-readable site index using implemented routes. Vite build output confirmed the file is copied to `dist/llms.txt`. |
+| Static HTML templates, `js/auth-nav.js` | Add intrinsic width and height to static image elements and the dynamically populated profile avatar; retain existing alt text and image assets. |
+| `css/style.css` | Style the added Anime List guide and FAQ using existing site conventions. |
+| SEO-related tests | Cover homepage and list structured data/content, About FAQ consistency, article dates/publisher, and route expectations. |
+
+### Evidence, limitations, and validation
+
+- Tenrai is identified as the data provider; the Anime List does not claim an unavailable external-data refresh timestamp. A stale-cache notice is shown when the existing cache path is used.
+- Publisher identity is Animoro; no person, credentials, publication dates, ratings, or data-refresh dates were invented.
+- The working search URL supports the homepage `SearchAction`.
+- Existing sitemap generation already limits dynamic article/anime/upcoming entries to published records. Existing canonical routes, robots policy, Firebase/Firestore access rules, and integrations were preserved.
+- The article template is server-rendered in `api/_lib/article-html.js`; anime directory/detail metadata is client-rendered in `js/anime.js`. No separate `seo-pages.js` or `seo-renderer.js` implementation was found.
+- Validation after these changes: full tests **185 passed, 0 failed**; `npm run lint` passed; `npm run build` passed; all 19 static HTML templates checked had `alt`, `width`, and `height` on every static `<img>`; build output contains `dist/llms.txt`; CRLF-aware `git diff --check` passed.
+- The production build still reports the existing `auth` chunk at approximately 891 kB minified. This audit did not restructure authentication or dependencies; no Lighthouse, mobile-browser, Core Web Vitals, or external structured-data validation was run.
+- Current production deployment and the original Rankify reports were not independently verified. Do not treat these source changes as live until deployed and rechecked.
+
 **Date:** 2026-10-13  
 **Scope:** Evidence-based updates to existing templates, metadata rendering, and anime publishing fields. Existing routes, Firebase integration, publication states, and stored slugs were preserved.
 

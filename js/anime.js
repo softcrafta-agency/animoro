@@ -5,6 +5,7 @@ import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { attachMyListToggle } from './my-list.js';
 import { getAnimeDetails, getAnimeDirectory, getTopAnime } from './anime-api.js';
 import { filterAndSortAnime } from './anime-directory.js';
+import { createAnimeListStructuredData } from './anime-page-seo.js';
 
 const PAGE_SIZE = 24;
 const ARTICLE_SAMPLE_SIZE = 36;
@@ -12,6 +13,7 @@ const ANIME_ID_PATTERN = /^(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)--(?<id>[1-9]\d*)$/i
 let currentPage = 1;
 let latestPagination = {};
 let latestDirectory = null;
+let latestDirectoryItems = [];
 let latestDirectoryRequest = 0;
 let searchTimer = 0;
 
@@ -102,6 +104,8 @@ async function loadAnimeDirectory(page = 1) {
   if (!container) return;
   const requestId = ++latestDirectoryRequest;
   currentPage = page;
+  latestDirectoryItems = [];
+  renderAnimeListStructuredData();
   const filters = getFilters();
   setLoading(container, 'Loading anime');
 
@@ -114,13 +118,15 @@ async function loadAnimeDirectory(page = 1) {
     const entries = result.items;
     latestDirectory = 'tenrai';
     latestPagination = result.pagination;
+    latestDirectoryItems = entries;
     if (!entries.length) {
       renderMessage(container, filters.genre ? 'No anime on this page match that genre. Try another filter or page.' : 'No anime found. Try a different search or filter.');
     } else {
       container.replaceChildren(...entries.map(createAnimeCard));
     }
+    renderAnimeListStructuredData();
     setDataNote(result.stale
-      ? 'Showing recently cached Tenrai data while the live service reconnects.'
+      ? 'Showing recently cached Tenrai data while the live service reconnects. No per-entry refresh timestamp is available.'
       : 'Anime catalogue information is supplied by Tenrai. Editor-managed entries remain available if the service is unavailable.');
   } catch (error) {
     if (requestId !== latestDirectoryRequest) return;
@@ -129,13 +135,15 @@ async function loadAnimeDirectory(page = 1) {
     if (requestId !== latestDirectoryRequest) return;
     latestDirectory = 'manual';
     latestPagination = { has_next_page: false };
+    latestDirectoryItems = manual.slice(0, PAGE_SIZE);
     if (!manual.length) {
       renderMessage(container, 'The anime database is temporarily unavailable. Please retry in a moment.', () => loadAnimeDirectory(currentPage));
       setDataNote('Tenrai is unavailable and no cached or editor-managed results match this view.');
     } else {
-      container.replaceChildren(...manual.slice(0, PAGE_SIZE).map(createAnimeCard));
+      container.replaceChildren(...latestDirectoryItems.map(createAnimeCard));
       setDataNote('The live anime database is temporarily unavailable. Showing editor-managed catalogue entries.');
     }
+    renderAnimeListStructuredData();
   } finally {
     if (requestId === latestDirectoryRequest) updatePagination();
   }
@@ -259,24 +267,15 @@ function setJsonLd(id, value) {
 }
 
 function renderAnimeListStructuredData() {
-  setJsonLd('animeListJsonLd', {
-    '@context': 'https://schema.org',
-    '@graph': [
-      {
-        '@type': 'CollectionPage',
-        name: 'Anime List – Explore Anime Series and Details',
-        description: 'Browse the anime list by title, genre, type, or status. Explore popular titles, ratings, and detailed series information to find your next watch.',
-        url: 'https://www.animoro.in/anime-list',
-      },
-      {
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
-          { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://www.animoro.in/anime-list' },
-        ],
-      },
-    ],
-  });
+  setJsonLd('animeListJsonLd', createAnimeListStructuredData(latestDirectoryItems));
+}
+
+function hideAnimeListContent() {
+  for (const id of ['animeListGuide', 'animeListFreshness', 'animeListFaq']) {
+    const section = document.getElementById(id);
+    if (section) section.hidden = true;
+  }
+  document.getElementById('animeFaqJsonLd')?.remove();
 }
 
 function renderAnimeDetails(anime) {
@@ -299,6 +298,7 @@ function renderAnimeDetails(anime) {
   setMeta('property', 'og:type', 'website');
   if (imageUrl) setMeta('property', 'og:image', imageUrl);
   setCanonical(canonicalUrl);
+  hideAnimeListContent();
   if (banner) banner.hidden = true;
 
   detail.replaceChildren();
@@ -404,6 +404,7 @@ async function initAnimePage() {
     window.location.pathname.startsWith('/anime.html/');
   if (isDetailPath) {
     document.getElementById('animeListJsonLd')?.remove();
+    hideAnimeListContent();
     const slug = getRequestedAnimeSlug();
     if (!slug) {
       window.location.replace('/404.html');
