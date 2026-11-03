@@ -93,6 +93,8 @@
 }
 
 .manhwa-card-status,
+.manhwa-card-metadata,
+.manhwa-card-synopsis,
 .manhwa-search-status,
 .manhwa-empty-inline,
 .manhwa-freshness-note,
@@ -105,6 +107,20 @@
 .manhwa-card-link {
   margin-top: auto;
   padding: 8px 13px;
+}
+
+.manhwa-card-metadata {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.manhwa-card-synopsis {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
 }
 
 .manhwa-tag-list {
@@ -300,6 +316,21 @@
   margin: 24px 0;
 }
 
+.manhwa-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 720px;
+  margin: 14px 0 24px;
+}
+
+.manhwa-filters label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 @media (max-width: 700px) {
   .manhwa-featured-card,
   .manhwa-detail-layout {
@@ -316,6 +347,10 @@
   }
 
   .manhwa-search-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .manhwa-filters {
     grid-template-columns: minmax(0, 1fr);
   }
 

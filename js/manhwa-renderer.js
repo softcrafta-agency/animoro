@@ -67,6 +67,13 @@ export function createManhwaCard(manhwa) {
   titleLink.href = getManhwaPath(manhwa);
   title.appendChild(titleLink);
   body.appendChild(title);
+  const metadata = [
+    manhwa.contentType,
+    manhwa.countryName ? `Origin: ${manhwa.countryName}` : 'Unknown origin',
+    manhwa.originalLanguageName ? `Original language: ${manhwa.originalLanguageName}` : '',
+  ].filter(Boolean);
+  body.appendChild(element('p', 'manhwa-card-metadata', metadata.join(' · ')));
+  if (manhwa.synopsis) body.appendChild(element('p', 'manhwa-card-synopsis', manhwa.synopsis));
   if (manhwa.genres.length) body.appendChild(createTagList(manhwa.genres.slice(0, 3)));
   if (manhwa.status) body.appendChild(element('p', 'manhwa-card-status', manhwa.status));
   const details = element('a', 'btn-outline manhwa-card-link', 'View Details');
@@ -76,7 +83,7 @@ export function createManhwaCard(manhwa) {
   return card;
 }
 
-export function renderManhwaCards(container, entries, emptyMessage = 'No confirmed Korean manhwa are available here yet.') {
+export function renderManhwaCards(container, entries, emptyMessage = 'No comic recommendations are available here yet.') {
   container.replaceChildren();
   if (!entries.length) {
     const message = element('p', 'manhwa-empty-inline', emptyMessage);
@@ -94,7 +101,7 @@ export function renderFeaturedManhwa(container, manhwa, { linkToDetails = true, 
   card.appendChild(cover);
 
   const content = element('div', 'manhwa-featured-content');
-  content.appendChild(element('p', 'manhwa-featured-label', 'Featured recommendation'));
+  content.appendChild(element('p', 'manhwa-featured-label', `Featured ${manhwa.contentType || 'comic'} recommendation`));
   const heading = element('h3', 'manhwa-featured-title', manhwa.title);
   content.appendChild(heading);
   if (manhwa.synopsis) content.appendChild(element('p', 'manhwa-featured-synopsis', manhwa.synopsis));
@@ -107,6 +114,9 @@ export function renderFeaturedManhwa(container, manhwa, { linkToDetails = true, 
 
   const credits = element('dl', 'manhwa-featured-facts');
   const facts = [
+    ['Content type', manhwa.contentType],
+    ['Country of origin', manhwa.countryName],
+    ['Original language', manhwa.originalLanguageName],
     ['Author', manhwa.authors.join(', ')],
     ['Artist', manhwa.artists.join(', ')],
     ['Publication status', manhwa.status],
@@ -136,7 +146,10 @@ export function renderManhwaDetails(container, manhwa) {
   layout.appendChild(cover);
 
   const content = element('div', 'manhwa-detail-content');
-  content.appendChild(element('p', 'manhwa-featured-label', 'Confirmed Korean manhwa'));
+  const classification = manhwa.countryName
+    ? `${manhwa.contentType} · Country of origin: ${manhwa.countryName}`
+    : `${manhwa.contentType} · Unknown origin`;
+  content.appendChild(element('p', 'manhwa-featured-label', classification));
   const title = element('h1', 'manhwa-detail-title', manhwa.title);
   title.id = 'manhwaDetailTitle';
   content.appendChild(title);
@@ -154,6 +167,9 @@ export function renderManhwaDetails(container, manhwa) {
 
   const credits = element('dl', 'manhwa-detail-facts');
   const facts = [
+    ['Content type', manhwa.contentType],
+    ['Country of origin', manhwa.countryName],
+    ['Original language', manhwa.originalLanguageName],
     ['Author', manhwa.authors.join(', ')],
     ['Artist', manhwa.artists.join(', ')],
     ['Publication status', manhwa.status],
@@ -165,7 +181,7 @@ export function renderManhwaDetails(container, manhwa) {
 
   const actions = element('div', 'manhwa-actions');
   if (Number(manhwa.id) === FEATURED_MANHWA_ID) addExternalPlatformButton(actions);
-  const back = element('a', 'btn-outline', 'Browse Manhwa');
+  const back = element('a', 'btn-outline', 'Browse Comics');
   back.href = '/manhwa';
   actions.appendChild(back);
   content.appendChild(actions);

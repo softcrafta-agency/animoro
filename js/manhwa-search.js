@@ -3,6 +3,7 @@ import {
   getManhwaDetailsBySlug,
   getManhwaDiscovery,
   getManhwaSlug,
+  getCountryName,
   searchManhwa,
 } from './manhwa-service.js';
 import { createManhwaDetailStructuredData, createManhwaStructuredData } from './manhwa-seo.js';
@@ -18,6 +19,8 @@ const SEARCH_DEBOUNCE_MS = 450;
 const PAGE_SIZE = 24;
 const FEATURED_URL = '/manhwa/the-greatest-estate-developer';
 let selectedGenre = '';
+let selectedCountry = '';
+let selectedContentType = '';
 let currentPage = 1;
 let currentQuery = '';
 let latestSearchId = 0;
@@ -77,9 +80,19 @@ function setFreshness(message) {
   note.hidden = !message;
 }
 
+function getDataNotice({ stale = false, sourceErrors = [] } = {}) {
+  const notices = [];
+  if (stale) notices.push('Showing recently cached metadata while a live API reconnects.');
+  if (sourceErrors.length) {
+    const sources = [...new Set(sourceErrors.map(item => item.source))].join(' and ');
+    notices.push(`${sources} metadata is temporarily unavailable; results may be incomplete.`);
+  }
+  return notices.join(' ');
+}
+
 function showSearchLoading() {
   const container = byId('manhwaSearchResults');
-  if (container) renderLoading(container, 'Searching confirmed Korean manhwa');
+  if (container) renderLoading(container, 'Searching comic recommendations');
   const status = byId('manhwaSearchStatus');
   if (status) status.textContent = 'Searching…';
 }
@@ -95,6 +108,18 @@ function updatePagination() {
     : '';
 }
 
+function updateCountryOptions(countries = []) {
+  const select = byId('manhwaCountryFilter');
+  if (!select) return;
+  for (const country of countries) {
+    if (!/^[A-Z]{2}$/.test(country) || [...select.options].some(option => option.value === country)) continue;
+    const option = document.createElement('option');
+    option.value = country;
+    option.textContent = getCountryName(country);
+    select.appendChild(option);
+  }
+}
+
 async function runSearch(page = 1) {
   const container = byId('manhwaSearchResults');
   if (!container) return;
@@ -107,21 +132,24 @@ async function runSearch(page = 1) {
     const result = await searchManhwa({
       query: currentQuery,
       genre: selectedGenre,
+      country: selectedCountry,
+      contentType: selectedContentType,
       page,
       perPage: PAGE_SIZE,
     });
     if (requestId !== latestSearchId) return;
+    updateCountryOptions(result.countries);
     latestPagination = result.pagination;
-    renderManhwaCards(container, result.items, 'No confirmed Korean manhwa matched this search and genre. Try another title or filter.');
+    renderManhwaCards(container, result.items, 'No comics matched this search and filter combination. Try another title or filter.');
     const status = byId('manhwaSearchStatus');
     if (status) status.textContent = result.items.length
-      ? `${result.items.length} confirmed Korean manhwa shown.`
+      ? `${result.items.length} comic recommendations shown.`
       : 'No results found.';
-    setFreshness(result.stale ? 'Showing recently cached AniList metadata while the live API reconnects.' : '');
+    setFreshness(getDataNotice(result));
   } catch (error) {
     if (requestId !== latestSearchId) return;
-    console.warn('Manhwa search failed.', error);
-    renderMessage(container, 'Manhwa search is temporarily unavailable. Please retry.', () => runSearch(currentPage));
+    console.warn('Comic search failed.', error);
+    renderMessage(container, 'Comic search is temporarily unavailable. Please retry.', () => runSearch(currentPage));
     const status = byId('manhwaSearchStatus');
     if (status) status.textContent = 'Search could not be completed.';
     setFreshness('');
@@ -146,31 +174,42 @@ function setGenre(genre) {
   runSearch(1);
 }
 
+function setCountry(country) {
+  selectedCountry = country;
+  runSearch(1);
+}
+
+function setContentType(contentType) {
+  selectedContentType = contentType;
+  runSearch(1);
+}
+
 function setPageLandingState() {
   const landing = byId('manhwaLanding');
   const details = byId('manhwaDetailPage');
   if (landing) landing.hidden = false;
   if (details) details.hidden = true;
   setPageMeta({
-    title: 'Discover Manhwa & Webtoons | Animoro',
-    description: 'Discover confirmed Korean manhwa and webtoons. Explore recommendations, browse genres, and find official publishing platforms on Animoro.',
+    title: 'Discover Comics, Manga & Webcomics | Animoro',
+    description: 'Discover comics and webcomics from Korea, Japan, China, the United States, and beyond. Explore recommendations, genres, and country of origin.',
     canonical: 'https://www.animoro.in/manhwa',
   });
 }
 
 function renderDiscovery(data) {
+  updateCountryOptions(data.countries);
   renderFeaturedManhwa(byId('manhwaFeatured'), data.featured, { eager: true });
   renderManhwaCards(byId('manhwaTrending'), data.trending);
   byId('manhwaTrendingSection').hidden = !data.trending.length;
   renderManhwaCards(byId('manhwaPopular'), data.popular);
   renderManhwaCards(byId('manhwaRecommended'), data.recommended,
-    'AniList has no confirmed Korean manhwa recommendations for this title right now.');
+    'AniList has no similar comic recommendations for this title right now.');
   renderManhwaCards(byId('manhwaRecent'), data.recent);
   latestPagination = data.pagination;
   renderManhwaCards(byId('manhwaSearchResults'), data.results);
   const status = byId('manhwaSearchStatus');
-  if (status) status.textContent = `${data.results.length} confirmed Korean manhwa shown.`;
-  setFreshness(data.stale ? 'Showing recently cached AniList metadata while the live API reconnects.' : '');
+  if (status) status.textContent = `${data.results.length} comic recommendations shown.`;
+  setFreshness(getDataNotice(data));
   updatePagination();
   setStructuredData(createManhwaStructuredData(data.featured));
 }
@@ -181,17 +220,18 @@ async function loadLanding() {
     const data = await getManhwaDiscovery();
     renderDiscovery(data);
   } catch (error) {
-    console.warn('Manhwa discovery could not be loaded.', error);
+    console.warn('Comic discovery could not be loaded.', error);
     for (const id of ['manhwaFeatured', 'manhwaTrending', 'manhwaPopular', 'manhwaRecommended', 'manhwaRecent', 'manhwaSearchResults']) {
       const container = byId(id);
-      if (container) renderMessage(container, 'Manhwa recommendations are temporarily unavailable. Please retry.', loadLanding);
+      if (container) renderMessage(container, 'Comic recommendations are temporarily unavailable. Please retry.', loadLanding);
     }
   }
 }
 
 function updateDetailMetadata(manhwa) {
-  const title = `${manhwa.title} — Manhwa Details | Animoro`;
-  const description = manhwa.synopsis || `Discover ${manhwa.title}, a confirmed Korean manhwa. Explore its genres, creators, publication status, and official platform.`;
+  const title = `${manhwa.title} — ${manhwa.contentType} Details | Animoro`;
+  const origin = manhwa.countryName ? ` Country of origin: ${manhwa.countryName}.` : '';
+  const description = manhwa.synopsis || `Discover ${manhwa.title}, a ${manhwa.contentType.toLowerCase()} recommendation.${origin} Explore its genres, creators, publication status, and official platform.`;
   const canonical = `https://www.animoro.in/manhwa/${encodeURIComponent(getManhwaSlug(manhwa))}`;
   setPageMeta({ title, description, canonical, image: manhwa.coverImage });
   setStructuredData(createManhwaDetailStructuredData({
@@ -206,8 +246,8 @@ async function loadDetails(slug) {
   byId('manhwaRecommendationsSection').hidden = true;
   renderLoading(byId('manhwaDetailContainer'), 'Loading manhwa details');
   setPageMeta({
-    title: 'Manhwa Details | Animoro',
-    description: 'Explore manhwa metadata and official publishing platforms on Animoro.',
+    title: 'Comic Details | Animoro',
+    description: 'Explore comic metadata, country of origin, and official publishing platforms on Animoro.',
     canonical: `https://www.animoro.in/manhwa/${encodeURIComponent(slug)}`,
   });
 
@@ -224,12 +264,12 @@ async function loadDetails(slug) {
     if (breadcrumb) breadcrumb.textContent = result.item.title;
     setFreshness(result.stale ? 'Showing recently cached AniList metadata while the live API reconnects.' : '');
   } catch (error) {
-    console.warn('Manhwa details could not be loaded.', error);
+    console.warn('Comic details could not be loaded.', error);
     if (Number(error?.status) === 404) {
       window.location.replace('/404.html');
       return;
     }
-    renderMessage(byId('manhwaDetailContainer'), 'This manhwa page is temporarily unavailable. Please try again.', () => loadDetails(slug));
+    renderMessage(byId('manhwaDetailContainer'), 'This comic recommendation page is temporarily unavailable. Please try again.', () => loadDetails(slug));
   }
 }
 
@@ -245,6 +285,8 @@ function bindSearch() {
   document.querySelectorAll('[data-manhwa-genre]').forEach(button => {
     button.addEventListener('click', () => setGenre(button.dataset.manhwaGenre || ''));
   });
+  byId('manhwaCountryFilter')?.addEventListener('change', event => setCountry(event.target.value));
+  byId('manhwaContentTypeFilter')?.addEventListener('change', event => setContentType(event.target.value));
   byId('manhwaPrevious')?.addEventListener('click', () => runSearch(Math.max(1, currentPage - 1)));
   byId('manhwaNext')?.addEventListener('click', () => runSearch(currentPage + 1));
 }

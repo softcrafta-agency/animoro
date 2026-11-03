@@ -10,10 +10,17 @@ globalThis.window = {
 };
 
 const {
+  classifyComic,
+  FEATURED_MANHWA_SLUG,
+  filterComicsByContentType,
+  filterComicsByCountry,
+  getManhwaDetailsBySlug,
   filterManhwaByGenre,
+  getCountryName,
   getManhwaSlug,
   isConfirmedManhwa,
   normalizeManhwa,
+  OFFICIAL_FEATURED_URL,
   searchManhwa,
 } = await import('./manhwa-service.js');
 
@@ -46,6 +53,31 @@ function manhwaRecord(overrides = {}) {
   };
 }
 
+function mangaDexRecord(overrides = {}) {
+  return {
+    id: 'ef525177-734a-4ae0-bc66-b2d377f3ada9',
+    type: 'manga',
+    attributes: {
+      title: { en: 'Lore Olympus' },
+      altTitles: [{ ja: 'ロア・オリンポス' }],
+      description: { en: 'A modern retelling of a Greek myth.' },
+      originalLanguage: 'en',
+      status: 'completed',
+      tags: [
+        { attributes: { name: { en: 'Long Strip' }, group: 'format' } },
+        { attributes: { name: { en: 'Romance' }, group: 'genre' } },
+      ],
+      ...overrides.attributes,
+    },
+    relationships: [
+      { type: 'cover_art', attributes: { fileName: 'cover.jpg' } },
+      { type: 'author', attributes: { name: 'Rachel Smythe' } },
+      { type: 'artist', attributes: { name: 'Rachel Smythe' } },
+      ...(overrides.relationships || []),
+    ],
+  };
+}
+
 function response(payload) {
   return {
     ok: true,
@@ -55,12 +87,38 @@ function response(payload) {
   };
 }
 
-test('confirms Korean webtoon/manhwa from origin, format, and supporting tags', () => {
+test('classifies comics conservatively from origin, format, source, and tags', () => {
   assert.equal(isConfirmedManhwa(manhwaRecord()), true);
-  assert.equal(isConfirmedManhwa(manhwaRecord({
+  assert.equal(classifyComic(manhwaRecord({
     countryOfOrigin: 'JP',
     format: 'MANGA',
-  })), false);
+  })), 'Manga');
+  assert.equal(classifyComic(manhwaRecord({
+    countryOfOrigin: 'CN',
+    format: 'MANGA',
+    tags: [],
+  })), 'Manhua');
+  assert.equal(classifyComic(manhwaRecord({
+    countryOfOrigin: 'US',
+    format: 'MANGA',
+    source: 'COMIC',
+    tags: [],
+  })), 'Western Comics');
+  assert.equal(classifyComic(manhwaRecord({
+    countryOfOrigin: 'US',
+    format: 'WEBTOON',
+    tags: [],
+  })), 'Webcomics');
+  assert.equal(classifyComic(manhwaRecord({
+    countryOfOrigin: 'FR',
+    format: 'MANGA',
+    tags: [],
+  })), 'Other');
+  assert.equal(classifyComic(manhwaRecord({
+    countryOfOrigin: null,
+    format: 'MANGA',
+    tags: [],
+  })), 'Other');
   assert.equal(isConfirmedManhwa(manhwaRecord({
     countryOfOrigin: 'KR',
     format: 'MANGA',
@@ -82,6 +140,8 @@ test('confirms Korean webtoon/manhwa from origin, format, and supporting tags', 
 test('normalizes alternative titles, contributors, status, and slug', () => {
   const normalized = normalizeManhwa(manhwaRecord());
   assert.equal(normalized.isConfirmedManhwa, true);
+  assert.equal(normalized.contentType, 'Manhwa');
+  assert.equal(normalized.countryName, 'South Korea');
   assert.equal(normalized.title, 'The Greatest Estate Developer');
   assert.ok(normalized.alternativeTitles.includes('역대급 영지 설계사'));
   assert.ok(normalized.alternativeTitles.includes('The Legendary Estate Developer'));
@@ -91,22 +151,59 @@ test('normalizes alternative titles, contributors, status, and slug', () => {
   assert.equal(getManhwaSlug(normalized), 'the-greatest-estate-developer');
 });
 
-test('filters only on supplied genres and Isekai tags', () => {
+test('preserves the featured title details route and official WEBTOON destination', async () => {
+  storage.clear();
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://graphql.anilist.co');
+    const request = JSON.parse(options.body);
+    assert.equal(request.variables.id, 140407);
+    return response({ data: { Media: manhwaRecord() } });
+  };
+  const result = await getManhwaDetailsBySlug(FEATURED_MANHWA_SLUG);
+  assert.equal(result.item.title, 'The Greatest Estate Developer');
+  assert.equal(result.item.contentType, 'Manhwa');
+  assert.equal(result.item.countryName, 'South Korea');
+  assert.equal(OFFICIAL_FEATURED_URL, 'https://www.webtoons.com/en/fantasy/the-greatest-estate-developer/list?title_no=3596');
+});
+
+test('filters by genres, countries, content types, and unknown origin', () => {
   const entries = [
     normalizeManhwa(manhwaRecord()),
     normalizeManhwa(manhwaRecord({
       id: 200,
-      title: { english: 'Another Series' },
+      title: { english: 'A Japanese Manga' },
+      countryOfOrigin: 'JP',
+      genres: ['Fantasy'],
+      tags: [],
+    })),
+    normalizeManhwa(manhwaRecord({
+      id: 201,
+      title: { english: 'An Unknown Comic' },
+      countryOfOrigin: null,
+      format: 'MANGA',
       genres: ['Romance'],
-      tags: [{ name: 'Webtoon' }],
+      tags: [],
     })),
   ];
-  assert.deepEqual(filterManhwaByGenre(entries, 'Fantasy').map(item => item.title), ['The Greatest Estate Developer']);
+  assert.deepEqual(
+    filterManhwaByGenre(entries, 'Fantasy').map(item => item.title),
+    ['The Greatest Estate Developer', 'A Japanese Manga']
+  );
   assert.deepEqual(filterManhwaByGenre(entries, 'Isekai').map(item => item.title), ['The Greatest Estate Developer']);
-  assert.throws(() => filterManhwaByGenre(entries, 'Science Fiction'), /Unsupported manhwa genre/);
+  assert.deepEqual(filterComicsByCountry(entries, 'JP').map(item => item.title), ['A Japanese Manga']);
+  assert.deepEqual(filterComicsByCountry(entries, 'UNKNOWN').map(item => item.title), ['An Unknown Comic']);
+  assert.deepEqual(filterComicsByCountry(entries, 'OTHER').map(item => item.title), []);
+  assert.deepEqual(filterComicsByContentType(entries, 'Manhwa').map(item => item.title), ['The Greatest Estate Developer']);
+  assert.deepEqual(
+    filterComicsByContentType(filterComicsByCountry(filterManhwaByGenre(entries, 'Fantasy'), 'JP'), 'Manga')
+      .map(item => item.title),
+    ['A Japanese Manga']
+  );
+  assert.equal(getCountryName('CN'), 'China');
+  assert.throws(() => filterManhwaByGenre(entries, 'Science Fiction'), /Unsupported comic genre/);
 });
 
-test('search combines alternative-title matching, origin classification, genre filters, and API pagination', async () => {
+test('search combines alternate-title, genre, country, content-type filters, and AniList pagination', async () => {
   storage.clear();
   let body;
   let requestCount = 0;
@@ -124,6 +221,7 @@ test('search combines alternative-title matching, origin classification, genre f
               id: 301,
               title: { english: 'Japanese title' },
               countryOfOrigin: 'JP',
+              tags: [],
             }),
           ],
         },
@@ -134,31 +232,121 @@ test('search combines alternative-title matching, origin classification, genre f
   const result = await searchManhwa({
     query: 'Legendary Estate',
     genre: 'Isekai',
+    country: 'KR',
+    contentType: 'Manhwa',
     page: 2,
     perPage: 24,
   });
   assert.equal(requestCount, 1);
-  assert.match(body.query, /countryOfOrigin:\s*"KR"/);
+  assert.match(body.query, /countryOfOrigin:\s*\$countryOfOrigin/);
   assert.deepEqual(body.variables, {
     page: 2,
     perPage: 24,
     search: 'Legendary Estate',
     genreIn: null,
     tagIn: ['Isekai'],
+    countryOfOrigin: 'KR',
   });
   assert.deepEqual(result.items.map(item => item.title), ['The Greatest Estate Developer']);
+  assert.deepEqual(result.countries, ['KR', 'JP']);
   assert.equal(result.pagination.hasNextPage, true);
+});
+
+test('search accepts a content type or country name and supports unknown country metadata', async () => {
+  storage.clear();
+  let body;
+  globalThis.fetch = async (url, options) => {
+    if (url.startsWith('https://api.mangadex.org')) {
+      return response({ result: 'ok', data: [mangaDexRecord()], total: 1 });
+    }
+    body = JSON.parse(options.body);
+    return response({
+      data: {
+        Page: {
+          pageInfo: { currentPage: 1, hasNextPage: false, total: 5 },
+          media: [
+            manhwaRecord({ id: 400, title: { english: 'Korean Webtoon' } }),
+            manhwaRecord({ id: 401, title: { english: 'Manga from Japan' }, countryOfOrigin: 'JP', tags: [] }),
+            manhwaRecord({ id: 402, title: { english: 'Manhua from China' }, countryOfOrigin: 'CN', tags: [] }),
+            manhwaRecord({ id: 403, title: { english: 'Unknown Manga' }, countryOfOrigin: null, tags: [] }),
+            manhwaRecord({ id: 404, title: { english: 'Other comic' }, countryOfOrigin: 'FR', tags: [] }),
+          ],
+        },
+      },
+    });
+  };
+
+  const japanese = await searchManhwa({ query: 'Japan' });
+  assert.equal(body.variables.countryOfOrigin, 'JP');
+  assert.deepEqual(japanese.items.map(item => item.title), ['Manga from Japan']);
+  const korean = await searchManhwa({ query: 'Korea' });
+  assert.deepEqual(korean.items.map(item => item.title), ['Korean Webtoon']);
+  const chinese = await searchManhwa({ query: 'China' });
+  assert.deepEqual(chinese.items.map(item => item.title), ['Manhua from China']);
+  const unknown = await searchManhwa({ country: 'UNKNOWN' });
+  assert.deepEqual(unknown.items.map(item => item.title), ['Lore Olympus', 'Unknown Manga']);
+  const otherCountry = await searchManhwa({ country: 'OTHER' });
+  assert.deepEqual(otherCountry.items.map(item => item.title), ['Other comic']);
+});
+
+test('discovers Western webcomics by content type without a title-only API request', async () => {
+  storage.clear();
+  let variables;
+  globalThis.fetch = async (url, options) => {
+    if (url.startsWith('https://api.mangadex.org')) {
+      return response({ result: 'ok', data: [mangaDexRecord()], total: 1 });
+    }
+    variables = JSON.parse(options.body).variables;
+    return response({
+      data: {
+        Page: {
+          pageInfo: { currentPage: 1, hasNextPage: false, total: 0 },
+          media: [],
+        },
+      },
+    });
+  };
+  const result = await searchManhwa({ query: 'Webcomics' });
+  assert.equal(variables.search, null);
+  assert.deepEqual(result.items.map(item => item.title), ['Lore Olympus']);
+  assert.equal(result.items[0].contentType, 'Webcomics');
+  assert.equal(result.items[0].countryName, '');
+  assert.equal(result.items[0].originalLanguageName, 'English');
+  assert.match(result.items[0].coverImage, /uploads\.mangadex\.org/);
+  assert.deepEqual(result.items[0].authors, ['Rachel Smythe']);
+  assert.deepEqual(result.countries, []);
+});
+
+test('resolves MangaDex recommendations through the existing detail route without reader links', async () => {
+  storage.clear();
+  globalThis.fetch = async url => {
+    assert.match(url, /^https:\/\/api\.mangadex\.org\/manga\//);
+    return response({ result: 'ok', response: 'entity', data: mangaDexRecord() });
+  };
+  const slug = 'lore-olympus-md-ef525177-734a-4ae0-bc66-b2d377f3ada9';
+  const result = await getManhwaDetailsBySlug(slug);
+  assert.equal(result.item.title, 'Lore Olympus');
+  assert.equal(result.item.contentType, 'Webcomics');
+  assert.equal(result.item.countryName, '');
+  assert.equal(result.item.siteUrl, '');
+  assert.deepEqual(result.recommendations, []);
 });
 
 test('reuses cached metadata for the exact same query', async () => {
   storage.clear();
-  let requestCount = 0;
-  globalThis.fetch = async () => {
-    requestCount += 1;
+  let aniListRequests = 0;
+  let mangaDexRequests = 0;
+  globalThis.fetch = async url => {
+    if (url.startsWith('https://api.mangadex.org')) {
+      mangaDexRequests += 1;
+      return response({ result: 'ok', data: [], total: 0 });
+    }
+    aniListRequests += 1;
     return response({ data: { Page: { pageInfo: {}, media: [manhwaRecord()] } } });
   };
   await searchManhwa({ query: 'Greatest Estate' });
   const cachedResult = await searchManhwa({ query: 'Greatest Estate' });
-  assert.equal(requestCount, 1);
+  assert.equal(aniListRequests, 1);
+  assert.equal(mangaDexRequests, 1);
   assert.equal(cachedResult.cached, true);
 });

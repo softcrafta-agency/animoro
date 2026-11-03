@@ -214,7 +214,7 @@ export function setupMobileNav() {
   const navigationLinks = [
     { href: '/', label: 'Home', key: 'home' },
     { href: '/anime-list', label: 'Anime List', key: 'anime' },
-    { href: '/manhwa', label: 'Manhwa', key: 'manhwa' },
+    { href: '/manhwa', label: 'Comics & Webcomics', key: 'manhwa' },
     { href: '/upcoming-anime', label: 'Upcoming Anime', key: 'upcoming' },
     { href: '/category.html?category=Anime%20News', label: 'Anime News', key: 'news' },
     { href: '/blogs.html', label: 'Articles', key: 'articles' },

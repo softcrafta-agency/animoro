@@ -9,8 +9,8 @@ export function createManhwaStructuredData(featured = null) {
     {
       '@type': 'CollectionPage',
       '@id': `${MANHWA_URL}#page`,
-      name: 'Discover Manhwa | Animoro',
-      description: 'Discover confirmed Korean manhwa and webtoons, browse genres, and find official platforms.',
+      name: 'Discover Comics & Webcomics | Animoro',
+      description: 'Discover comic and webcomic recommendations from around the world, browse genres, and explore country of origin.',
       url: MANHWA_URL,
       isPartOf: SITE_REFERENCE,
       publisher: PUBLISHER_REFERENCE,
@@ -20,7 +20,7 @@ export function createManhwaStructuredData(featured = null) {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
-        { '@type': 'ListItem', position: 2, name: 'Manhwa', item: MANHWA_URL },
+        { '@type': 'ListItem', position: 2, name: 'Comics & Webcomics', item: MANHWA_URL },
       ],
     },
   ];
@@ -29,7 +29,7 @@ export function createManhwaStructuredData(featured = null) {
     graph.push({
       '@type': 'ItemList',
       '@id': `${MANHWA_URL}#featured`,
-      name: 'Featured Manhwa',
+      name: 'Featured Comic Recommendation',
       numberOfItems: 1,
       itemListElement: [{
         '@type': 'ListItem',
@@ -43,6 +43,14 @@ export function createManhwaStructuredData(featured = null) {
           image: featured.coverImage || undefined,
           url: FEATURED_URL,
           sameAs: featured.siteUrl || undefined,
+          countryOfOrigin: featured.countryName
+            ? { '@type': 'Country', name: featured.countryName }
+            : undefined,
+          additionalProperty: featured.contentType ? {
+            '@type': 'PropertyValue',
+            name: 'Content type',
+            value: featured.contentType,
+          } : undefined,
           creator: [...featured.authors, ...featured.artists].map(name => ({
             '@type': 'Person',
             name,
@@ -69,6 +77,15 @@ export function createManhwaDetailStructuredData(manhwa) {
         image: manhwa.coverImage || undefined,
         url: canonicalUrl,
         sameAs: manhwa.siteUrl || undefined,
+        countryOfOrigin: manhwa.countryName
+          ? { '@type': 'Country', name: manhwa.countryName }
+          : undefined,
+        inLanguage: manhwa.originalLanguage || undefined,
+        additionalProperty: manhwa.contentType ? {
+          '@type': 'PropertyValue',
+          name: 'Content type',
+          value: manhwa.contentType,
+        } : undefined,
         creator: [...manhwa.authors, ...manhwa.artists].map(name => ({
           '@type': 'Person',
           name,
@@ -79,7 +96,7 @@ export function createManhwaDetailStructuredData(manhwa) {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_ORIGIN}/` },
-          { '@type': 'ListItem', position: 2, name: 'Manhwa', item: MANHWA_URL },
+          { '@type': 'ListItem', position: 2, name: 'Comics & Webcomics', item: MANHWA_URL },
           { '@type': 'ListItem', position: 3, name: manhwa.title, item: canonicalUrl },
         ],
       },
