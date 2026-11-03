@@ -9,7 +9,7 @@ export const FEATURED_MANHWA_SLUG = 'the-greatest-estate-developer';
 export const OFFICIAL_FEATURED_URL =
   'https://www.webtoons.com/en/fantasy/the-greatest-estate-developer/list?title_no=3596';
 
-const CACHE_PREFIX = 'animoro_manhwa_v2:';
+const CACHE_PREFIX = 'animoro_manhwa_v3:';
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_STALE_MS = 24 * 60 * 60 * 1000;
 const CONFIRMING_TAGS = new Set(['webtoon', 'webcomic', 'web comics', 'long strip', 'manhwa']);
@@ -21,6 +21,8 @@ const GENRES = new Set([
   'Action', 'Adventure', 'Fantasy', 'Comedy', 'Romance',
   'Drama', 'Horror', 'Thriller', 'Mystery', 'Isekai',
 ]);
+const EXPLICIT_CONTENT_LABEL =
+  /\b(?:hentai|erotica|pornographic|pornography|explicit)\b|(?:^|[^a-z0-9])(?:r[\s-]?18\+?|18\s*\+|18\s+plus|nc[\s-]?17)(?:$|[^a-z0-9])/i;
 
 const CARD_FIELDS = `
   fragment ManhwaCardFields on Media {
@@ -33,6 +35,7 @@ const CARD_FIELDS = `
     source
     status
     description(asHtml: false)
+    isAdult
     genres
     tags { name }
     meanScore
@@ -53,17 +56,17 @@ const STAFF_FIELDS = `
 const DISCOVERY_QUERY = `
   query ManhwaDiscovery {
     trending: Page(page: 1, perPage: 12) {
-      media(type: MANGA, sort: TRENDING_DESC) { ...ManhwaCardFields }
+      media(type: MANGA, isAdult: false, sort: TRENDING_DESC) { ...ManhwaCardFields }
     }
     popular: Page(page: 1, perPage: 12) {
-      media(type: MANGA, sort: POPULARITY_DESC) { ...ManhwaCardFields }
+      media(type: MANGA, isAdult: false, sort: POPULARITY_DESC) { ...ManhwaCardFields }
     }
     recent: Page(page: 1, perPage: 12) {
-      media(type: MANGA, sort: ID_DESC) { ...ManhwaCardFields }
+      media(type: MANGA, isAdult: false, sort: ID_DESC) { ...ManhwaCardFields }
     }
     search: Page(page: 1, perPage: 24) {
       pageInfo { currentPage hasNextPage total }
-      media(type: MANGA, sort: POPULARITY_DESC) { ...ManhwaCardFields }
+      media(type: MANGA, isAdult: false, sort: POPULARITY_DESC) { ...ManhwaCardFields }
     }
     featured: Media(id: ${FEATURED_MANHWA_ID}, type: MANGA) {
       ...ManhwaCardFields
@@ -82,6 +85,7 @@ const SEARCH_QUERY = `
       pageInfo { currentPage hasNextPage total }
       media(
         type: MANGA
+        isAdult: false
         countryOfOrigin: $countryOfOrigin
         search: $search
         genre_in: $genreIn
@@ -187,6 +191,31 @@ function getTagNames(tags) {
     : [];
 }
 
+function getMetadataLabels(values) {
+  const entries = Array.isArray(values) ? values : [values];
+  return entries.map(value => {
+    if (typeof value === 'string') return value;
+    if (!value || typeof value !== 'object') return '';
+    return value.name || value.label || value.value || '';
+  }).filter(value => typeof value === 'string');
+}
+
+function isExplicitComic(media) {
+  if (media?.isAdult === true || normalizedText(media?.isAdult) === 'true') return true;
+  const labels = [
+    ...getMetadataLabels(media?.genres),
+    ...getTagNames(media?.tags),
+    ...getMetadataLabels(media?.categories),
+    ...getMetadataLabels(media?.contentRating),
+    ...getMetadataLabels(typeof media?.rating === 'string' ? media.rating : null),
+  ];
+  return labels.some(label => {
+    const normalized = normalizedText(label).replace(/[_-]+/g, ' ');
+    return EXPLICIT_CONTENT_LABEL.test(normalized) ||
+      /^adult(?:\s+(?:content|only|rating|material|themes?|explicit))?$/.test(normalized);
+  });
+}
+
 function hasWebcomicEvidence(media) {
   if (media?.format === 'WEBTOON') return true;
   const source = normalizedText(media?.source);
@@ -272,6 +301,7 @@ function getContributors(staff) {
 
 export function normalizeManhwa(media) {
   if (!media || typeof media !== 'object') return null;
+  if (isExplicitComic(media)) return null;
   const title = media.title || {};
   const alternatives = uniqueNames([
     title.english,
@@ -356,7 +386,7 @@ function selectMangaDexMetadata(record) {
   if (!record || typeof record !== 'object') return null;
   const attributes = record.attributes || {};
   const metadataAttributes = Object.fromEntries(
-    ['title', 'altTitles', 'description', 'originalLanguage', 'status', 'tags']
+    ['title', 'altTitles', 'description', 'originalLanguage', 'status', 'tags', 'contentRating']
       .filter(field => Object.hasOwn(attributes, field))
       .map(field => [field, attributes[field]])
   );
@@ -431,6 +461,7 @@ function normalizeMangaDexRecord(record) {
     format: hasWebcomicFormat ? 'WEBTOON' : 'MANGA',
     source: 'OTHER',
     status: statusNames[String(attributes.status || '').toLowerCase()] || '',
+    contentRating: attributes.contentRating,
     description: localized(attributes.description),
     genres: tagValues.filter(tag => tag.group === 'genre').map(tag => tag.name),
     tags: tagValues.map(tag => ({ name: tag.name })),

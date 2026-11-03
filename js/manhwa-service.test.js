@@ -14,6 +14,7 @@ const {
   FEATURED_MANHWA_SLUG,
   filterComicsByContentType,
   filterComicsByCountry,
+  getManhwaDiscovery,
   getManhwaDetailsBySlug,
   filterManhwaByGenre,
   getCountryName,
@@ -415,6 +416,7 @@ test('search combines alternate-title, genre, country, content-type filters, and
   });
   assert.equal(requestCount, 1);
   assert.match(body.query, /countryOfOrigin:\s*\$countryOfOrigin/);
+  assert.match(body.query, /isAdult:\s*false/);
   assert.deepEqual(body.variables, {
     page: 2,
     perPage: 24,
@@ -525,4 +527,133 @@ test('reuses cached metadata for the exact same query', async () => {
   assert.equal(aniListRequests, 1);
   assert.equal(mangaDexRequests, 1);
   assert.equal(cachedResult.cached, true);
+});
+
+test('excludes explicit comics from discovery lists and cached recommendations', async () => {
+  storage.clear();
+  const recommendationRecords = [
+    manhwaRecord({ id: 501, title: { english: 'Adult Flagged' }, isAdult: true }),
+    manhwaRecord({ id: 502, title: { english: 'Adult Genre' }, genres: ['Adult'] }),
+    manhwaRecord({ id: 503, title: { english: 'Hentai Genre' }, genres: ['Hentai'] }),
+    manhwaRecord({ id: 504, title: { english: 'Erotica Tag' }, tags: [{ name: 'Erotica' }] }),
+    manhwaRecord({ id: 505, title: { english: 'Pornographic Tag' }, tags: [{ name: 'Pornographic' }] }),
+    manhwaRecord({ id: 508, title: { english: '18 Plus Rating' }, rating: '18+ explicit' }),
+    manhwaRecord({
+      id: 506,
+      title: { english: 'Romance Drama' },
+      genres: ['Romance', 'Drama'],
+      tags: [{ name: 'Long Strip' }],
+    }),
+  ];
+  const recommendations = recommendationRecords.map(mediaRecommendation => ({ mediaRecommendation }));
+  const aniListRecords = [
+    ...recommendationRecords,
+    manhwaRecord({
+      id: 507,
+      title: { english: 'Safe Action' },
+      genres: ['Action'],
+      tags: [{ name: 'Long Strip' }],
+    }),
+  ];
+  const mangaDexRecords = [
+    mangaDexRecord({ attributes: { contentRating: 'erotica' } }),
+    mangaDexRecord({
+      id: 'ef525177-734a-4ae0-bc66-b2d377f3ada8',
+      attributes: { contentRating: 'pornographic' },
+    }),
+    mangaDexRecord({
+      id: 'ef525177-734a-4ae0-bc66-b2d377f3ada7',
+      attributes: { contentRating: 'safe' },
+    }),
+  ];
+  globalThis.fetch = async (url, options) => {
+    if (String(url).startsWith('https://api.mangadex.org')) {
+      return response({ result: 'ok', data: mangaDexRecords, total: mangaDexRecords.length });
+    }
+    assert.match(JSON.parse(options.body).query, /isAdult:\s*false/);
+    return response({
+      data: {
+        featured: manhwaRecord({ recommendations: { nodes: recommendations } }),
+        trending: { media: aniListRecords },
+        popular: { media: aniListRecords },
+        recent: { media: aniListRecords },
+        search: {
+          pageInfo: { currentPage: 1, hasNextPage: false, total: aniListRecords.length },
+          media: aniListRecords,
+        },
+      },
+    });
+  };
+
+  const discovery = await getManhwaDiscovery();
+  for (const list of [
+    discovery.trending,
+    discovery.popular,
+    discovery.recent,
+    discovery.recommended,
+    discovery.results,
+  ]) {
+    assert.ok(list.every(item => !/Adult Flagged|Adult Genre|Hentai Genre|Erotica Tag|Pornographic Tag|18 Plus Rating/.test(item.title)));
+  }
+  assert.ok(discovery.recommended.some(item => item.title === 'Romance Drama'));
+  assert.ok(discovery.trending.some(item => item.title === 'Safe Action'));
+  assert.ok(discovery.results.some(item => item.title === 'Lore Olympus'));
+
+  const cachedDiscovery = await getManhwaDiscovery();
+  assert.equal(cachedDiscovery.cached, true);
+  assert.deepEqual(cachedDiscovery.recommended.map(item => item.title), ['Romance Drama']);
+});
+
+test('filters search pages and related-comic recommendations without dropping general genres', async () => {
+  storage.clear();
+  let searchPage = 1;
+  const pageRecords = [
+    manhwaRecord({ id: 601, title: { english: 'Explicit Search Result' }, isAdult: true }),
+    manhwaRecord({
+      id: 602,
+      title: { english: 'Fantasy Romance Search Result' },
+      genres: ['Fantasy', 'Romance'],
+      tags: [{ name: 'Long Strip' }],
+    }),
+  ];
+  globalThis.fetch = async (url, options) => {
+    if (String(url).startsWith('https://api.mangadex.org')) {
+      return response({ result: 'ok', data: [], total: 0 });
+    }
+    const request = JSON.parse(options.body);
+    if (request.query.includes('SearchManhwa')) {
+      searchPage = request.variables.page;
+      return response({
+        data: {
+          Page: {
+            pageInfo: { currentPage: searchPage, hasNextPage: searchPage === 1, total: 4 },
+            media: pageRecords,
+          },
+        },
+      });
+    }
+    return response({
+      data: {
+        Media: manhwaRecord({
+          id: request.variables.id,
+          recommendations: {
+            nodes: [
+              { mediaRecommendation: manhwaRecord({ id: 603, title: { english: 'Hentai Related' }, tags: [{ name: 'Hentai' }] }) },
+              { mediaRecommendation: manhwaRecord({ id: 604, title: { english: 'Safe Drama Related' }, genres: ['Drama'] }) },
+            ],
+          },
+        }),
+      },
+    });
+  };
+
+  const firstPage = await searchManhwa({ query: 'Fantasy', page: 1 });
+  const secondPage = await searchManhwa({ query: 'Fantasy', page: 2 });
+  assert.deepEqual(firstPage.items.map(item => item.title), ['Fantasy Romance Search Result']);
+  assert.deepEqual(secondPage.items.map(item => item.title), ['Fantasy Romance Search Result']);
+  assert.equal(secondPage.pagination.currentPage, 2);
+  assert.deepEqual(secondPage.items[0].genres, ['Fantasy', 'Romance']);
+
+  const detail = await getManhwaDetailsBySlug('safe-comic--140407');
+  assert.deepEqual(detail.recommendations.map(item => item.title), ['Safe Drama Related']);
 });

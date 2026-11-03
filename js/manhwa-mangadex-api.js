@@ -113,6 +113,7 @@ export function searchMangaDex({ title = '', limit = 12, offset = 0 } = {}) {
   const params = {
     limit: safeLimit,
     offset: safeOffset,
+    'contentRating[]': ['safe', 'suggestive'],
     'includes[]': ['cover_art', 'author', 'artist'],
     'order[updatedAt]': 'desc',
   };

@@ -22,6 +22,7 @@ test('searches MangaDex metadata and deduplicates concurrent requests', async ()
     assert.equal(parsedUrl.searchParams.get('title'), 'Lore Olympus');
     assert.equal(parsedUrl.searchParams.get('limit'), '12');
     assert.equal(parsedUrl.searchParams.get('includes[]'), 'cover_art');
+    assert.deepEqual(parsedUrl.searchParams.getAll('contentRating[]'), ['safe', 'suggestive']);
     assert.equal(options.headers.Accept, 'application/json');
     await new Promise(resolve => globalThis.setTimeout(resolve, 10));
     return response(200, { result: 'ok', response: 'collection', data: [] });
