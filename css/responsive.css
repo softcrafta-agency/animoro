@@ -112,7 +112,7 @@
     z-index: 1200;
     inset: auto 0 0;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     min-height: 60px;
     padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
     background: rgba(10, 12, 18, 0.97);
@@ -265,8 +265,10 @@
     gap: 8px;
   }
 
-  .header-actions .search-toggle-btn {
-    display: none;
+  .header-actions .nav-search-btn {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
   }
 
   .article-related-section {

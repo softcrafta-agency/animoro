@@ -131,9 +131,19 @@ export function getListKey(item) {
 
 export function buildListRecord(item) {
   const kind = item?.kind || 'anime';
+  const slug = item?.slug || item?.id || item?.title || 'item';
+  const malId = Number(item?.malId || String(slug).match(/--([1-9]\d*)$/)?.[1]);
+  const broadcast = item?.broadcast && typeof item.broadcast === 'object'
+    ? {
+      day: typeof item.broadcast.day === 'string' ? item.broadcast.day : '',
+      time: typeof item.broadcast.time === 'string' ? item.broadcast.time : '',
+      timezone: typeof item.broadcast.timezone === 'string' ? item.broadcast.timezone : '',
+    }
+    : null;
   return {
     kind,
-    slug: item?.slug || item?.id || item?.title || 'item',
+    slug,
+    malId: Number.isInteger(malId) && malId > 0 ? malId : null,
     title: item?.title || 'Untitled',
     coverImage: item?.coverImage || item?.poster || '',
     genres: Array.isArray(item?.genres) ? item.genres : [],
@@ -143,6 +153,9 @@ export function buildListRecord(item) {
     season: item?.season || '',
     status: item?.status || '',
     releaseStatus: item?.releaseStatus || '',
+    releaseDate: item?.releaseDate || '',
+    releaseDatePrecision: item?.releaseDatePrecision || '',
+    broadcast,
     featured: Boolean(item?.featured),
     shortDescription: item?.shortDescription || item?.synopsis || '',
     japaneseTitle: item?.japaneseTitle || '',
@@ -152,6 +165,7 @@ export function buildListRecord(item) {
 function buildListDocumentPayload(item) {
   return {
     animeId: item.slug,
+    malId: item.malId || null,
     kind: item.kind,
     title: item.title,
     slug: item.slug,
@@ -164,6 +178,9 @@ function buildListDocumentPayload(item) {
     type: item.type || '',
     season: item.season || '',
     rating: item.rating ?? '',
+    releaseDate: item.releaseDate || '',
+    releaseDatePrecision: item.releaseDatePrecision || '',
+    broadcast: item.broadcast || null,
     shortDescription: item.shortDescription || '',
     japaneseTitle: item.japaneseTitle || '',
   };

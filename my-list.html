@@ -31,7 +31,9 @@
         <a href="/my-list.html" class="nav-link active">My List</a>
       </nav>
       <div class="header-actions">
-        <a href="/search.html" class="search-toggle-btn" aria-label="Search Animoro">Search</a>
+        <a href="/search.html" class="nav-search-btn" aria-label="Search anime" title="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+        </a>
         <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle navigation menu"><span></span><span></span><span></span></button>
       </div>
     </div>
@@ -55,11 +57,13 @@
       <div class="section-header">
         <div>
           <h1 class="section-title">My List</h1>
-          <p class="section-subtitle">Save anime you want to watch later.</p>
+          <p class="section-subtitle">Save anime you want to watch later and set in-site reminders for listed airing or release times. Reminders appear here while Animoro is open.</p>
         </div>
         <a href="/anime-list" class="btn-outline">Explore Anime</a>
       </div>
 
+      <p class="my-list-reminder-note" id="myListReminderNote" role="status">Weekly broadcast times are estimates, not episode-specific confirmations. Release reminders are available only when an exact date is listed.</p>
+      <div class="my-list-reminder-notifications" id="animeReminderNotifications" aria-live="polite"></div>
       <div class="articles-grid" id="myListContainer" aria-live="polite">
         <div class="home-loading-state" role="status" aria-label="Loading my list">
           <span class="home-loading-line"></span>

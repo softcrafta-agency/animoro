@@ -285,9 +285,6 @@ export function setupMobileNav() {
       <a href="/anime-list" data-mobile-key="anime" aria-label="Anime List">
         <span aria-hidden="true">✦</span><small>Anime List</small>
       </a>
-      <a href="/search.html" data-mobile-key="search" aria-label="Search">
-        <span aria-hidden="true">⌕</span><small>Search</small>
-      </a>
       <a href="/my-list.html" data-mobile-key="my-list" aria-label="My list">
         <span aria-hidden="true">♥</span><small>My List</small>
       </a>
