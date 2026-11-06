@@ -307,6 +307,90 @@
            TAB 2: ARTICLES MANAGEMENT
            ============================================================ -->
       <section class="admin-tab-pane" id="tab-posts" style="display: none;">
+        <section class="article-performance" id="articlePerformanceDashboard" aria-labelledby="articlePerformanceTitle" aria-busy="true">
+          <div class="article-performance-header">
+            <div>
+              <p class="article-performance-eyebrow">Daily editorial intelligence</p>
+              <h2 id="articlePerformanceTitle">Yesterday’s performance</h2>
+              <p class="article-performance-subtitle">Consented, bot-filtered public traffic · Asia/Kolkata</p>
+            </div>
+            <div class="article-performance-controls">
+              <label class="performance-date-label" for="performanceDate">Review a day</label>
+              <input type="date" id="performanceDate" class="form-input performance-date-input" />
+              <button type="button" class="action-btn-sm" id="refreshArticlePerformance">Refresh analytics</button>
+            </div>
+          </div>
+          <p class="article-performance-status" id="articlePerformanceStatus" role="status" aria-live="polite">Loading analytics…</p>
+          <div class="article-performance-error" id="articlePerformanceError" role="alert" hidden></div>
+
+          <div class="performance-metrics-grid" id="performanceMetrics">
+            <article class="performance-metric-card">
+              <span class="performance-metric-label">Total page views</span>
+              <strong class="performance-metric-value" id="performancePageViews">—</strong>
+              <span class="performance-metric-note">All public pages</span>
+            </article>
+            <article class="performance-metric-card">
+              <span class="performance-metric-label">Unique visitors</span>
+              <strong class="performance-metric-value" id="performanceUniqueVisitors">—</strong>
+              <span class="performance-metric-note">Consented visitor IDs</span>
+            </article>
+            <article class="performance-metric-card">
+              <span class="performance-metric-label">Article views</span>
+              <strong class="performance-metric-value" id="performanceArticleViews">—</strong>
+              <span class="performance-metric-note">Published article pages</span>
+            </article>
+            <article class="performance-metric-card">
+              <span class="performance-metric-label">Published articles</span>
+              <strong class="performance-metric-value" id="performancePublishedArticles">—</strong>
+              <span class="performance-metric-note">Currently live</span>
+            </article>
+          </div>
+
+          <div class="performance-overview-grid">
+            <article class="performance-panel performance-chart-panel">
+              <div class="performance-panel-heading">
+                <div><h3>Traffic comparison</h3><p id="performanceComparisonLabel">Yesterday vs previous day</p></div>
+                <strong id="performanceTrafficChange" class="performance-change">—</strong>
+              </div>
+              <div id="performanceChart" class="performance-chart" aria-live="polite"></div>
+            </article>
+            <article class="performance-panel">
+              <div class="performance-panel-heading"><div><h3>Top articles</h3><p>Most viewed on the selected day</p></div></div>
+              <ol class="performance-article-list" id="performanceTopArticles"></ol>
+            </article>
+            <article class="performance-panel">
+              <div class="performance-panel-heading"><div><h3>Needs attention</h3><p>Lowest views on the selected day</p></div></div>
+              <ol class="performance-article-list" id="performanceLowestArticles"></ol>
+            </article>
+          </div>
+
+          <article class="performance-panel performance-suggestions-panel">
+            <div class="performance-panel-heading">
+              <div><h3>Today’s improvement suggestions</h3><p>Evidence-based opportunities, followed by general editorial guidance</p></div>
+            </div>
+            <div class="performance-suggestions-grid">
+              <section>
+                <h4><span class="performance-source-badge data">Data-based findings</span></h4>
+                <ul class="performance-suggestion-list" id="performanceFindings"></ul>
+              </section>
+              <section>
+                <h4><span class="performance-source-badge general">General recommendations</span></h4>
+                <ul class="performance-suggestion-list" id="performanceGeneralSuggestions"></ul>
+              </section>
+            </div>
+            <div class="performance-category-insight" id="performanceCategoryInsight"></div>
+          </article>
+
+          <article class="performance-panel performance-table-panel">
+            <div class="performance-panel-heading"><div><h3>Article performance</h3><p>Compare views with the immediately preceding complete day · select a title to edit</p></div></div>
+            <div class="table-responsive">
+              <table class="admin-table performance-table">
+                <thead><tr><th>Article</th><th id="performanceCurrentDayHeading">Yesterday views</th><th>Previous day views</th><th>Change</th><th>Performance</th></tr></thead>
+                <tbody id="performanceArticleTable"><tr><td colspan="5" class="performance-empty-state">Loading article performance…</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
         <div class="data-table-container">
           <div class="table-toolbar">
             <div class="table-filter-group">

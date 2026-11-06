@@ -147,6 +147,14 @@
         { "fieldPath": "visitorId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "analytics_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "eventType", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

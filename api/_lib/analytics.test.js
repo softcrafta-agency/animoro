@@ -3,6 +3,8 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import {
   classifyTrafficSource,
+  getDateInTimeZone,
+  getIndiaDayBounds,
   getClientCategories,
   getRateLimitDocumentId,
   getTrustedClientIp,
@@ -71,6 +73,17 @@ test('date parsing rejects invalid, future, reversed, and oversized ranges', () 
   const valid = parseDateRange({ startDate: '2025-02-01', endDate: '2025-02-03' }, new Date('2025-02-03'));
   assert.equal(valid.days, 3);
   assert.equal(valid.end.toISOString(), '2025-02-04T00:00:00.000Z');
+});
+
+test('India reporting dates use complete Asia/Kolkata calendar-day boundaries', () => {
+  const bounds = getIndiaDayBounds('2025-02-03');
+  assert.equal(bounds.start.toISOString(), '2025-02-02T18:30:00.000Z');
+  assert.equal(bounds.end.toISOString(), '2025-02-03T18:30:00.000Z');
+  assert.equal(getDateInTimeZone(new Date('2025-02-02T18:29:59.999Z')), '2025-02-02');
+  assert.equal(getDateInTimeZone(bounds.start), '2025-02-03');
+  assert.equal(getDateInTimeZone(new Date(bounds.end.getTime() - 1)), '2025-02-03');
+  assert.equal(getDateInTimeZone(bounds.end), '2025-02-04');
+  assert.equal(getIndiaDayBounds('2025-02-30'), null);
 });
 
 test('Firestore rules keep analytics and rate-limit records server-only', async () => {

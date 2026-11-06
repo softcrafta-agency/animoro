@@ -18,6 +18,7 @@ import { escapeHtml } from './html-utils.js';
 import { setupAnimeManager } from './admin-anime.js';
 import { setupUpcomingManager } from './admin-upcoming.js';
 import { setupVisitorAnalytics } from './admin-visitor-analytics.js';
+import { setupAdminArticlePerformance } from './admin-article-performance.js';
 
 let currentAdmin = null;
 
@@ -26,6 +27,7 @@ async function initAdminDashboard() {
     currentAdmin = user;
     updateAdminUserDisplay(user);
     setupVisitorAnalytics();
+    setupAdminArticlePerformance();
     setupTabs();
     setupMobileAdminNavigation();
     setupPostsTableControls();
@@ -83,6 +85,9 @@ function setupTabs() {
     window.location.hash = tabId;
     if (tabId === 'analytics') {
       window.dispatchEvent(new Event('animoro:analytics-tab-open'));
+    }
+    if (tabId === 'posts') {
+      window.dispatchEvent(new Event('animoro:articles-tab-open'));
     }
   }
 

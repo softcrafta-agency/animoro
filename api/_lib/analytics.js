@@ -3,6 +3,8 @@ import { createHmac } from 'node:crypto';
 
 const ID_PATTERN = /^[a-f0-9]{32}$/i;
 const MAX_DATE_RANGE_DAYS = 90;
+export const REPORTING_TIME_ZONE = 'Asia/Kolkata';
+const INDIA_UTC_OFFSET_MINUTES = 5 * 60 + 30;
 const PUBLIC_EXACT_PATHS = new Set([
   '/',
   '/anime-list',
@@ -100,6 +102,27 @@ export function parseDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T00:00:00.000Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? date : null;
+}
+
+export function getDateInTimeZone(date, timeZone = REPORTING_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export function getIndiaDayBounds(dateString) {
+  const date = parseDate(dateString);
+  if (!date) return null;
+  const start = new Date(date.getTime() - INDIA_UTC_OFFSET_MINUTES * 60 * 1000);
+  return {
+    start,
+    end: new Date(start.getTime() + 86400000),
+  };
 }
 
 export function toUtcDay(date) {

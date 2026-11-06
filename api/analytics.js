@@ -1,11 +1,20 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { authorizeAdminRequest } from './_lib/admin-auth.js';
-import { parseDateRange, isValidAnalyticsId, sanitizeLabel } from './_lib/analytics.js';
+import {
+  getDateInTimeZone,
+  getIndiaDayBounds,
+  parseDate,
+  parseDateRange,
+  isValidAnalyticsId,
+  sanitizeLabel,
+} from './_lib/analytics.js';
 
 const PAGE_SIZE = 50;
 const SCAN_SIZE = 150;
 const MAX_SCANNED_EVENTS = 3000;
 const DAY_MS = 86400000;
+const PERFORMANCE_BATCH_SIZE = 500;
+const PERFORMANCE_RETENTION_DAYS = 90;
 
 function sendJson(response, statusCode, payload) {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -35,6 +44,154 @@ function getDateParams(query, now) {
   const endDate = typeof query.endDate === 'string' ? query.endDate : today;
   const range = parseDateRange({ startDate, endDate }, now);
   return range.error ? { error: range.error } : { ...range, startDate, endDate };
+}
+
+function formatPerformanceArticle(article, articleId, pageViews) {
+  return {
+    id: articleId,
+    slug: typeof article.slug === 'string' ? article.slug : '',
+    title: sanitizeLabel(article.title, 200) || 'Deleted or unavailable article',
+    category: sanitizeLabel(article.category, 100) || 'Uncategorized',
+    pageViews,
+  };
+}
+
+function getPerformanceChange(current, previous) {
+  if (previous === 0) {
+    return {
+      change: current,
+      changePercent: current === 0 ? 0 : null,
+      trend: current === 0 ? 'unchanged' : 'new',
+    };
+  }
+  const change = current - previous;
+  return {
+    change,
+    changePercent: Math.round((change / previous) * 1000) / 10,
+    trend: change > 0 ? 'up' : change < 0 ? 'down' : 'unchanged',
+  };
+}
+
+export function buildPerformanceReport({ reportDate, previousDate, events, publishedArticles }) {
+  const dayStats = new Map([
+    [reportDate, { pageViews: 0, articleViews: 0, visitors: new Set(), articleCounts: new Map() }],
+    [previousDate, { pageViews: 0, articleViews: 0, visitors: new Set(), articleCounts: new Map() }],
+  ]);
+  const eventArticles = new Map();
+  const articleById = new Map(publishedArticles.map(article => [article.id, article]));
+
+  for (const event of events) {
+    const timestamp = event.timestamp?.toDate?.() || event.timestamp;
+    if (!(timestamp instanceof Date) || Number.isNaN(timestamp.getTime())) continue;
+    const date = getDateInTimeZone(timestamp);
+    const day = dayStats.get(date);
+    if (!day) continue;
+
+    day.pageViews += 1;
+    if (typeof event.visitorId === 'string' && event.visitorId) day.visitors.add(event.visitorId);
+    if (typeof event.articleId !== 'string' || !event.articleId) continue;
+
+    day.articleViews += 1;
+    day.articleCounts.set(event.articleId, (day.articleCounts.get(event.articleId) || 0) + 1);
+    if (!eventArticles.has(event.articleId)) {
+      eventArticles.set(event.articleId, {
+        id: event.articleId,
+        title: sanitizeLabel(event.articleTitle, 200) || 'Deleted or unavailable article',
+        slug: typeof event.articleSlug === 'string' ? event.articleSlug : '',
+        category: articleById.get(event.articleId)?.category || 'Uncategorized',
+      });
+    }
+  }
+
+  const selectedDay = dayStats.get(reportDate);
+  const previousDay = dayStats.get(previousDate);
+  const articles = publishedArticles.map(article => {
+    const yesterdayViews = selectedDay.articleCounts.get(article.id) || 0;
+    const previousDayViews = previousDay.articleCounts.get(article.id) || 0;
+    return {
+      ...article,
+      yesterdayViews,
+      previousDayViews,
+      ...getPerformanceChange(yesterdayViews, previousDayViews),
+    };
+  }).sort((left, right) =>
+    right.yesterdayViews - left.yesterdayViews || left.title.localeCompare(right.title)
+  );
+  const trafficChange = getPerformanceChange(selectedDay.pageViews, previousDay.pageViews);
+  const topArticles = [...selectedDay.articleCounts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 5)
+    .map(([id, pageViews]) => formatPerformanceArticle(
+      articleById.get(id) || eventArticles.get(id) || {},
+      id,
+      pageViews,
+    ));
+  const categoryCounts = new Map();
+  for (const article of articles) {
+    if (article.yesterdayViews) {
+      categoryCounts.set(article.category, (categoryCounts.get(article.category) || 0) + article.yesterdayViews);
+    }
+  }
+  const categories = [...categoryCounts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .map(([category, pageViews]) => ({ category, pageViews }));
+
+  return {
+    date: reportDate,
+    previousDate,
+    timeZone: 'Asia/Kolkata',
+    summary: {
+      pageViews: selectedDay.pageViews,
+      uniqueVisitors: selectedDay.visitors.size,
+      articleViews: selectedDay.articleViews,
+      publishedArticles: publishedArticles.length,
+      previousDayPageViews: previousDay.pageViews,
+      ...trafficChange,
+    },
+    chart: [
+      { date: previousDate, pageViews: previousDay.pageViews },
+      { date: reportDate, pageViews: selectedDay.pageViews },
+    ],
+    topArticles,
+    lowestArticles: [...articles].sort((left, right) =>
+      left.yesterdayViews - right.yesterdayViews || left.title.localeCompare(right.title)
+    ).slice(0, 5),
+    articles,
+    categories,
+  };
+}
+
+async function loadPerformance(firestore, reportDate) {
+  const selectedBounds = getIndiaDayBounds(reportDate);
+  const previousDate = new Date(parseDate(reportDate).getTime() - DAY_MS).toISOString().slice(0, 10);
+  const previousBounds = getIndiaDayBounds(previousDate);
+  let eventQuery = firestore.collection('analytics_events')
+    .where('eventType', '==', 'page_view')
+    .where('timestamp', '>=', Timestamp.fromDate(previousBounds.start))
+    .where('timestamp', '<', Timestamp.fromDate(selectedBounds.end))
+    .orderBy('timestamp', 'asc');
+  const events = [];
+  let batch = await eventQuery.limit(PERFORMANCE_BATCH_SIZE).get();
+  while (batch.docs.length) {
+    events.push(...batch.docs.map(document => document.data()));
+    if (batch.docs.length < PERFORMANCE_BATCH_SIZE) break;
+    eventQuery = eventQuery.startAfter(batch.docs[batch.docs.length - 1]);
+    batch = await eventQuery.limit(PERFORMANCE_BATCH_SIZE).get();
+  }
+
+  const articleSnapshot = await firestore.collection('posts')
+    .where('status', '==', 'published')
+    .get();
+  const publishedArticles = articleSnapshot.docs.map(document => {
+    const article = document.data();
+    return {
+      id: document.id,
+      title: sanitizeLabel(article.title, 200) || 'Untitled article',
+      slug: typeof article.slug === 'string' ? article.slug : '',
+      category: sanitizeLabel(article.category, 100) || 'Uncategorized',
+    };
+  });
+  return buildPerformanceReport({ reportDate, previousDate, events, publishedArticles });
 }
 
 async function loadSummary(firestore, range, now) {
@@ -256,9 +413,31 @@ export function createAnalyticsHandler({ authorize = authorizeAdminRequest, cloc
 
     const now = clock();
     const params = request.query || {};
+    const mode = typeof params.mode === 'string' ? params.mode : 'summary';
+    if (mode === 'performance') {
+      const reportDate = typeof params.date === 'string'
+        ? params.date
+        : new Date(parseDate(getDateInTimeZone(now)).getTime() - DAY_MS).toISOString().slice(0, 10);
+      if (!parseDate(reportDate)) {
+        return sendJson(response, 400, { error: 'Provide a valid reporting date.' });
+      }
+      if (reportDate >= getDateInTimeZone(now)) {
+        return sendJson(response, 400, { error: 'Only complete previous days are available.' });
+      }
+      const reportStart = parseDate(reportDate).getTime();
+      const latestDate = parseDate(getDateInTimeZone(now)).getTime();
+      if (latestDate - reportStart >= PERFORMANCE_RETENTION_DAYS * DAY_MS) {
+        return sendJson(response, 400, { error: 'The selected date is outside the analytics retention window.' });
+      }
+      try {
+        return sendJson(response, 200, await loadPerformance(authorization.services.firestore, reportDate));
+      } catch (error) {
+        logger.error('Analytics performance query failed.', error);
+        return sendJson(response, 503, { error: 'Analytics data is temporarily unavailable.' });
+      }
+    }
     const range = getDateParams(params, now);
     if (range.error) return sendJson(response, 400, { error: range.error });
-    const mode = typeof params.mode === 'string' ? params.mode : 'summary';
     try {
       if (mode === 'summary') {
         return sendJson(response, 200, await loadSummary(authorization.services.firestore, range, now));
