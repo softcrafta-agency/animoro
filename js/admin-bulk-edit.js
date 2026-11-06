@@ -69,6 +69,7 @@ function createDraft(fields, record) {
 
 function readFieldValue(value, field) {
   if (field.type === 'checkbox') return Boolean(value);
+  if (typeof field.formatValue === 'function') return field.formatValue(value);
   if (Array.isArray(value)) return value.join(', ');
   return value == null ? '' : String(value);
 }

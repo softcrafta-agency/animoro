@@ -15,9 +15,16 @@ test('normalizes tags and prevents case-insensitive duplicates', () => {
   );
 });
 
-test('normalizes related keywords and removes duplicates', () => {
+test('normalizes legacy comma-separated keywords and removes duplicates', () => {
   assert.deepEqual(
     normalizeArticleKeywords(' Black Torch, black torch , Jiro Azuma, , supernatural anime, Black Torch '),
+    ['Black Torch', 'Jiro Azuma', 'supernatural anime']
+  );
+});
+
+test('normalizes newline-separated keywords and removes duplicates', () => {
+  assert.deepEqual(
+    normalizeArticleKeywords(' Black Torch\nJiro Azuma\r\nblack torch, supernatural anime\n'),
     ['Black Torch', 'Jiro Azuma', 'supernatural anime']
   );
 });

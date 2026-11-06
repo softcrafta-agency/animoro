@@ -2268,14 +2268,9 @@ async function loadPostForEditing(postId) {
     document.getElementById('postSeoDescription').value = post.seoDescription || '';
     document.getElementById('postPrimaryKeyword').value =
       post.primaryKeyword || post.focusKeyword || post.title || '';
-    const savedKeywords = Array.isArray(post.secondaryKeywords)
-      ? post.secondaryKeywords
-      : Array.isArray(post.keywords)
-        ? post.keywords
-        : Array.isArray(post.relatedKeywords)
-          ? post.relatedKeywords
-          : [];
-    document.getElementById('postSecondaryKeywords').value = savedKeywords.join(', ');
+    const savedKeywords = post.secondaryKeywords ?? post.keywords ?? post.relatedKeywords ?? [];
+    document.getElementById('postSecondaryKeywords').value =
+      normalizeArticleKeywords(savedKeywords).join('\n');
     document.getElementById('postSearchIntent').value =
       isValidSearchIntent(post.searchIntent) ? post.searchIntent : 'informational';
     document.getElementById('postAuthor').value = post.authorName || '';

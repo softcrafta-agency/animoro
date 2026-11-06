@@ -47,7 +47,16 @@ const POST_BULK_EDIT_FIELDS = [
   { key: 'seoTitle', label: 'SEO Title', maxLength: 200 },
   { key: 'seoDescription', label: 'SEO Description', type: 'textarea', maxLength: 1000 },
   { key: 'primaryKeyword', label: 'Primary Focus Keyword', fallbackKey: 'title', maxLength: 120 },
-  { key: 'secondaryKeywords', label: 'Secondary Keywords (comma separated)', type: 'textarea', fallbackKey: 'keywords', maxLength: 3000 },
+  {
+    key: 'secondaryKeywords',
+    label: 'Secondary Keywords (one per line)',
+    type: 'textarea',
+    fallbackKey: 'keywords',
+    formatValue: value => normalizeArticleKeywords(value).join('\n'),
+    hint: 'Enter one phrase per line. Existing comma-separated keywords are supported.',
+    rows: 5,
+    maxLength: 3000,
+  },
   { key: 'searchIntent', label: 'Search Intent', type: 'select', defaultValue: 'informational', options: [
     { value: 'informational', label: 'Informational' },
     { value: 'commercial', label: 'Commercial investigation' },

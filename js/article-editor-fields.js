@@ -39,7 +39,7 @@ export function normalizeArticleKeywords(values) {
   return items
     .flatMap(value => {
       if (typeof value !== 'string') return [];
-      return value.split(',');
+      return value.split(/[,\r\n]+/);
     })
     .map(value => value.trim().replace(/\s+/g, ' '))
     .filter(value => {
