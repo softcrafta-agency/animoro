@@ -21,6 +21,8 @@ function makeRequest(query = {}, method = 'GET') {
 }
 
 function makePerformanceFirestore(events, posts) {
+  const queryTrace = [];
+
   class Query {
     constructor(name, filters = [], pageSize = Infinity, cursorId = '') {
       this.name = name;
@@ -30,6 +32,7 @@ function makePerformanceFirestore(events, posts) {
     }
 
     where(field, operator, value) {
+      queryTrace.push({ name: this.name, field, operator, value });
       return new Query(this.name, [...this.filters, { field, operator, value }], this.pageSize, this.cursorId);
     }
 
@@ -70,9 +73,11 @@ function makePerformanceFirestore(events, posts) {
   }
 
   return {
+    queryTrace,
     collection(name) {
       return {
         where(field, operator, value) {
+          queryTrace.push({ name, field, operator, value });
           return new Query(name, [{ field, operator, value }]);
         },
       };
@@ -111,10 +116,16 @@ test('performance endpoint compares complete India days using consented page-vie
     makePageView('selected-article-one', '2025-02-02T18:30:00.000Z', 'visitor-one', 'article-a'),
     makePageView('selected-home', '2025-02-03T17:00:00.000Z', 'visitor-one'),
     makePageView('selected-article-two', '2025-02-03T18:29:59.999Z', 'visitor-two', 'article-a'),
+    {
+      eventType: 'interaction',
+      timestamp: Timestamp.fromDate(new Date('2025-02-03T17:30:00.000Z')),
+      visitorId: 'interaction-visitor',
+    },
     makePageView('outside-after', '2025-02-03T18:30:00.000Z', 'ignored'),
   ], [
     { id: 'article-a', status: 'published', title: 'Article A', slug: 'article-a', category: 'News' },
     { id: 'article-b', status: 'published', title: 'Article B', slug: 'article-b', category: 'Reviews' },
+    { id: 'article-draft', status: 'draft', title: 'Draft article', slug: 'draft-article' },
   ]);
   const handler = createAnalyticsHandler({
     authorize: async () => ({ authorized: true, services: { firestore } }),
@@ -143,8 +154,49 @@ test('performance endpoint compares complete India days using consented page-vie
   });
   assert.equal(response.body.topArticles[0].id, 'article-a');
   assert.equal(response.body.topArticles[0].pageViews, 2);
+  assert.equal(response.body.summary.publishedArticles, 2);
   assert.equal(response.body.lowestArticles[0].id, 'article-b');
   assert.equal(response.body.lowestArticles[0].yesterdayViews, 0);
+  assert.equal(firestore.queryTrace.some(query => query.name === 'analytics_events' && query.field === 'eventType'), false);
+  assert.deepEqual(
+    firestore.queryTrace.filter(query => query.name === 'analytics_events').map(query => [
+      query.field,
+      query.operator,
+      query.value.toDate().toISOString(),
+    ]),
+    [
+      ['timestamp', '>=', '2025-02-01T18:30:00.000Z'],
+      ['timestamp', '<', '2025-02-03T18:30:00.000Z'],
+    ],
+  );
+});
+
+test('default performance date and boundaries follow Asia/Kolkata, including midnight UTC', async () => {
+  const firestore = makePerformanceFirestore([], []);
+  const handler = createAnalyticsHandler({
+    authorize: async () => ({ authorized: true, services: { firestore } }),
+    clock: () => new Date('2026-11-05T20:00:00.000Z'),
+    logger: { error() {} },
+  });
+  const response = makeResponse();
+
+  await handler(makeRequest({ mode: 'performance' }), response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.date, '2026-11-05');
+  assert.equal(response.body.previousDate, '2026-11-04');
+  assert.deepEqual(response.body.chart, [
+    { date: '2026-11-04', pageViews: 0 },
+    { date: '2026-11-05', pageViews: 0 },
+  ]);
+  assert.deepEqual(
+    firestore.queryTrace.filter(query => query.name === 'analytics_events').map(query => query.value.toDate().toISOString()),
+    ['2026-11-03T18:30:00.000Z', '2026-11-05T18:30:00.000Z'],
+  );
+  assert.deepEqual(response.body.topArticles, []);
+  assert.deepEqual(response.body.lowestArticles, []);
+  assert.equal(response.body.summary.pageViews, 0);
+  assert.equal(response.body.summary.uniqueVisitors, 0);
 });
 
 test('performance endpoint paginates large event sets without truncating counts', async () => {
@@ -168,6 +220,31 @@ test('performance endpoint paginates large event sets without truncating counts'
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.summary.pageViews, 501);
   assert.equal(response.body.summary.uniqueVisitors, 1);
+});
+
+test('performance endpoint exposes the Firestore query error in development and logs it', async () => {
+  const firestore = makePerformanceFirestore([], []);
+  const errors = [];
+  firestore.collection = () => ({
+    where() {
+      throw Object.assign(new Error('Missing Firestore composite index.'), { code: 'failed-precondition' });
+    },
+  });
+  const handler = createAnalyticsHandler({
+    authorize: async () => ({ authorized: true, services: { firestore } }),
+    clock: () => new Date('2025-02-04T00:00:00.000Z'),
+    logger: { error(message, error) { errors.push({ message, error }); } },
+  });
+  const response = makeResponse();
+
+  await handler(makeRequest({ mode: 'performance', date: '2025-02-03' }), response);
+
+  assert.equal(response.statusCode, 503);
+  if (process.env.NODE_ENV !== 'production') {
+    assert.equal(response.body.detail, 'Missing Firestore composite index.');
+  }
+  assert.equal(errors[0].message, 'Analytics performance query failed.');
+  assert.equal(errors[0].error.code, 'failed-precondition');
 });
 
 test('performance endpoint rejects invalid and incomplete reporting dates', async () => {

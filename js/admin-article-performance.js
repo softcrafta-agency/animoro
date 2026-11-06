@@ -1,9 +1,12 @@
+import { signOut } from 'firebase/auth';
 import { auth } from './auth-init.js';
 import { escapeHtml } from './html-utils.js';
 
 const REPORTING_TIME_ZONE = 'Asia/Kolkata';
 let initialized = false;
 let requestSequence = 0;
+let pendingDate = '';
+let pendingRequest = null;
 
 function getLocalDateString(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -40,13 +43,42 @@ async function getPerformanceReport(date) {
   await auth.authStateReady();
   const user = auth.currentUser;
   if (!user) throw new Error('Sign in as an administrator to view article performance.');
-  const token = await user.getIdToken();
-  const response = await fetch(`/api/analytics?mode=performance&date=${encodeURIComponent(date)}`, {
+  let token = await user.getIdToken();
+  const url = `/api/analytics?mode=performance&date=${encodeURIComponent(date)}`;
+  let response = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: 'same-origin',
+    cache: 'no-store',
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || `Analytics request failed with HTTP ${response.status}.`);
+  if (response.status === 401) {
+    token = await user.getIdToken(true);
+    response = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + token },
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    if (response.status === 401) {
+      await signOut(auth);
+      window.location.replace('/admin-login.html');
+      throw new Error('Your admin session expired. Sign in again to view analytics.');
+    }
+  }
+  const responseText = await response.text();
+  let payload = {};
+  try {
+    payload = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    if (!response.ok) throw new Error(`Analytics request failed with HTTP ${response.status}.`);
+    throw new Error('The analytics API returned an invalid response.');
+  }
+  if (!response.ok) {
+    throw new Error(payload.detail
+      ? `${payload.error || 'Analytics request failed.'} ${payload.detail}`
+      : payload.error || `Analytics request failed with HTTP ${response.status}.`);
+  }
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('The analytics API returned an invalid response.');
+  }
   return payload;
 }
 
@@ -211,14 +243,19 @@ async function loadPerformance() {
   const refreshButton = document.getElementById('refreshArticlePerformance');
   if (!dashboard || !dateInput || !error) return;
 
+  const date = dateInput.value;
+  if (pendingRequest && pendingDate === date) return pendingRequest;
   const sequence = ++requestSequence;
+  const request = getPerformanceReport(date);
+  pendingDate = date;
+  pendingRequest = request;
   dashboard.classList.add('is-loading');
   dashboard.setAttribute('aria-busy', 'true');
   error.hidden = true;
   if (refreshButton) refreshButton.disabled = true;
   setStatus('Loading analytics…');
   try {
-    const report = await getPerformanceReport(dateInput.value);
+    const report = await request;
     if (sequence !== requestSequence) return;
     renderPerformance(report);
   } catch (loadError) {
@@ -227,6 +264,10 @@ async function loadPerformance() {
     error.hidden = false;
     setStatus('Analytics could not be loaded.', true);
   } finally {
+    if (pendingRequest === request) {
+      pendingRequest = null;
+      pendingDate = '';
+    }
     if (sequence === requestSequence) {
       dashboard.classList.remove('is-loading');
       dashboard.setAttribute('aria-busy', 'false');

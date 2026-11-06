@@ -81,6 +81,7 @@ export function buildPerformanceReport({ reportDate, previousDate, events, publi
   const articleById = new Map(publishedArticles.map(article => [article.id, article]));
 
   for (const event of events) {
+    if (event.eventType !== 'page_view') continue;
     const timestamp = event.timestamp?.toDate?.() || event.timestamp;
     if (!(timestamp instanceof Date) || Number.isNaN(timestamp.getTime())) continue;
     const date = getDateInTimeZone(timestamp);
@@ -166,7 +167,6 @@ async function loadPerformance(firestore, reportDate) {
   const previousDate = new Date(parseDate(reportDate).getTime() - DAY_MS).toISOString().slice(0, 10);
   const previousBounds = getIndiaDayBounds(previousDate);
   let eventQuery = firestore.collection('analytics_events')
-    .where('eventType', '==', 'page_view')
     .where('timestamp', '>=', Timestamp.fromDate(previousBounds.start))
     .where('timestamp', '<', Timestamp.fromDate(selectedBounds.end))
     .orderBy('timestamp', 'asc');
@@ -432,8 +432,16 @@ export function createAnalyticsHandler({ authorize = authorizeAdminRequest, cloc
       try {
         return sendJson(response, 200, await loadPerformance(authorization.services.firestore, reportDate));
       } catch (error) {
-        logger.error('Analytics performance query failed.', error);
-        return sendJson(response, 503, { error: 'Analytics data is temporarily unavailable.' });
+        logger.error('Analytics performance query failed.', {
+          reportDate,
+          code: error?.code || 'unknown',
+          message: error?.message || String(error),
+        });
+        const detail = process.env.NODE_ENV === 'production' ? undefined : error?.message;
+        return sendJson(response, 503, {
+          error: 'Analytics data is temporarily unavailable.',
+          ...(detail ? { detail } : {}),
+        });
       }
     }
     const range = getDateParams(params, now);
