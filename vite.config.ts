@@ -5,7 +5,34 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: 'animoro-festival-theme',
+        transformIndexHtml: {
+          order: 'post',
+          handler(html, context) {
+            if (/\/(?:404|admin|admin-login|admin-post-editor)\.html$/.test(context.path)) return html;
+            return {
+              html,
+              tags: [
+                {
+                  tag: 'link',
+                  attrs: { rel: 'stylesheet', href: '/css/festival-theme.css' },
+                  injectTo: 'head',
+                },
+                {
+                  tag: 'script',
+                  attrs: { src: '/js/festival-theme.js', defer: true },
+                  injectTo: 'body',
+                },
+              ],
+            };
+          },
+        },
+      },
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

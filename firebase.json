@@ -44,6 +44,17 @@
         "destination": "/my-list.html"
       }
     ],
+    "headers": [
+      {
+        "source": "/festival-calendar.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=300, stale-while-revalidate=86400"
+          }
+        ]
+      }
+    ],
     "redirects": [
       {
         "source": "/blog.html/:slug",

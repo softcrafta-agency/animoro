@@ -1,0 +1,1921 @@
+{
+  "version": 1,
+  "timeZone": "Asia/Kolkata",
+  "sources": [
+    {
+      "id": "google-india-calendar",
+      "name": "Google Calendar — Holidays in India",
+      "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics"
+    },
+    {
+      "id": "officeholidays-india",
+      "name": "Office Holidays — India",
+      "url": "https://www.officeholidays.com/ics/india"
+    },
+    {
+      "id": "drik-panchang",
+      "name": "Drik Panchang — Shrirangapattana, Karnataka",
+      "url": "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?year=2026&geoname-id=1256421"
+    },
+    {
+      "id": "drik-panchang",
+      "name": "Drik Panchang — Shrirangapattana, Karnataka",
+      "url": "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?year=2027&geoname-id=1256421"
+    }
+  ],
+  "festivals": [
+    {
+      "id": "baisakhi",
+      "name": "Baisakhi",
+      "enabled": true,
+      "theme": {
+        "themeCss": "baisakhi",
+        "colors": {
+          "accent": "#facc15",
+          "glow": "#22c55e"
+        },
+        "decorations": [
+          "harvest motifs",
+          "sunlight"
+        ],
+        "animation": "confetti",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-04-14",
+          "startDate": "2026-04-14",
+          "endDate": "2026-04-14",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-04-14",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-04-14",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-04-14",
+          "startDate": "2027-04-14",
+          "endDate": "2027-04-14",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-04-14",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-04-14",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "bhai-dooj",
+      "name": "Bhai Dooj",
+      "enabled": true,
+      "theme": {
+        "themeCss": "bhaidooj",
+        "colors": {
+          "accent": "#e879f9",
+          "glow": "#fb7185"
+        },
+        "decorations": [
+          "sibling lights",
+          "petal motifs"
+        ],
+        "animation": "sparkles",
+        "priority": 55,
+        "enabled": true
+      },
+      "dates": {
+        "2027": {
+          "festivalDate": "2027-10-31",
+          "startDate": "2027-10-31",
+          "endDate": "2027-10-31",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-10-31",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-10-31",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "buddha-purnima",
+      "name": "Buddha Purnima",
+      "enabled": true,
+      "theme": {
+        "themeCss": "buddha",
+        "colors": {
+          "accent": "#fbbf24",
+          "glow": "#a78bfa"
+        },
+        "decorations": [
+          "lotus petals",
+          "calm glow"
+        ],
+        "animation": "petals",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-05-01",
+          "startDate": "2026-05-01",
+          "endDate": "2026-05-01",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-05-01",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-05-01",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-05-20",
+          "startDate": "2027-05-20",
+          "endDate": "2027-05-20",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-05-20",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-05-20",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "chhath-puja",
+      "name": "Chhath Puja",
+      "enabled": true,
+      "theme": {
+        "themeCss": "chhath",
+        "colors": {
+          "accent": "#fb923c",
+          "glow": "#facc15"
+        },
+        "decorations": [
+          "sunrise glow",
+          "water shimmer"
+        ],
+        "animation": "sparkles",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {
+        "2027": {
+          "festivalDate": "2027-11-04",
+          "startDate": "2027-11-04",
+          "endDate": "2027-11-04",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-11-04",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-11-04",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "childrens-day",
+      "name": "Children's Day",
+      "enabled": true,
+      "theme": {
+        "themeCss": "children",
+        "colors": {
+          "accent": "#38bdf8",
+          "glow": "#f472b6"
+        },
+        "decorations": [
+          "colorful confetti",
+          "soft glow"
+        ],
+        "animation": "confetti",
+        "priority": 35,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "christmas",
+      "name": "Christmas",
+      "enabled": true,
+      "theme": {
+        "themeCss": "christmas",
+        "colors": {
+          "accent": "#34d399",
+          "glow": "#f87171"
+        },
+        "decorations": [
+          "snowfall",
+          "festive lights"
+        ],
+        "animation": "snowfall",
+        "priority": 80,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 1
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-12-25",
+          "startDate": "2026-12-24",
+          "endDate": "2026-12-26",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-12-25",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-12-25",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-12-25",
+          "startDate": "2027-12-24",
+          "endDate": "2027-12-26",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-12-25",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-12-25",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "dhanteras",
+      "name": "Dhanteras",
+      "enabled": true,
+      "theme": {
+        "themeCss": "dhanteras",
+        "colors": {
+          "accent": "#f59e0b",
+          "glow": "#fcd34d"
+        },
+        "decorations": [
+          "gold ornaments",
+          "warm light"
+        ],
+        "animation": "sparkles",
+        "priority": 55,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "diwali",
+      "name": "Diwali",
+      "enabled": true,
+      "theme": {
+        "themeCss": "diwali",
+        "colors": {
+          "accent": "#fbbf24",
+          "glow": "#fb923c"
+        },
+        "decorations": [
+          "diyas",
+          "golden glow"
+        ],
+        "animation": "sparkles",
+        "priority": 100,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 4
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-11-08",
+          "startDate": "2026-11-07",
+          "endDate": "2026-11-12",
+          "status": "verified",
+          "windowSource": "user-specified-theme-window",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-11-08",
+              "checkedAt": "2026-11-07T18:21:22+05:30"
+            },
+            {
+              "id": "drik-panchang",
+              "name": "Drik Panchang — Shrirangapattana, Karnataka",
+              "url": "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?year=2026&geoname-id=1256421",
+              "observedDate": "2026-11-08",
+              "checkedAt": "2026-11-07T18:21:22+05:30"
+            }
+          ],
+          "verifiedAt": "2026-11-07T18:21:22+05:30"
+        },
+        "2027": {
+          "festivalDate": "2027-10-29",
+          "startDate": "2027-10-28",
+          "endDate": "2027-11-02",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-10-29",
+              "checkedAt": "2026-11-07T18:21:22+05:30"
+            },
+            {
+              "id": "drik-panchang",
+              "name": "Drik Panchang — Shrirangapattana, Karnataka",
+              "url": "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?year=2027&geoname-id=1256421",
+              "observedDate": "2027-10-29",
+              "checkedAt": "2026-11-07T18:21:22+05:30"
+            }
+          ],
+          "verifiedAt": "2026-11-07T18:21:22+05:30"
+        }
+      }
+    },
+    {
+      "id": "durga-puja",
+      "name": "Durga Puja",
+      "enabled": true,
+      "theme": {
+        "themeCss": "durgapuja",
+        "colors": {
+          "accent": "#e11d48",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "alpana-inspired pattern",
+          "warm lights"
+        ],
+        "animation": "pattern",
+        "priority": 75,
+        "enabled": true,
+        "startOffsetDays": 0,
+        "endOffsetDays": 4
+      },
+      "dates": {}
+    },
+    {
+      "id": "dussehra",
+      "name": "Dussehra",
+      "enabled": true,
+      "theme": {
+        "themeCss": "dussehra",
+        "colors": {
+          "accent": "#f97316",
+          "glow": "#facc15"
+        },
+        "decorations": [
+          "victory glow",
+          "embers"
+        ],
+        "animation": "embers",
+        "priority": 70,
+        "enabled": true
+      },
+      "dates": {
+        "2027": {
+          "festivalDate": "2027-10-09",
+          "startDate": "2027-10-09",
+          "endDate": "2027-10-09",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-10-09",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-10-09",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "easter",
+      "name": "Easter",
+      "enabled": true,
+      "theme": {
+        "themeCss": "easter",
+        "colors": {
+          "accent": "#c084fc",
+          "glow": "#f9a8d4"
+        },
+        "decorations": [
+          "spring blossoms",
+          "soft color"
+        ],
+        "animation": "petals",
+        "priority": 45,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 0
+      },
+      "dates": {}
+    },
+    {
+      "id": "eid-ul-adha",
+      "name": "Eid-ul-Adha",
+      "enabled": true,
+      "theme": {
+        "themeCss": "eiduladha",
+        "colors": {
+          "accent": "#34d399",
+          "glow": "#a78bfa"
+        },
+        "decorations": [
+          "crescent moon",
+          "geometric pattern"
+        ],
+        "animation": "crescent",
+        "priority": 65,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 1
+      },
+      "dates": {}
+    },
+    {
+      "id": "eid-ul-fitr",
+      "name": "Eid-ul-Fitr",
+      "enabled": true,
+      "theme": {
+        "themeCss": "eid",
+        "colors": {
+          "accent": "#34d399",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "crescent moon",
+          "lanterns"
+        ],
+        "animation": "crescent",
+        "priority": 70,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 1
+      },
+      "dates": {}
+    },
+    {
+      "id": "gandhi-jayanti",
+      "name": "Gandhi Jayanti",
+      "enabled": true,
+      "theme": {
+        "themeCss": "gandhijayanti",
+        "colors": {
+          "accent": "#f8fafc",
+          "glow": "#86efac"
+        },
+        "decorations": [
+          "soft tricolor glow",
+          "gentle light"
+        ],
+        "animation": "glow",
+        "priority": 40,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "ganesh-chaturthi",
+      "name": "Ganesh Chaturthi",
+      "enabled": true,
+      "theme": {
+        "themeCss": "ganesh",
+        "colors": {
+          "accent": "#fb923c",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "festive floral pattern",
+          "warm lights"
+        ],
+        "animation": "pattern",
+        "priority": 60,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-09-14",
+          "startDate": "2026-09-14",
+          "endDate": "2026-09-14",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-09-14",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-09-14",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-09-04",
+          "startDate": "2027-09-04",
+          "endDate": "2027-09-04",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-09-04",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-09-04",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "good-friday",
+      "name": "Good Friday",
+      "enabled": true,
+      "theme": {
+        "themeCss": "goodfriday",
+        "colors": {
+          "accent": "#64748b",
+          "glow": "#94a3b8"
+        },
+        "decorations": [
+          "quiet silver glow",
+          "soft gradient"
+        ],
+        "animation": "glow",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-04-03",
+          "startDate": "2026-04-03",
+          "endDate": "2026-04-03",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-04-03",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-04-03",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-03-26",
+          "startDate": "2027-03-26",
+          "endDate": "2027-03-26",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-03-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-03-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "govardhan-puja",
+      "name": "Govardhan Puja",
+      "enabled": true,
+      "theme": {
+        "themeCss": "govardhan",
+        "colors": {
+          "accent": "#65a30d",
+          "glow": "#a3e635"
+        },
+        "decorations": [
+          "floral rangoli",
+          "leaf motifs"
+        ],
+        "animation": "pattern",
+        "priority": 60,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-11-09",
+          "startDate": "2026-11-09",
+          "endDate": "2026-11-09",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-11-09",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-11-09",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-10-30",
+          "startDate": "2027-10-30",
+          "endDate": "2027-10-30",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-10-30",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-10-30",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "gudi-padwa",
+      "name": "Gudi Padwa",
+      "enabled": true,
+      "theme": {
+        "themeCss": "gudipadwa",
+        "colors": {
+          "accent": "#fb923c",
+          "glow": "#22c55e"
+        },
+        "decorations": [
+          "gudi-inspired pattern",
+          "spring glow"
+        ],
+        "animation": "pattern",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {
+        "2027": {
+          "festivalDate": "2027-04-07",
+          "startDate": "2027-04-07",
+          "endDate": "2027-04-07",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-04-07",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-04-07",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "guru-gobind-singh-jayanti",
+      "name": "Guru Gobind Singh Jayanti",
+      "enabled": true,
+      "theme": {
+        "themeCss": "gurugobind",
+        "colors": {
+          "accent": "#fbbf24",
+          "glow": "#f97316"
+        },
+        "decorations": [
+          "golden light",
+          "floral pattern"
+        ],
+        "animation": "glow",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "guru-nanak-jayanti",
+      "name": "Guru Nanak Jayanti",
+      "enabled": true,
+      "theme": {
+        "themeCss": "gurunanak",
+        "colors": {
+          "accent": "#fbbf24",
+          "glow": "#fde68a"
+        },
+        "decorations": [
+          "golden floral pattern",
+          "soft light"
+        ],
+        "animation": "pattern",
+        "priority": 55,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "guru-purnima",
+      "name": "Guru Purnima",
+      "enabled": true,
+      "theme": {
+        "themeCss": "gurupurnima",
+        "colors": {
+          "accent": "#c084fc",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "moonlit glow",
+          "soft particles"
+        ],
+        "animation": "glow",
+        "priority": 40,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "holi",
+      "name": "Holi",
+      "enabled": true,
+      "theme": {
+        "themeCss": "holi",
+        "colors": {
+          "accent": "#f472b6",
+          "glow": "#38bdf8"
+        },
+        "decorations": [
+          "soft color clouds",
+          "color particles"
+        ],
+        "animation": "color",
+        "priority": 80,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 1
+      },
+      "dates": {}
+    },
+    {
+      "id": "holika-dahan",
+      "name": "Holika Dahan",
+      "enabled": true,
+      "theme": {
+        "themeCss": "holikadahan",
+        "colors": {
+          "accent": "#fb923c",
+          "glow": "#e11d48"
+        },
+        "decorations": [
+          "bonfire glow",
+          "embers"
+        ],
+        "animation": "embers",
+        "priority": 55,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-03-03",
+          "startDate": "2026-03-03",
+          "endDate": "2026-03-03",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-03-03",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-03-03",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "independence-day",
+      "name": "Independence Day",
+      "enabled": true,
+      "theme": {
+        "themeCss": "independence",
+        "colors": {
+          "accent": "#f97316",
+          "glow": "#22c55e"
+        },
+        "decorations": [
+          "tricolor light",
+          "subtle ribbons"
+        ],
+        "animation": "tricolor",
+        "priority": 65,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 1
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-08-15",
+          "startDate": "2026-08-14",
+          "endDate": "2026-08-16",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-08-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-08-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-08-15",
+          "startDate": "2027-08-14",
+          "endDate": "2027-08-16",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-08-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-08-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "janmashtami",
+      "name": "Janmashtami",
+      "enabled": true,
+      "theme": {
+        "themeCss": "janmashtami",
+        "colors": {
+          "accent": "#38bdf8",
+          "glow": "#facc15"
+        },
+        "decorations": [
+          "peacock-feather colors",
+          "starlight"
+        ],
+        "animation": "sparkles",
+        "priority": 60,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-09-04",
+          "startDate": "2026-09-04",
+          "endDate": "2026-09-04",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-09-04",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-09-04",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-08-25",
+          "startDate": "2027-08-25",
+          "endDate": "2027-08-25",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-08-25",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-08-25",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "karwa-chauth",
+      "name": "Karwa Chauth",
+      "enabled": true,
+      "theme": {
+        "themeCss": "karwachauth",
+        "colors": {
+          "accent": "#e11d48",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "crescent moon",
+          "lantern glow"
+        ],
+        "animation": "crescent",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "lohri",
+      "name": "Lohri",
+      "enabled": true,
+      "theme": {
+        "themeCss": "lohri",
+        "colors": {
+          "accent": "#fb923c",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "bonfire glow",
+          "embers"
+        ],
+        "animation": "embers",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "maha-shivratri",
+      "name": "Maha Shivratri",
+      "enabled": true,
+      "theme": {
+        "themeCss": "shivratri",
+        "colors": {
+          "accent": "#8b5cf6",
+          "glow": "#38bdf8"
+        },
+        "decorations": [
+          "moonlit glow",
+          "mandala"
+        ],
+        "animation": "glow",
+        "priority": 55,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-02-15",
+          "startDate": "2026-02-15",
+          "endDate": "2026-02-15",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-02-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-02-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-03-06",
+          "startDate": "2027-03-06",
+          "endDate": "2027-03-06",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-03-06",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-03-06",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "mahavir-jayanti",
+      "name": "Mahavir Jayanti",
+      "enabled": true,
+      "theme": {
+        "themeCss": "mahavir",
+        "colors": {
+          "accent": "#fbbf24",
+          "glow": "#fb923c"
+        },
+        "decorations": [
+          "golden aura",
+          "lotus pattern"
+        ],
+        "animation": "glow",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-03-31",
+          "startDate": "2026-03-31",
+          "endDate": "2026-03-31",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-03-31",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-03-31",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "makar-sankranti",
+      "name": "Makar Sankranti",
+      "enabled": true,
+      "theme": {
+        "themeCss": "makar",
+        "colors": {
+          "accent": "#38bdf8",
+          "glow": "#facc15"
+        },
+        "decorations": [
+          "kite silhouettes",
+          "sunlight"
+        ],
+        "animation": "confetti",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "milad-un-nabi",
+      "name": "Milad-un-Nabi",
+      "enabled": true,
+      "theme": {
+        "themeCss": "milad",
+        "colors": {
+          "accent": "#34d399",
+          "glow": "#c4b5fd"
+        },
+        "decorations": [
+          "crescent moon",
+          "geometric pattern"
+        ],
+        "animation": "crescent",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "muharram",
+      "name": "Muharram",
+      "enabled": true,
+      "theme": {
+        "themeCss": "muharram",
+        "colors": {
+          "accent": "#64748b",
+          "glow": "#cbd5e1"
+        },
+        "decorations": [
+          "quiet silver glow",
+          "geometric pattern"
+        ],
+        "animation": "glow",
+        "priority": 55,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "navratri",
+      "name": "Navratri",
+      "enabled": true,
+      "theme": {
+        "themeCss": "navratri",
+        "colors": {
+          "accent": "#ec4899",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "garba-inspired geometry",
+          "festive glow"
+        ],
+        "animation": "pattern",
+        "priority": 60,
+        "enabled": true,
+        "startOffsetDays": 0,
+        "endOffsetDays": 8
+      },
+      "dates": {}
+    },
+    {
+      "id": "new-year",
+      "name": "New Year",
+      "enabled": true,
+      "theme": {
+        "themeCss": "newyear",
+        "colors": {
+          "accent": "#a78bfa",
+          "glow": "#f472b6"
+        },
+        "decorations": [
+          "confetti",
+          "celebration glow"
+        ],
+        "animation": "confetti",
+        "priority": 75,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 0
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-01-01",
+          "startDate": "2025-12-31",
+          "endDate": "2026-01-01",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-01-01",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-01-01",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-01-01",
+          "startDate": "2026-12-31",
+          "endDate": "2027-01-01",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-01-01",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-01-01",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "onam",
+      "name": "Onam",
+      "enabled": true,
+      "theme": {
+        "themeCss": "onam",
+        "colors": {
+          "accent": "#facc15",
+          "glow": "#22c55e"
+        },
+        "decorations": [
+          "pookalam petals",
+          "harvest glow"
+        ],
+        "animation": "petals",
+        "priority": 55,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-08-26",
+          "startDate": "2026-08-26",
+          "endDate": "2026-08-26",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-08-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-08-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-09-12",
+          "startDate": "2027-09-12",
+          "endDate": "2027-09-12",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-09-12",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-09-12",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "pongal",
+      "name": "Pongal",
+      "enabled": true,
+      "theme": {
+        "themeCss": "pongal",
+        "colors": {
+          "accent": "#f97316",
+          "glow": "#facc15"
+        },
+        "decorations": [
+          "harvest motifs",
+          "sun glow"
+        ],
+        "animation": "sparkles",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {
+        "2027": {
+          "festivalDate": "2027-01-15",
+          "startDate": "2027-01-15",
+          "endDate": "2027-01-15",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-01-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-01-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "raksha-bandhan",
+      "name": "Raksha Bandhan",
+      "enabled": true,
+      "theme": {
+        "themeCss": "raksha",
+        "colors": {
+          "accent": "#fb7185",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "rakhi-inspired motifs",
+          "warm lights"
+        ],
+        "animation": "sparkles",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {
+        "2027": {
+          "festivalDate": "2027-08-17",
+          "startDate": "2027-08-17",
+          "endDate": "2027-08-17",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-08-17",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-08-17",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "ram-navami",
+      "name": "Ram Navami",
+      "enabled": true,
+      "theme": {
+        "themeCss": "ramnavami",
+        "colors": {
+          "accent": "#f97316",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "saffron glow",
+          "lotus pattern"
+        ],
+        "animation": "glow",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {
+        "2027": {
+          "festivalDate": "2027-04-15",
+          "startDate": "2027-04-15",
+          "endDate": "2027-04-15",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-04-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-04-15",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "ramadan",
+      "name": "Ramadan",
+      "enabled": true,
+      "theme": {
+        "themeCss": "ramadan",
+        "colors": {
+          "accent": "#a78bfa",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "crescent moon",
+          "lantern glow"
+        ],
+        "animation": "crescent",
+        "priority": 60,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 1
+      },
+      "dates": {}
+    },
+    {
+      "id": "rath-yatra",
+      "name": "Rath Yatra",
+      "enabled": true,
+      "theme": {
+        "themeCss": "rathyatra",
+        "colors": {
+          "accent": "#f97316",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "festive streamers",
+          "warm glow"
+        ],
+        "animation": "confetti",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-07-16",
+          "startDate": "2026-07-16",
+          "endDate": "2026-07-16",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-07-16",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-07-16",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-07-05",
+          "startDate": "2027-07-05",
+          "endDate": "2027-07-05",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-07-05",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-07-05",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "republic-day",
+      "name": "Republic Day",
+      "enabled": true,
+      "theme": {
+        "themeCss": "republic",
+        "colors": {
+          "accent": "#f97316",
+          "glow": "#22c55e"
+        },
+        "decorations": [
+          "tricolor ribbons",
+          "subtle glow"
+        ],
+        "animation": "tricolor",
+        "priority": 65,
+        "enabled": true,
+        "startOffsetDays": -1,
+        "endOffsetDays": 1
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-01-26",
+          "startDate": "2026-01-25",
+          "endDate": "2026-01-27",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-01-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-01-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-01-26",
+          "startDate": "2027-01-25",
+          "endDate": "2027-01-27",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-01-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-01-26",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "teachers-day",
+      "name": "Teachers' Day",
+      "enabled": true,
+      "theme": {
+        "themeCss": "teachers",
+        "colors": {
+          "accent": "#a78bfa",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "star motifs",
+          "warm light"
+        ],
+        "animation": "sparkles",
+        "priority": 35,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "ugadi",
+      "name": "Ugadi",
+      "enabled": true,
+      "theme": {
+        "themeCss": "ugadi",
+        "colors": {
+          "accent": "#84cc16",
+          "glow": "#fbbf24"
+        },
+        "decorations": [
+          "mango leaves",
+          "spring blossoms"
+        ],
+        "animation": "petals",
+        "priority": 50,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-03-19",
+          "startDate": "2026-03-19",
+          "endDate": "2026-03-19",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-03-19",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-03-19",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-04-07",
+          "startDate": "2027-04-07",
+          "endDate": "2027-04-07",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-04-07",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-04-07",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    },
+    {
+      "id": "valentines-day",
+      "name": "Valentine's Day",
+      "enabled": true,
+      "theme": {
+        "themeCss": "valentine",
+        "colors": {
+          "accent": "#fb7185",
+          "glow": "#f472b6"
+        },
+        "decorations": [
+          "rose petals",
+          "soft hearts"
+        ],
+        "animation": "petals",
+        "priority": 30,
+        "enabled": true
+      },
+      "dates": {}
+    },
+    {
+      "id": "vasant-panchami",
+      "name": "Vasant Panchami",
+      "enabled": true,
+      "theme": {
+        "themeCss": "vasant",
+        "colors": {
+          "accent": "#eab308",
+          "glow": "#a3e635"
+        },
+        "decorations": [
+          "yellow blossoms",
+          "petals"
+        ],
+        "animation": "petals",
+        "priority": 45,
+        "enabled": true
+      },
+      "dates": {
+        "2026": {
+          "festivalDate": "2026-01-23",
+          "startDate": "2026-01-23",
+          "endDate": "2026-01-23",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2026-01-23",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2026-01-23",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        },
+        "2027": {
+          "festivalDate": "2027-02-11",
+          "startDate": "2027-02-11",
+          "endDate": "2027-02-11",
+          "status": "verified",
+          "sources": [
+            {
+              "id": "google-india-calendar",
+              "name": "Google Calendar — Holidays in India",
+              "url": "https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics",
+              "observedDate": "2027-02-11",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            },
+            {
+              "id": "officeholidays-india",
+              "name": "Office Holidays — India",
+              "url": "https://www.officeholidays.com/ics/india",
+              "observedDate": "2027-02-11",
+              "checkedAt": "2026-11-07T14:03:28.443Z"
+            }
+          ],
+          "verifiedAt": "2026-11-07T14:03:28.443Z"
+        }
+      }
+    }
+  ]
+}

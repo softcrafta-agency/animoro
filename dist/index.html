@@ -87,18 +87,21 @@
   <link rel="apple-touch-icon" href="/assets/favicon-small-CgBFTsN3.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/main-DTLFC65c.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/main-CsT-6P5e.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/style-CotqIcgO.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-D0yDnz-5.js">
-  <link rel="modulepreload" crossorigin href="/assets/preload-helper-4_NEhP8l.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-BufcIuI1.js">
+  <link rel="modulepreload" crossorigin href="/assets/preload-helper-DIis3xcZ.js">
   <link rel="modulepreload" crossorigin href="/assets/anime-url-DaxlK1Xn.js">
-  <link rel="modulepreload" crossorigin href="/assets/my-list-zrOck1JW.js">
+  <link rel="modulepreload" crossorigin href="/assets/my-list-oqNNiqqt.js">
   <link rel="modulepreload" crossorigin href="/assets/visitor-analytics-DeZrPwQv.js">
-  <link rel="modulepreload" crossorigin href="/assets/ui-B7KdeLrz.js">
-  <link rel="modulepreload" crossorigin href="/assets/anime-api-qd9UJi_K.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-BNQJkEY7.js">
+  <link rel="modulepreload" crossorigin href="/assets/anime-api-BddLyMDA.js">
+  <link rel="modulepreload" crossorigin href="/assets/manhwa-renderer-BiPRp6pf.js">
   <link rel="stylesheet" crossorigin href="/assets/style-CQibhUu9.css">
   <link rel="stylesheet" crossorigin href="/assets/responsive-TyHG7Wvj.css">
+  <link rel="stylesheet" crossorigin href="/assets/manhwa-D7aOa-6n.css">
+  <link rel="stylesheet" href="/css/festival-theme.css">
 </head>
 <body>
 
@@ -107,13 +110,13 @@
     <div class="container header-inner">
       <a href="/" class="brand-logo" aria-label="Animoro Home">
         <img class="brand-logo-image" src="/logo-small.webp" alt="Animoro logo" width="176" height="118" />
-        
-        
+
       </a>
 
       <nav class="main-nav" aria-label="Main Navigation">
         <a href="/" class="nav-link active">Home</a>
         <a href="/anime-list" class="nav-link">Anime List</a>
+        <a href="/manhwa" class="nav-link">Comics &amp; Webcomics</a>
         <a href="/upcoming-anime" class="nav-link">Upcoming Anime</a>
         <a href="/category.html?category=Anime%20News" class="nav-link">Anime News</a>
         <a href="blogs.html" class="nav-link">Articles</a>
@@ -144,6 +147,7 @@
     <nav class="mobile-nav-links">
       <a href="/" class="active">Home</a>
       <a href="/anime-list">Anime List</a>
+      <a href="/manhwa">Comics &amp; Webcomics</a>
       <a href="/upcoming-anime">Upcoming Anime</a>
       <a href="/category.html?category=Anime%20News">Anime News</a>
       <a href="blogs.html">Articles</a>
@@ -245,6 +249,23 @@
         </div>
         <div class="articles-grid" id="homePopularAnimeContainer" aria-live="polite">
           <div class="home-loading-state" role="status" aria-label="Loading popular anime">
+            <span class="home-loading-line"></span><span class="home-loading-line"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-padded manhwa-home-section" aria-labelledby="homeFeaturedManhwaHeading">
+      <div class="container">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" id="homeFeaturedManhwaHeading">Explore Comics &amp; Webcomics</h2>
+            <p class="section-subtitle">Discover comics and webcomics from around the world, starting with a featured manhwa recommendation.</p>
+          </div>
+          <a href="/manhwa" class="btn-outline">View All</a>
+        </div>
+        <div id="homeFeaturedManhwa" aria-live="polite">
+          <div class="home-loading-state" role="status" aria-label="Loading featured manhwa">
             <span class="home-loading-line"></span><span class="home-loading-line"></span>
           </div>
         </div>
@@ -371,6 +392,7 @@
       <div>&copy; 2026 Animoro. Built for anime fans worldwide. All anime imagery and titles belong to their respective creators and animation studios.</div>
     </div>
   </footer>
-
+
+  <script src="/js/festival-theme.js" defer></script>
 </body>
 </html>

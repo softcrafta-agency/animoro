@@ -1,0 +1,129 @@
+html[data-festival-theme] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.3;
+  background:
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%),
+    radial-gradient(ellipse at 10% 62%, color-mix(in srgb, var(--festival-accent) 12%, transparent), transparent 42%);
+}
+
+html[data-festival-animation='sparkles'] body::after,
+html[data-festival-animation='snowfall'] body::after,
+html[data-festival-animation='confetti'] body::after,
+html[data-festival-animation='embers'] body::after,
+html[data-festival-animation='petals'] body::after {
+  inset: -240px 0;
+  will-change: transform;
+  background-repeat: repeat;
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--festival-glow) 82%, transparent) 0 1px, transparent 2px),
+    radial-gradient(circle, color-mix(in srgb, var(--festival-accent) 70%, transparent) 0 1.5px, transparent 2.5px),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%);
+  background-size: 87px 240px, 131px 240px, auto;
+  background-position: 0 0, 35px 52px, center;
+  animation: festival-particle-drift 18s linear infinite;
+}
+
+html[data-festival-animation='snowfall'] body::after {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.62) 0 2px, transparent 2.8px),
+    radial-gradient(circle, color-mix(in srgb, var(--festival-glow) 72%, white) 0 1px, transparent 2px),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%);
+  background-size: 72px 240px, 121px 240px, auto;
+}
+
+html[data-festival-animation='confetti'] body::after {
+  background-image:
+    radial-gradient(circle, var(--festival-accent) 0 2px, transparent 3px),
+    linear-gradient(110deg, transparent 47%, color-mix(in srgb, var(--festival-glow) 80%, transparent) 48% 53%, transparent 54%),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%);
+  background-size: 89px 240px, 123px 240px, auto;
+  opacity: 0.19;
+}
+
+html[data-festival-animation='embers'] body::after {
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--festival-accent) 90%, white) 0 1.6px, transparent 2.6px),
+    radial-gradient(circle, color-mix(in srgb, var(--festival-glow) 85%, transparent) 0 1px, transparent 2px),
+    radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--festival-accent) 19%, transparent), transparent 48%);
+  background-size: 101px 240px, 157px 240px, auto;
+}
+
+html[data-festival-animation='petals'] body::after {
+  background-image:
+    radial-gradient(ellipse, color-mix(in srgb, var(--festival-accent) 66%, transparent) 0 2px, transparent 3px),
+    radial-gradient(ellipse, color-mix(in srgb, var(--festival-glow) 70%, transparent) 0 1.5px, transparent 2.5px),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%);
+  background-size: 113px 240px, 151px 240px, auto;
+}
+
+html[data-festival-animation='sparkles'] body::after {
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--festival-glow) 82%, transparent) 0 1px, transparent 2px),
+    radial-gradient(circle, color-mix(in srgb, var(--festival-accent) 70%, transparent) 0 1.5px, transparent 2.5px),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%);
+}
+
+html[data-festival-animation='color'] body::after {
+  background:
+    radial-gradient(ellipse at 15% 20%, color-mix(in srgb, var(--festival-accent) 17%, transparent), transparent 35%),
+    radial-gradient(ellipse at 80% 75%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%);
+}
+
+html[data-festival-animation='crescent'] body::after {
+  background:
+    radial-gradient(circle at 88% 14%, var(--festival-glow) 0 15px, transparent 16px),
+    radial-gradient(circle at calc(88% - 7px) 11%, var(--bg-main) 0 14px, transparent 15px),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 16%, transparent), transparent 40%);
+  opacity: 0.23;
+}
+
+html[data-festival-animation='tricolor'] body::after {
+  background:
+    linear-gradient(165deg, transparent 0 78%, color-mix(in srgb, var(--festival-accent) 8%, transparent) 79% 81%, transparent 82%),
+    linear-gradient(195deg, transparent 0 83%, color-mix(in srgb, var(--festival-glow) 8%, transparent) 84% 86%, transparent 87%),
+    radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--festival-accent) 8%, transparent), transparent 62%);
+}
+
+html[data-festival-animation='pattern'] body::after {
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 28px, color-mix(in srgb, var(--festival-accent) 5%, transparent) 29px 30px, transparent 31px 58px),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 18%, transparent), transparent 38%);
+}
+
+html[data-festival-animation='glow'] body::after {
+  opacity: 0.2;
+}
+
+html[data-festival-id='diwali'] body::after {
+  background-image:
+    radial-gradient(ellipse at 12% 86%, color-mix(in srgb, var(--festival-accent) 24%, transparent), transparent 22%),
+    radial-gradient(ellipse at 88% 86%, color-mix(in srgb, var(--festival-glow) 24%, transparent), transparent 22%),
+    radial-gradient(ellipse at 85% 12%, color-mix(in srgb, var(--festival-glow) 17%, transparent), transparent 38%);
+  animation: festival-diya-glow 4s ease-in-out infinite alternate;
+}
+
+html[data-festival-id='christmas'] body::after {
+  background-size: 64px 240px, 96px 240px, auto;
+  animation-duration: 22s;
+}
+
+@keyframes festival-particle-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, 240px, 0); }
+}
+
+@keyframes festival-diya-glow {
+  from { opacity: 0.18; }
+  to { opacity: 0.36; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-festival-theme] body::after {
+    animation: none !important;
+    will-change: auto;
+  }
+}

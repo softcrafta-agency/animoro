@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node --test"
+    "test": "node --test",
+    "festivals:sync": "node scripts/sync-festival-calendar.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1144.0",

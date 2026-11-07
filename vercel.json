@@ -103,7 +103,16 @@
                   ],
     "headers": [
         {
-            "source": "/assets/(.*)",
+                          "source": "/festival-calendar.json",
+                          "headers": [
+                              {
+                                  "key": "Cache-Control",
+                                  "value": "public, max-age=300, stale-while-revalidate=86400"
+                              }
+                          ]
+                      },
+                      {
+                          "source": "/assets/(.*)",
             "headers": [
                 {
                      "key": "Cache-Control",
