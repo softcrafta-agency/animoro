@@ -123,6 +123,8 @@ test('seeds the requested 2026 Diwali visual window with source evidence', () =>
   const diwali = calendar.festivals.find(festival => festival.id === 'diwali');
 
   assert.equal(calendar.timeZone, 'Asia/Kolkata');
+  assert.equal(diwali.enabled, false);
+  assert.equal(diwali.theme.enabled, false);
   assert.deepEqual(diwali.dates['2026'], {
     festivalDate: '2026-11-08',
     startDate: '2026-11-07',
@@ -151,6 +153,18 @@ test('seeds the requested 2026 Diwali visual window with source evidence', () =>
   assert.equal(diwali.dates['2027'].startDate, '2027-10-28');
   assert.equal(diwali.dates['2027'].endDate, '2027-11-02');
   assert.equal(diwali.dates['2027'].sources[1].url.includes('year=2027'), true);
+});
+
+test('keeps the Diwali theme disabled when matching dates are synchronized', () => {
+  const calendar = createSyncedCalendar(createEmptyCalendar(), [
+    sourceEvents(0, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
+    sourceEvents(1, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
+  ]);
+  const diwali = calendar.festivals.find(festival => festival.id === 'diwali');
+
+  assert.equal(diwali.enabled, false);
+  assert.equal(diwali.theme.enabled, false);
+  assert.equal(diwali.dates['2026'].festivalDate, '2026-11-08');
 });
 
 test('seeds only matching 2026 and 2027 dates with source evidence', () => {

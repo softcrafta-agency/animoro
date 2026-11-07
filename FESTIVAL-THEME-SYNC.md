@@ -13,7 +13,9 @@ festival and year. Conflicting, missing, or tentative dates are not promoted;
 any prior verified occurrence remains in the JSON file as a fallback. Every
 promoted occurrence records its source URLs and verification time. The
 user-specified Diwali 2026 theme window is November 7–12; the source-reported
-festival day is stored separately.
+festival day is stored separately. Diwali's theme is currently disabled by
+request, so this date remains recorded for reference but does not change the
+site's appearance.
 
 The initial calendar contains 41 source-agreed occurrences across 2026 and
 2027. Twenty catalog festivals currently have no verified occurrence because

@@ -358,7 +358,7 @@
     {
       "id": "diwali",
       "name": "Diwali",
-      "enabled": true,
+      "enabled": false,
       "theme": {
         "themeCss": "diwali",
         "colors": {
@@ -371,7 +371,7 @@
         ],
         "animation": "sparkles",
         "priority": 100,
-        "enabled": true,
+        "enabled": false,
         "startOffsetDays": -1,
         "endOffsetDays": 4
       },

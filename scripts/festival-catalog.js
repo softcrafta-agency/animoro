@@ -121,7 +121,7 @@ export const FESTIVAL_CATALOG = [
     id: 'diwali',
     name: 'Diwali',
     aliases: ['Diwali', 'Deepavali', 'Diwali/Deepavali'],
-    theme: theme('diwali', 100, { startOffsetDays: -1, endOffsetDays: 4 }),
+    theme: theme('diwali', 100, { enabled: false, startOffsetDays: -1, endOffsetDays: 4 }),
     windowOverrides: {
       2026: { startDate: '2026-11-07', endDate: '2026-11-12', configuredBy: 'user' },
     },
@@ -180,7 +180,7 @@ export function createEmptyCalendar() {
     festivals: FESTIVAL_CATALOG.map(({ id, name, theme: festivalTheme }) => ({
       id,
       name,
-      enabled: true,
+      enabled: festivalTheme.enabled,
       theme: festivalTheme,
       dates: {},
     })),
