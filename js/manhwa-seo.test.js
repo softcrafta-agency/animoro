@@ -39,5 +39,26 @@ test('creates title-specific structured data and canonical breadcrumb', () => {
   assert.equal(series.countryOfOrigin.name, 'South Korea');
   assert.equal(series.alternateName, '역대급 영지 설계사');
   assert.equal(series.datePublished, '2020');
+  assert.equal(Object.hasOwn(series, 'aggregateRating'), false);
+  assert.equal(data['@graph'].some(item =>
+    ['AggregateRating', 'Review'].includes(item['@type'])
+  ), false);
+  assert.equal(data['@graph'].filter(item => item['@type'] === 'BreadcrumbList').length, 1);
   assert.equal(breadcrumb.itemListElement.at(-1).name, featured.title);
+});
+
+test('omits unavailable rating counts for other dynamic Manhwa detail pages', () => {
+  const manhwa = {
+    ...featured,
+    title: 'Return of the Blossoming Blade',
+    slug: 'return-of-the-blossoming-blade--132144',
+  };
+  const data = createManhwaDetailStructuredData(manhwa);
+  const series = data['@graph'].find(item => item['@type'] === 'ComicSeries');
+  const breadcrumb = data['@graph'].find(item => item['@type'] === 'BreadcrumbList');
+
+  assert.equal(series.url, 'https://www.animoro.in/manhwa/return-of-the-blossoming-blade--132144');
+  assert.equal(Object.hasOwn(series, 'aggregateRating'), false);
+  assert.equal(data['@graph'].filter(item => item['@type'] === 'BreadcrumbList').length, 1);
+  assert.equal(breadcrumb.itemListElement.at(-1).item, series.url);
 });

@@ -90,14 +90,6 @@ export function createManhwaDetailStructuredData(manhwa) {
         ...(manhwa.releaseYear ? {
           datePublished: String(manhwa.releaseYear),
         } : {}),
-        ...(manhwa.rating ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: (manhwa.rating / 10).toFixed(1),
-            bestRating: '10',
-            worstRating: '0',
-          },
-        } : {}),
         creator: [...manhwa.authors, ...manhwa.artists].map(name => ({
           '@type': 'Person',
           name,
