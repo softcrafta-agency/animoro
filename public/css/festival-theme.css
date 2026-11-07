@@ -1,3 +1,43 @@
+html[data-festival-atmosphere='diwali']::before,
+html[data-festival-atmosphere='diwali']::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+html[data-festival-atmosphere='diwali']::before {
+  z-index: 2;
+  background:
+    radial-gradient(ellipse at 0% 12%, rgba(245, 158, 11, 0.12), transparent 22%),
+    radial-gradient(ellipse at 100% 12%, rgba(251, 191, 36, 0.1), transparent 21%),
+    radial-gradient(ellipse at 0% 100%, rgba(217, 119, 6, 0.08), transparent 24%),
+    radial-gradient(ellipse at 100% 100%, rgba(245, 158, 11, 0.08), transparent 24%);
+}
+
+html[data-festival-atmosphere='diwali']::after {
+  z-index: 3;
+  opacity: 0.16;
+  background:
+    repeating-conic-gradient(from 7.5deg at 48px 148px, transparent 0deg 22deg, rgba(251, 191, 36, 0.5) 23deg 24deg, transparent 25deg 45deg) top left / 136px 136px no-repeat,
+    repeating-conic-gradient(from 7.5deg at calc(100% - 48px) 148px, transparent 0deg 22deg, rgba(251, 191, 36, 0.5) 23deg 24deg, transparent 25deg 45deg) top right / 136px 136px no-repeat,
+    linear-gradient(rgba(251, 191, 36, 0.38), rgba(251, 191, 36, 0.38)) 34px 0 / 1px 82px no-repeat,
+    linear-gradient(rgba(251, 191, 36, 0.38), rgba(251, 191, 36, 0.38)) calc(100% - 35px) 0 / 1px 82px no-repeat,
+    radial-gradient(ellipse, rgba(251, 191, 36, 0.7) 0 4px, rgba(251, 146, 60, 0.24) 5px 11px, transparent 12px) 24px 70px / 22px 24px no-repeat,
+    radial-gradient(ellipse, rgba(251, 191, 36, 0.7) 0 4px, rgba(251, 146, 60, 0.24) 5px 11px, transparent 12px) calc(100% - 46px) 70px / 22px 24px no-repeat;
+}
+
+canvas.festival-fireworks {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.82;
+  mix-blend-mode: screen;
+}
+
 html[data-festival-theme] body::after {
   content: '';
   position: fixed;
@@ -122,6 +162,10 @@ html[data-festival-id='christmas'] body::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  canvas.festival-fireworks {
+    display: none;
+  }
+
   html[data-festival-theme] body::after {
     animation: none !important;
     will-change: auto;

@@ -89,6 +89,7 @@
   }
 
   async function start() {
+    document.documentElement.dataset.festivalAtmosphere = 'diwali';
     try {
       const response = await fetch('/festival-calendar.json', { cache: 'no-cache' });
       if (!response.ok) throw new Error(`Calendar request failed (${response.status}).`);

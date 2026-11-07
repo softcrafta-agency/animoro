@@ -27,6 +27,11 @@ export default defineConfig(() => {
                   attrs: { src: '/js/festival-theme.js', defer: true },
                   injectTo: 'body',
                 },
+                {
+                  tag: 'script',
+                  attrs: { src: '/js/festival-fireworks.js', defer: true },
+                  injectTo: 'body',
+                },
               ],
             };
           },
