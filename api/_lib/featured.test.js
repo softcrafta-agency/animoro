@@ -75,6 +75,7 @@ test('returns only the first featured cover before the hero renders with bounded
         excerpt: 'A short summary',
         coverImage: 'https://images.example/cover.webp',
         category: 'Reviews',
+        categories: ['Reviews', 'Anime News'],
         authorName: 'Editor',
         featuredOrder: 1,
         publishedAt: { toDate: () => new Date('2026-10-01T00:00:00Z') },
@@ -98,6 +99,7 @@ test('returns only the first featured cover before the hero renders with bounded
   const body = JSON.parse(response.body);
   assert.equal(body.featured[0].title, 'Featured Story');
   assert.equal(body.featured[0].coverImage, 'https://images.example/cover.webp');
+  assert.deepEqual(body.featured[0].categories, ['Reviews', 'Anime News']);
   assert.equal('coverImage' in body.featured[1], false);
   assert.equal(body.imagesDeferred, true);
   assert.equal(body.featured[0].publishedAt, '2026-10-01T00:00:00.000Z');

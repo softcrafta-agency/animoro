@@ -23,6 +23,13 @@ test('matches legacy keywords, primary focus phrases, and basic plural variation
   assert.ok(scoreArticleSearch({ secondaryKeywords: ['anime stories'] }, 'anime story') > 0);
 });
 
+test('matches any assigned category, including categories stored in the array field', () => {
+  assert.ok(scoreArticleSearch({
+    category: 'Reviews',
+    categories: ['Reviews', 'Anime News'],
+  }, 'anime news') > 0);
+});
+
 test('does not match article content on only one token of a multiword query', () => {
   assert.equal(
     scoreArticleSearch({ title: 'Black Torch', content: 'A manga review.' }, 'Black Torch manga adaptation'),

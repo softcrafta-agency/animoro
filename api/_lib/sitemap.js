@@ -8,6 +8,7 @@ import {
   isValidAnimeSlug,
   normalizeAnimeSlug
 } from '../../js/anime-url.js';
+import { getArticleCategories } from '../../js/article-editor-fields.js';
 
 export const SITE_ORIGIN = ARTICLE_SITE_ORIGIN;
 
@@ -137,8 +138,7 @@ export function buildSitemap(posts, categories, animeEntries = [], upcomingEntri
   const categoryLastModified = new Map();
 
   for (const post of publicPosts) {
-    if (typeof post.category === 'string' && post.category.trim()) {
-      const category = post.category.trim();
+    for (const category of getArticleCategories(post)) {
       const lastModified = getLastModified(post);
       if (lastModified &&
           (!categoryLastModified.has(category) || lastModified > categoryLastModified.get(category))) {

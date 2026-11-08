@@ -20,6 +20,7 @@ import { normalizeAnimeSlug } from './anime-url.js';
 import { ensureLegacyArticleCategories, getRegisteredCategories } from './category-data.js';
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import {
+  getArticleCategories,
   isValidArticleCategory,
   isValidFeaturedOrder,
   isValidSearchIntent,
@@ -307,6 +308,7 @@ async function savePostBulkRecord(post, draft) {
     content,
     coverImage,
     category,
+    categories: [category],
     animeTitle: draft.animeTitle.trim(),
     animeSlug: draft.animeSlug.trim() ? normalizeAnimeSlug(draft.animeSlug.trim()) : '',
     seoTitle: draft.seoTitle.trim(),
@@ -359,7 +361,7 @@ export function renderPostsTable() {
   if (currentSearch) {
     filtered = filtered.filter(p => 
       (p.title || '').toLowerCase().includes(currentSearch) ||
-      (p.category || '').toLowerCase().includes(currentSearch)
+      getArticleCategories(p).some(category => category.toLowerCase().includes(currentSearch))
     );
   }
 
@@ -394,7 +396,7 @@ export function renderPostsTable() {
           </div>
         </td>
         <td>
-          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">${escapeHtml(post.category || 'Anime')}</span>
+          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">${escapeHtml(getArticleCategories(post).join(', ') || 'Anime')}</span>
         </td>
         <td>
           <span class="status-pill ${isPublished ? 'published' : 'draft'}">
@@ -522,7 +524,7 @@ export function renderFeaturedSliderManager() {
     title.textContent = post.title || 'Untitled article';
     const category = document.createElement('div');
     category.style.cssText = 'font-size:0.78rem;color:var(--text-muted);';
-    category.textContent = post.category || 'Anime';
+    category.textContent = getArticleCategories(post).join(', ') || 'Anime';
     details.append(title, category);
     content.append(slide, image, details);
     const actions = document.createElement('div');

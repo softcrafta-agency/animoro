@@ -6,6 +6,7 @@ import { initializeAuthNavigation } from './auth-nav.js';
 import { initializeVisitorAnalytics, trackAnimeInteraction } from './visitor-analytics.js';
 import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { formatUpcomingReleaseDate, getUpcomingReleaseDescription } from './upcoming-date.js';
+import { getArticleCategories } from './article-editor-fields.js';
 
 initializeVisitorAnalytics();
 
@@ -31,7 +32,11 @@ export function createArticleCard(id, post) {
   card.className = 'article-card';
   const articlePath = getArticlePath(post);
   const title = escapeHtml(post.title || 'Untitled article');
-  const category = escapeHtml(post.category || 'General');
+  const categories = getArticleCategories(post);
+  const category = escapeHtml(categories[0] || 'General');
+  const categoryLinks = categories.map(name =>
+    `<a class="badge-category" href="/category.html?category=${encodeURIComponent(name)}">${escapeHtml(name)}</a>`
+  ).join('');
   const excerpt = escapeHtml(post.excerpt || '');
   const rawAuthorName = typeof post.authorName === 'string' ? post.authorName.trim() : '';
   const authorName = rawAuthorName
@@ -50,6 +55,7 @@ export function createArticleCard(id, post) {
     </a>
     <div class="card-body">
       ${publishedAt ? `<div class="card-meta"><span>${escapeHtml(formatDate(publishedAt))}</span></div>` : ''}
+      ${categoryLinks ? `<div class="card-category-list">${categoryLinks}</div>` : ''}
       <h3 class="card-title">
         <a href="${articlePath}">${title}</a>
       </h3>

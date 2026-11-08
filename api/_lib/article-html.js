@@ -2,6 +2,7 @@ import sanitizeHtml from 'sanitize-html';
 import { ARTICLE_SITE_ORIGIN, getArticlePath, isValidArticleSlug } from '../../js/article-url.js';
 import { getArticleSeo } from '../../js/article-seo.js';
 import { getAnimePath, isValidAnimeSlug } from '../../js/anime-url.js';
+import { getArticleCategories } from '../../js/article-editor-fields.js';
 
 export const SITE_ORIGIN = ARTICLE_SITE_ORIGIN;
 
@@ -146,8 +147,8 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
     ...(image ? { image: [image] } : {}),
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),
-    ...(typeof post.category === 'string' && post.category.trim()
-      ? { articleSection: post.category.trim() }
+    ...(getArticleCategories(post).length
+      ? { articleSection: getArticleCategories(post) }
       : {}),
   };
 
@@ -155,10 +156,10 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
     { name: 'Home', item: `${SITE_ORIGIN}/` },
     { name: 'Articles', item: `${SITE_ORIGIN}/blogs.html` },
   ];
-  if (typeof post.category === 'string' && post.category.trim()) {
+  for (const category of getArticleCategories(post)) {
     breadcrumbs.push({
-      name: post.category.trim(),
-      item: `${SITE_ORIGIN}/category.html?category=${encodeURIComponent(post.category.trim())}`,
+      name: category,
+      item: `${SITE_ORIGIN}/category.html?category=${encodeURIComponent(category)}`,
     });
   }
   breadcrumbs.push({ name: String(post.title || title), item: canonicalUrl });
@@ -266,19 +267,17 @@ function renderBreadcrumbs(post) {
     '<li><a href="/">Home</a></li>',
     '<li><a href="/blogs.html">Articles</a></li>',
   ];
-  if (typeof post.category === 'string' && post.category.trim()) {
+  getArticleCategories(post).forEach(category => {
     crumbs.push(
-      `<li><a href="/category.html?category=${encodeURIComponent(post.category.trim())}">${escapeHtml(post.category.trim())}</a></li>`
+      `<li><a href="/category.html?category=${encodeURIComponent(category)}">${escapeHtml(category)}</a></li>`
     );
-  }
+  });
   crumbs.push(`<li aria-current="page">${escapeHtml(post.title || 'Article')}</li>`);
   return `<nav aria-label="Breadcrumb" class="article-breadcrumbs"><ol>${crumbs.join('')}</ol></nav>`;
 }
 
 function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
-  const category = typeof post.category === 'string' && post.category.trim()
-    ? post.category.trim()
-    : '';
+  const categories = getArticleCategories(post);
   const publishedDate = getPublishedDate(post);
   const dateTime = toIsoDateTime(publishedDate);
   const visibleDate = formatDate(publishedDate);
@@ -306,7 +305,7 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
     <header class="article-header${coverImage ? ' has-cover' : ''}">
       <div class="article-intro-copy">
         <div class="article-header-meta">
-          ${category ? `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>` : ''}
+          ${categories.map(category => `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>`).join('')}
           ${animeLink}
           ${visibleDate ? `<span>Published <time datetime="${escapeHtml(dateTime)}">${escapeHtml(visibleDate)}</time></span>` : ''}
           ${visibleModifiedDate ? `<span>Updated <time datetime="${escapeHtml(modifiedDate)}">${escapeHtml(visibleModifiedDate)}</time></span>` : ''}

@@ -1,3 +1,5 @@
+import { getArticleCategories } from './article-editor-fields.js';
+
 const SEARCH_STOP_WORDS = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'how',
   'in', 'is', 'it', 'of', 'on', 'or', 'the', 'to', 'what', 'when', 'where',
@@ -69,7 +71,7 @@ export function scoreArticleSearch(post, query) {
   const otherMetadata = [
     post.slug,
     post.seoTitle,
-    post.category,
+    ...getArticleCategories(post),
     post.authorName,
     ...(Array.isArray(post.tags) ? post.tags : []),
   ].filter(value => typeof value === 'string').join(' ');

@@ -252,10 +252,12 @@
               <h3 style="font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 16px;">Publishing Details</h3>
 
               <div class="form-group">
-                <label for="postCategory" class="form-label">Category</label>
-                <select id="postCategory" class="form-select" disabled>
-                  <option value="">Loading categories...</option>
-                </select>
+                <label for="postCategorySearch" class="form-label">Category</label>
+                <div class="category-multi-select">
+                  <input type="search" id="postCategorySearch" class="form-input" placeholder="Loading categories..." autocomplete="off" disabled aria-label="Search categories" aria-controls="postCategoryOptions" />
+                  <div id="postCategoryOptions" class="category-selection-options" role="listbox" aria-label="Available categories"></div>
+                  <div id="postCategoryChips" class="category-selection-chips" aria-label="Selected categories" aria-live="polite"></div>
+                </div>
                 <small id="postCategoryStatus" class="editor-field-hint" role="status" aria-live="polite">Loading categories...</small>
                 <button type="button" id="refreshPostCategories" class="action-btn-sm" style="margin-top: 8px; padding: 5px 10px;">Refresh categories</button>
               </div>

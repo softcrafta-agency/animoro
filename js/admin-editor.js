@@ -24,9 +24,11 @@ import { ensureLegacyArticleCategories, getRegisteredCategories } from './catego
 import { sanitizeArticleEditorHtml } from './article-content.js';
 import { ImageUploadField } from './image-upload-field.js';
 import {
-  isValidArticleCategory,
+  getArticleCategories,
+  isValidArticleCategories,
   isValidFeaturedOrder,
   isValidSearchIntent,
+  normalizeArticleCategories,
   normalizeArticleKeywords,
   normalizeArticleTags,
 } from './article-editor-fields.js';
@@ -36,7 +38,7 @@ let currentAdminUser = null;
 let editingPostId = null;
 let originalPostSlug = '';
 let originalPostStatus = 'draft';
-let originalPostCategory = '';
+let originalPostCategories = [];
 let originalPublishedAt = null;
 let originalCreatedAt = null;
 let slugWasManuallyEdited = false;
@@ -71,6 +73,7 @@ let editorInitialSnapshot = '';
 let editorSaveInProgress = false;
 let articleSubmissionPending = false;
 let registeredArticleCategories = [];
+let selectedArticleCategories = [];
 let categoryLoadError = false;
 const THEME_STORAGE_KEY = 'animoro-theme';
 
@@ -172,10 +175,11 @@ function setEditorSaveStatus(message, state = 'idle') {
 
 function getEditorSnapshot() {
   const values = Array.from(document.querySelectorAll('#postEditorForm input[id], #postEditorForm textarea[id], #postEditorForm select[id]'))
-    .filter(field => field.type !== 'file')
+    .filter(field => field.type !== 'file' && field.id !== 'postCategorySearch')
     .map(field => [field.id, field.type === 'checkbox' ? field.checked : field.value]);
   return JSON.stringify({
     values,
+    categories: selectedArticleCategories,
     tags: postTags,
     content: getRichEditor()?.innerHTML || '',
   });
@@ -192,8 +196,9 @@ function saveEditorLocally() {
     localStorage.setItem(getEditorAutosaveKey(), JSON.stringify({
       savedAt: Date.now(),
       values: Array.from(document.querySelectorAll('#postEditorForm input[id], #postEditorForm textarea[id], #postEditorForm select[id]'))
-        .filter(field => field.type !== 'file')
+        .filter(field => field.type !== 'file' && field.id !== 'postCategorySearch')
         .map(field => [field.id, field.type === 'checkbox' ? field.checked : field.value]),
+      categories: selectedArticleCategories,
       tags: postTags,
       content: sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '', { allowLegacyDataImages: true }),
     }));
@@ -218,8 +223,11 @@ function restoreEditorAutosave() {
       localStorage.removeItem(key);
       return;
     }
+    const currentSnapshot = JSON.parse(getEditorSnapshot());
     const differs = saved.content !== (getRichEditor()?.innerHTML || '') ||
-      JSON.stringify(saved.values || []) !== JSON.stringify(JSON.parse(getEditorSnapshot()).values);
+      JSON.stringify(saved.values || []) !== JSON.stringify(currentSnapshot.values) ||
+      (Array.isArray(saved.categories) &&
+        JSON.stringify(normalizeArticleCategories(saved.categories)) !== JSON.stringify(currentSnapshot.categories));
     if (!differs || !confirm('A newer locally auto-saved draft is available. Restore it?')) return;
 
     (saved.values || []).forEach(([id, value]) => {
@@ -228,6 +236,10 @@ function restoreEditorAutosave() {
       if (field.type === 'checkbox') field.checked = Boolean(value);
       else field.value = value;
     });
+    if (Array.isArray(saved.categories)) {
+      selectedArticleCategories = normalizeArticleCategories(saved.categories);
+      renderArticleCategorySelector();
+    }
     if (Array.isArray(saved.tags)) {
       postTags = saved.tags.filter(tag => typeof tag === 'string');
       renderTagChips();
@@ -836,9 +848,9 @@ export async function initAdminEditor() {
 
 function setupFormControls() {
   document.getElementById('refreshPostCategories')?.addEventListener('click', () => {
-    const selectedCategory = document.getElementById('postCategory')?.value || originalPostCategory;
-    void loadArticleCategories(selectedCategory);
+    void loadArticleCategories(selectedArticleCategories);
   });
+  document.getElementById('postCategorySearch')?.addEventListener('input', renderArticleCategoryOptions);
 
   // Title -> Slug auto-generate
   const titleInput = document.getElementById('postTitle');
@@ -903,54 +915,120 @@ function setupFormControls() {
   }
 }
 
-async function loadArticleCategories(selectedCategory = '') {
-  const categorySelect = document.getElementById('postCategory');
+function renderArticleCategorySelector() {
+  const chips = document.getElementById('postCategoryChips');
+  if (!chips) return;
+
+  chips.replaceChildren();
+  selectedArticleCategories.forEach(category => {
+    const chip = document.createElement('span');
+    chip.className = 'category-selection-chip';
+    const name = document.createElement('span');
+    name.textContent = category;
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'category-selection-remove';
+    removeButton.setAttribute('aria-label', `Remove ${category}`);
+    removeButton.textContent = '×';
+    removeButton.addEventListener('click', () => {
+      selectedArticleCategories = selectedArticleCategories.filter(value => value !== category);
+      renderArticleCategorySelector();
+      markEditorChanged();
+      document.getElementById('postCategorySearch')?.focus();
+    });
+    chip.append(name, removeButton);
+    chips.appendChild(chip);
+  });
+  renderArticleCategoryOptions();
+}
+
+function renderArticleCategoryOptions() {
+  const options = document.getElementById('postCategoryOptions');
+  const search = document.getElementById('postCategorySearch');
+  if (!options) return;
+
+  options.replaceChildren();
+  const availableCategories = [...registeredArticleCategories];
+  selectedArticleCategories.forEach(name => {
+    if (!availableCategories.some(category => category.name === name)) {
+      availableCategories.push({ name, isSaved: true });
+    }
+  });
+  const selected = new Set(selectedArticleCategories.map(category => category.toLocaleLowerCase()));
+  const searchTerm = search?.value.trim().toLocaleLowerCase() || '';
+  const matches = availableCategories.filter(category =>
+    !selected.has(category.name.toLocaleLowerCase()) && category.name.toLocaleLowerCase().includes(searchTerm)
+  );
+
+  matches.forEach(category => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'category-selection-option';
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', 'false');
+    option.textContent = category.isSaved
+      ? `${category.name} (saved on this article)`
+      : category.name;
+    option.addEventListener('click', () => {
+      selectedArticleCategories = normalizeArticleCategories([...selectedArticleCategories, category.name]);
+      if (search) search.value = '';
+      renderArticleCategorySelector();
+      markEditorChanged();
+      search?.focus();
+    });
+    options.appendChild(option);
+  });
+
+  if (!matches.length) {
+    const empty = document.createElement('span');
+    empty.className = 'category-selection-empty';
+    empty.textContent = searchTerm ? 'No matching categories.' : 'All available categories are selected.';
+    options.appendChild(empty);
+  }
+}
+
+async function loadArticleCategories(savedCategories = selectedArticleCategories) {
   const status = document.getElementById('postCategoryStatus');
   const refreshButton = document.getElementById('refreshPostCategories');
-  if (!categorySelect) return false;
+  const search = document.getElementById('postCategorySearch');
+  if (!search) return false;
 
   if (refreshButton) refreshButton.disabled = true;
-  categorySelect.disabled = true;
-  categorySelect.replaceChildren(new Option('Loading categories...', ''));
+  search.disabled = true;
   if (status) status.textContent = 'Loading categories...';
   categoryLoadError = false;
 
   try {
     await ensureLegacyArticleCategories();
     registeredArticleCategories = await getRegisteredCategories();
-    categorySelect.replaceChildren(new Option('Select a category', ''));
-    registeredArticleCategories.forEach(category => {
-      categorySelect.add(new Option(category.name, category.name));
-    });
+    selectedArticleCategories = normalizeArticleCategories(savedCategories);
+    renderArticleCategorySelector();
+    search.disabled = false;
+    search.placeholder = registeredArticleCategories.length
+      ? 'Search categories...'
+      : 'No categories available';
 
-    if (selectedCategory && !registeredArticleCategories.some(category => category.name === selectedCategory)) {
-      categorySelect.add(new Option(`${selectedCategory} (saved on this article)`, selectedCategory));
-    }
-    categorySelect.value = selectedCategory;
-    categorySelect.disabled = registeredArticleCategories.length === 0 && !selectedCategory;
-
-    const selectedCategoryRegistered = registeredArticleCategories.some(category => category.name === selectedCategory);
+    const unregisteredCategories = selectedArticleCategories.filter(selected =>
+      !registeredArticleCategories.some(category => category.name === selected)
+    );
     if (registeredArticleCategories.length === 0) {
       if (status) {
-        status.textContent = selectedCategory
-          ? `No categories are registered. The saved category "${selectedCategory}" is preserved; add categories in the Categories Manager.`
+        status.textContent = unregisteredCategories.length
+          ? 'No categories are registered. Saved categories are preserved; add categories in the Categories Manager.'
           : 'No categories are registered. Add one in the Categories Manager.';
       }
     } else if (status) {
-      status.textContent = selectedCategory && !selectedCategoryRegistered
-        ? `${registeredArticleCategories.length} categories loaded. The saved category "${selectedCategory}" is not registered but is preserved for this article.`
+      status.textContent = unregisteredCategories.length
+        ? `${registeredArticleCategories.length} categories loaded. Saved categories not in the registry are preserved for this article.`
         : `${registeredArticleCategories.length} categories loaded.`;
     }
     return true;
   } catch (error) {
     categoryLoadError = true;
     registeredArticleCategories = [];
-    categorySelect.replaceChildren(new Option('Categories could not be loaded', ''));
-    if (selectedCategory) {
-      categorySelect.add(new Option(`${selectedCategory} (saved on this article)`, selectedCategory));
-      categorySelect.value = selectedCategory;
-    }
-    categorySelect.disabled = !selectedCategory;
+    selectedArticleCategories = normalizeArticleCategories(savedCategories);
+    renderArticleCategorySelector();
+    search.disabled = true;
     if (status) {
       status.textContent = `Could not load categories: ${error.message} Use Refresh categories to try again.`;
     }
@@ -961,14 +1039,9 @@ async function loadArticleCategories(selectedCategory = '') {
   }
 }
 
-function selectSavedArticleCategory(category) {
-  const categorySelect = document.getElementById('postCategory');
-  if (!categorySelect || !category) return;
-
-  if (![...categorySelect.options].some(option => option.value === category)) {
-    categorySelect.add(new Option(`${category} (saved on this article)`, category));
-  }
-  categorySelect.value = category;
+function selectSavedArticleCategories(categories) {
+  selectedArticleCategories = normalizeArticleCategories(categories);
+  renderArticleCategorySelector();
 }
 
 function addTag(tag) {
@@ -2241,7 +2314,7 @@ async function loadPostForEditing(postId) {
     const post = snap.data();
     originalPostSlug = typeof post.slug === 'string' ? post.slug : '';
     originalPostStatus = post.status || 'draft';
-    originalPostCategory = typeof post.category === 'string' ? post.category : '';
+    originalPostCategories = getArticleCategories(post);
     originalPublishedAt = post.publishedAt || null;
     originalCreatedAt = post.createdAt || null;
     existingCoverData = {
@@ -2256,7 +2329,7 @@ async function loadPostForEditing(postId) {
     document.getElementById('postTitle').value = post.title || '';
     document.getElementById('postSlug').value = post.slug || '';
     document.getElementById('postExcerpt').value = post.excerpt || '';
-    selectSavedArticleCategory(originalPostCategory);
+    selectSavedArticleCategories(originalPostCategories);
     document.getElementById('postAnimeTitle').value = post.animeTitle || '';
     document.getElementById('postAnimeSlug').value = post.animeSlug || '';
     lastSelectedAnimeTitle = post.animeTitle || '';
@@ -2374,7 +2447,8 @@ async function submitArticle(e) {
   const title = document.getElementById('postTitle').value.trim();
   const requestedSlug = document.getElementById('postSlug').value.trim() || title;
   let excerpt = document.getElementById('postExcerpt').value.trim();
-  const category = document.getElementById('postCategory').value;
+  const categories = normalizeArticleCategories(selectedArticleCategories);
+  const category = categories[0] || '';
   const animeTitle = document.getElementById('postAnimeTitle').value.trim();
   const animeSlugInput = document.getElementById('postAnimeSlug').value.trim();
   const animeSlug = animeSlugInput ? normalizeAnimeSlug(animeSlugInput) : '';
@@ -2424,12 +2498,16 @@ async function submitArticle(e) {
     showFeedback(feedbackEl, "Please enter article body content.", "error");
     return;
   }
-  if (categoryLoadError && category !== originalPostCategory) {
+  if (categoryLoadError && JSON.stringify(categories) !== JSON.stringify(originalPostCategories)) {
     showFeedback(feedbackEl, "Categories could not be loaded. Refresh the category list before choosing a category.", "error");
     return;
   }
-  if (!isValidArticleCategory(category, registeredArticleCategories.map(item => item.name), originalPostCategory)) {
-    showFeedback(feedbackEl, "Choose a registered article category.", "error");
+  if (!isValidArticleCategories(
+    categories,
+    registeredArticleCategories.map(item => item.name),
+    originalPostCategories
+  )) {
+    showFeedback(feedbackEl, "Choose at least one registered article category.", "error");
     return;
   }
   if (authorName.length > 100) {
@@ -2577,6 +2655,7 @@ async function submitArticle(e) {
     excerpt,
     content,
     category,
+    categories,
     animeTitle,
     animeSlug,
     seoTitle,

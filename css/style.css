@@ -1565,6 +1565,28 @@ html.auth-checking body {
   letter-spacing: 0.5px;
 }
 
+.card-category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.card-category-list .badge-category {
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.trending-category {
+  color: var(--accent-crimson);
+  text-decoration: none;
+}
+
+.trending-category:hover {
+  text-decoration: underline;
+}
+
 .card-body {
   padding: 20px;
   display: flex;

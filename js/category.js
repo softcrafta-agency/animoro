@@ -2,6 +2,7 @@ import {
   collection, 
   query, 
   where, 
+  or,
   orderBy, 
   getDocs,
   limit,
@@ -10,6 +11,7 @@ import {
 import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { createArticleCard, setupMobileNav } from './ui.js';
 import { escapeHtml } from './html-utils.js';
+import { getArticleCategories } from './article-editor-fields.js';
 
 const CATEGORY_DESCRIPTIONS = {
   'Anime News': 'Breaking news, seasonal announcements, studio updates, and production insights.',
@@ -21,8 +23,10 @@ const CATEGORY_DESCRIPTIONS = {
   'Seasonal Anime': 'Previews, schedules, and essential guides for current and upcoming anime seasons.'
 };
 const PAGE_SIZE = 9;
+const CATEGORY_SCAN_SIZE = 30;
 let lastCategoryDoc = null;
 let isLoadingCategory = false;
+let pendingCategoryPosts = [];
 
 function ensureMetaTag(attribute, name, value) {
   const selector = `meta[${attribute}="${name}"]`;
@@ -101,6 +105,7 @@ async function loadCategoryArticles(cursor = null) {
   isLoadingCategory = true;
   if (!cursor) {
     lastCategoryDoc = null;
+    pendingCategoryPosts = [];
     container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading category articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
   }
   if (loadMoreBtn) {
@@ -109,38 +114,54 @@ async function loadCategoryArticles(cursor = null) {
   }
 
   try {
-    let snap;
-    let usedFallback = false;
-    try {
-      const constraints = [
-        where('status', '==', 'published'),
-        where('category', '==', categoryName),
-        orderBy('publishedAt', 'desc')
-      ];
-      if (cursor) constraints.push(startAfter(cursor));
-      constraints.push(limit(PAGE_SIZE));
-      const q = query(
-        collection(db, 'posts'),
-        ...constraints
-      );
-      snap = await getDocs(q);
-    } catch (idxErr) {
-      console.warn("Compound index query failed for category, using fallback query:", idxErr);
-      const fallbackConstraints = [
-        where('status', '==', 'published'),
-        where('category', '==', categoryName)
-      ];
-      if (cursor) fallbackConstraints.push(startAfter(cursor));
-      fallbackConstraints.push(limit(PAGE_SIZE));
-      const fallbackQ = query(
-        collection(db, 'posts'),
-        ...fallbackConstraints
-      );
-      snap = await getDocs(fallbackQ);
-      usedFallback = true;
+    let scanCursor = cursor;
+    let hasMore = true;
+    const posts = pendingCategoryPosts.splice(0, PAGE_SIZE);
+    while (posts.length < PAGE_SIZE && hasMore) {
+      let snap;
+      let orderedDocs;
+      try {
+        const constraints = [
+          where('status', '==', 'published'),
+          or(
+            where('categories', 'array-contains', categoryName),
+            where('category', '==', categoryName)
+          ),
+          orderBy('publishedAt', 'desc')
+        ];
+        if (scanCursor) constraints.push(startAfter(scanCursor));
+        constraints.push(limit(CATEGORY_SCAN_SIZE));
+        snap = await getDocs(query(collection(db, 'posts'), ...constraints));
+        orderedDocs = snap.docs;
+      } catch (idxErr) {
+        console.warn("Ordered category query failed, using a published-articles fallback:", idxErr);
+        const fallbackConstraints = [where('status', '==', 'published')];
+        if (scanCursor) fallbackConstraints.push(startAfter(scanCursor));
+        fallbackConstraints.push(limit(CATEGORY_SCAN_SIZE));
+        snap = await getDocs(query(collection(db, 'posts'), ...fallbackConstraints));
+        orderedDocs = [...snap.docs].sort((a, b) => {
+          const aData = a.data();
+          const bData = b.data();
+          const tA = aData.publishedAt?.toDate?.() || new Date(aData.publishedAt || aData.createdAt || 0);
+          const tB = bData.publishedAt?.toDate?.() || new Date(bData.publishedAt || bData.createdAt || 0);
+          return tB - tA;
+        });
+      }
+
+      if (snap.empty) {
+        hasMore = false;
+        break;
+      }
+      scanCursor = snap.docs.at(-1) || scanCursor;
+      hasMore = snap.docs.length === CATEGORY_SCAN_SIZE;
+
+      pendingCategoryPosts.push(...orderedDocs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(post => getArticleCategories(post).includes(categoryName)));
+      posts.push(...pendingCategoryPosts.splice(0, PAGE_SIZE - posts.length));
     }
 
-    if (snap.empty && !cursor) {
+    if (!posts.length && !cursor) {
       ensureMetaTag('name', 'robots', 'noindex, follow');
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
@@ -153,18 +174,9 @@ async function loadCategoryArticles(cursor = null) {
       `;
       if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       return;
-    } else if (snap.empty) {
+    } else if (!posts.length) {
       if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       return;
-    }
-
-    let posts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    if (usedFallback) {
-      posts.sort((a, b) => {
-        const tA = a.publishedAt?.toDate?.() || new Date(a.publishedAt || a.createdAt || 0);
-        const tB = b.publishedAt?.toDate?.() || new Date(b.publishedAt || b.createdAt || 0);
-        return tB - tA;
-      });
     }
 
     if (!cursor) {
@@ -174,10 +186,10 @@ async function loadCategoryArticles(cursor = null) {
     const fragment = document.createDocumentFragment();
     posts.forEach(post => fragment.appendChild(createArticleCard(post.id, post)));
     container.appendChild(fragment);
-    lastCategoryDoc = snap.docs.at(-1) || cursor;
+    lastCategoryDoc = scanCursor;
     if (loadMoreBtn) {
       loadMoreBtn.textContent = 'Load More Articles';
-      loadMoreBtn.style.display = snap.docs.length === PAGE_SIZE ? 'inline-flex' : 'none';
+      loadMoreBtn.style.display = hasMore || pendingCategoryPosts.length ? 'inline-flex' : 'none';
     }
   } catch (error) {
     handleFirestoreError(error, 'list', 'posts');

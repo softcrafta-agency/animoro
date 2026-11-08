@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  getArticleCategories,
   isValidArticleCategory,
+  isValidArticleCategories,
   isValidFeaturedOrder,
   isValidSearchIntent,
+  normalizeArticleCategories,
   normalizeArticleKeywords,
   normalizeArticleTags,
 } from './article-editor-fields.js';
@@ -41,6 +44,27 @@ test('accepts registered categories and preserves an existing legacy category', 
   assert.equal(isValidArticleCategory('Romance Anime', registeredCategories), true);
   assert.equal(isValidArticleCategory('Legacy Category', registeredCategories, 'Legacy Category'), true);
   assert.equal(isValidArticleCategory('Unsupported', registeredCategories), false);
+});
+
+test('normalizes multi-category selections and prevents duplicates', () => {
+  assert.deepEqual(
+    normalizeArticleCategories([' Reviews ', 'Anime News', 'reviews', '', null]),
+    ['Reviews', 'Anime News']
+  );
+  assert.deepEqual(getArticleCategories({ category: 'Legacy' }), ['Legacy']);
+  assert.deepEqual(getArticleCategories({ category: ['Reviews', 'Anime News'] }), ['Reviews', 'Anime News']);
+  assert.deepEqual(
+    getArticleCategories({ category: 'Reviews', categories: ['Anime News', 'Reviews'] }),
+    ['Anime News', 'Reviews']
+  );
+});
+
+test('validates selected categories while preserving saved categories not in the registry', () => {
+  const registeredCategories = ['Anime News', 'Reviews'];
+  assert.equal(isValidArticleCategories(['Anime News', 'Reviews'], registeredCategories), true);
+  assert.equal(isValidArticleCategories(['Saved Legacy'], registeredCategories, ['Saved Legacy']), true);
+  assert.equal(isValidArticleCategories(['Unsupported'], registeredCategories), false);
+  assert.equal(isValidArticleCategories([], registeredCategories), false);
 });
 
 test('accepts non-negative whole slider orders only', () => {

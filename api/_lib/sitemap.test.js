@@ -91,6 +91,22 @@ test('deduplicates category and URL entries', () => {
   assert.equal((xml.match(/\/blog\/same-post/g) || []).length, 1);
 });
 
+test('includes every category assigned to a published article', () => {
+  const xml = buildSitemap(
+    [{
+      id: 'multi-category',
+      slug: 'multi-category',
+      status: 'published',
+      category: 'Reviews',
+      categories: ['Reviews', 'Anime News'],
+    }],
+    []
+  );
+
+  assert.match(xml, /category\.html\?category=Reviews/);
+  assert.match(xml, /category\.html\?category=Anime%20News/);
+});
+
 test('generates unique slugs for published posts without replacing existing valid slugs', () => {
   const posts = assignPostSlugs([
     { id: 'existing', title: 'Renamed title', slug: 'keep-this-slug', status: 'published' },

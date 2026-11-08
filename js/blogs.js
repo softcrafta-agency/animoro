@@ -1,11 +1,14 @@
 import { createArticleCard, setupMobileNav } from './ui.js';
+import { getArticleCategories } from './article-editor-fields.js';
 
 let firestoreRuntime = null;
 let selectedCategory = 'all';
 let currentSort = 'latest'; // latest, popular, oldest
 let lastDoc = null;
+let pendingBlogPosts = [];
 let isLoading = false;
 const PAGE_SIZE = 9;
+const CATEGORY_SCAN_SIZE = 30;
 
 async function getFirestoreRuntime() {
   if (!firestoreRuntime) {
@@ -18,6 +21,7 @@ async function getFirestoreRuntime() {
       getDocs: firestore.getDocs,
       limit: firestore.limit,
       orderBy: firestore.orderBy,
+      or: firestore.or,
       query: firestore.query,
       startAfter: firestore.startAfter,
       where: firestore.where,
@@ -78,6 +82,7 @@ async function loadArticles(reset = false) {
 
   if (reset) {
     lastDoc = null;
+    pendingBlogPosts = [];
     container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
   }
 
@@ -117,45 +122,62 @@ async function loadArticles(reset = false) {
       orderDir = 'asc';
     }
 
-    let constraints = [
-      where('status', '==', 'published'),
-      orderBy(orderField, orderDir),
-      limit(PAGE_SIZE)
-    ];
-
-    if (selectedCategory && selectedCategory !== 'all') {
-      constraints.unshift(where('category', '==', selectedCategory));
-    }
-
-    if (lastDoc && !reset) {
-      constraints.push(startAfter(lastDoc));
-    }
-
-    let snap;
-    let fallbackUsed = false;
-    try {
-      const q = query(collection(db, 'posts'), ...constraints);
-      snap = await getDocs(q);
-    } catch (orderErr) {
-      console.warn("Ordered query in blogs.js failed, attempting status fallback:", orderErr);
-      const simpleConstraints = [where('status', '==', 'published')];
-      if (selectedCategory && selectedCategory !== 'all') {
-        simpleConstraints.push(where('category', '==', selectedCategory));
+    let scanCursor = reset ? null : lastDoc;
+    let hasMore = true;
+    const docs = pendingBlogPosts.splice(0, PAGE_SIZE);
+    const isCategoryFilter = selectedCategory && selectedCategory !== 'all';
+    const scanSize = isCategoryFilter ? CATEGORY_SCAN_SIZE : PAGE_SIZE;
+    while (docs.length < PAGE_SIZE && hasMore) {
+      let snap;
+      let orderedDocs;
+      const constraints = [
+        where('status', '==', 'published'),
+        orderBy(orderField, orderDir)
+      ];
+      if (isCategoryFilter) {
+        constraints.push(or(
+          where('categories', 'array-contains', selectedCategory),
+          where('category', '==', selectedCategory)
+        ));
       }
-      if (lastDoc && !reset) {
-        simpleConstraints.push(startAfter(lastDoc));
+      if (scanCursor) constraints.push(startAfter(scanCursor));
+      constraints.push(limit(scanSize));
+      try {
+        snap = await getDocs(query(collection(db, 'posts'), ...constraints));
+        orderedDocs = snap.docs;
+      } catch (orderErr) {
+        console.warn("Ordered query in blogs.js failed, attempting status fallback:", orderErr);
+        const simpleConstraints = [where('status', '==', 'published')];
+        if (scanCursor) simpleConstraints.push(startAfter(scanCursor));
+        simpleConstraints.push(limit(scanSize));
+        snap = await getDocs(query(collection(db, 'posts'), ...simpleConstraints));
+        orderedDocs = [...snap.docs].sort((a, b) => {
+          const pA = a.data();
+          const pB = b.data();
+          if (currentSort === 'popular') return (pB.views || 0) - (pA.views || 0);
+          const tA = pA.publishedAt?.toDate ? pA.publishedAt.toDate().getTime() : (pA.publishedAt ? new Date(pA.publishedAt).getTime() : 0);
+          const tB = pB.publishedAt?.toDate ? pB.publishedAt.toDate().getTime() : (pB.publishedAt ? new Date(pB.publishedAt).getTime() : 0);
+          return currentSort === 'oldest' ? tA - tB : tB - tA;
+        });
       }
-      simpleConstraints.push(limit(PAGE_SIZE));
-      const fallbackQ = query(collection(db, 'posts'), ...simpleConstraints);
-      snap = await getDocs(fallbackQ);
-      fallbackUsed = true;
+
+      if (snap.empty) {
+        hasMore = false;
+        break;
+      }
+      scanCursor = snap.docs.at(-1) || scanCursor;
+      hasMore = snap.docs.length === scanSize;
+      pendingBlogPosts.push(...orderedDocs.filter(postDoc =>
+        !isCategoryFilter || getArticleCategories(postDoc.data()).includes(selectedCategory)
+      ));
+      docs.push(...pendingBlogPosts.splice(0, PAGE_SIZE - docs.length));
     }
 
     if (reset) {
       container.innerHTML = '';
     }
 
-    if (snap.empty && reset) {
+    if (!docs.length && reset) {
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
           <h3 class="empty-state-title">No stories found</h3>
@@ -166,30 +188,18 @@ async function loadArticles(reset = false) {
       return;
     }
 
-    let docs = [...snap.docs];
-    if (fallbackUsed) {
-      docs.sort((a, b) => {
-        const pA = a.data();
-        const pB = b.data();
-        if (currentSort === 'popular') {
-          return (pB.views || 0) - (pA.views || 0);
-        }
-        const tA = pA.publishedAt?.toDate ? pA.publishedAt.toDate().getTime() : (pA.publishedAt ? new Date(pA.publishedAt).getTime() : 0);
-        const tB = pB.publishedAt?.toDate ? pB.publishedAt.toDate().getTime() : (pB.publishedAt ? new Date(pB.publishedAt).getTime() : 0);
-        return currentSort === 'oldest' ? tA - tB : tB - tA;
-      });
-    }
-
     if (docs.length > 0) {
-      lastDoc = snap.docs.at(-1) || lastDoc;
+      lastDoc = scanCursor;
       docs.forEach(doc => {
         container.appendChild(createArticleCard(doc.id, doc.data()));
       });
+    } else {
+      lastDoc = scanCursor;
     }
 
     if (loadMoreBtn) {
       loadMoreBtn.textContent = 'Load More Articles';
-      loadMoreBtn.style.display = snap.docs.length === PAGE_SIZE ? 'inline-flex' : 'none';
+      loadMoreBtn.style.display = hasMore || pendingBlogPosts.length ? 'inline-flex' : 'none';
     }
 
   } catch (error) {

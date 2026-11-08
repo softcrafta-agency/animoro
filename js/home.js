@@ -10,6 +10,7 @@ import { escapeHtml, getSafeImageUrl } from './html-utils.js';
 import { selectPopularAnime } from './anime-popular.js';
 import { getUpcomingReleaseTimestamp } from './upcoming-date.js';
 import { getTopAnime, getUpcomingAnime } from './anime-api.js';
+import { getArticleCategories } from './article-editor-fields.js';
 
 export { createArticleCard, formatDate, formatViews, setupMobileNav } from './ui.js';
 
@@ -180,7 +181,10 @@ function renderSlides(container, slides) {
       ? ''
       : getSafeImageUrl(post.coverImage, FALLBACK_COVER_IMAGE);
     const title = escapeHtml(post.title || 'Untitled article');
-    const category = escapeHtml(post.category || '');
+    const categories = getArticleCategories(post);
+    const category = categories.map(name =>
+      `<a href="/category.html?category=${encodeURIComponent(name)}" class="badge-category">${escapeHtml(name)}</a>`
+    ).join('');
     const excerpt = escapeHtml(post.excerpt || '');
     const authorName = typeof post.authorName === 'string' && post.authorName.trim()
       ? escapeHtml(post.authorName.trim())
@@ -192,7 +196,7 @@ function renderSlides(container, slides) {
       <div class="slide-overlay"></div>
       <div class="slide-content">
         <span class="badge-featured">Featured Story</span>
-        ${category ? `<span class="badge-category">${category}</span>` : ''}
+        ${category}
         <h2 class="slide-title">
           <a href="${articlePath}">${title}</a>
         </h2>
@@ -641,7 +645,10 @@ async function initTrendingArticles() {
     container.innerHTML = docs.map((doc, idx) => {
       const post = doc.data();
       const title = escapeHtml(post.title || 'Untitled article');
-      const category = escapeHtml(post.category || '');
+      const categories = getArticleCategories(post);
+      const category = categories.map(name =>
+        `<a href="/category.html?category=${encodeURIComponent(name)}" class="trending-category">${escapeHtml(name)}</a>`
+      ).join(' · ');
       const coverImage = escapeHtml(getSafeImageUrl(
         post.coverImage,
         'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=200&q=80'
@@ -651,7 +658,7 @@ async function initTrendingArticles() {
           <span class="trending-rank">0${idx + 1}</span>
           <img class="trending-thumb" src="${coverImage}" alt="${title}" width="200" height="150" loading="lazy" decoding="async" />
           <div class="trending-info">
-            ${category ? `<span class="trending-category">${category}</span>` : ''}
+            ${category}
             <h4 class="trending-title">
               <a href="${getArticlePath(post)}">${title}</a>
             </h4>

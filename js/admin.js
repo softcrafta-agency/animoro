@@ -15,6 +15,7 @@ import { loadAdminPosts, setupPostsTableControls } from './admin-posts.js';
 import { renderPerformanceChart } from './analytics.js';
 import { formatDate, formatViews } from './ui.js';
 import { escapeHtml } from './html-utils.js';
+import { getArticleCategories } from './article-editor-fields.js';
 import { setupAnimeManager } from './admin-anime.js';
 import { setupUpcomingManager } from './admin-upcoming.js';
 import { setupVisitorAnalytics } from './admin-visitor-analytics.js';
@@ -189,7 +190,7 @@ function renderTopPerformingTable(posts) {
       <td>
         <div style="font-weight: 600; color: var(--text-primary);">${escapeHtml(post.title || 'Untitled article')}</div>
       </td>
-      <td>${escapeHtml(post.category || 'Anime')}</td>
+      <td>${escapeHtml(getArticleCategories(post).join(', ') || 'Anime')}</td>
       <td style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${escapeHtml(formatViews(post.views))} views</td>
       <td>${formatDate(post.publishedAt || post.createdAt)}</td>
       <td><span class="status-pill published">Published</span></td>

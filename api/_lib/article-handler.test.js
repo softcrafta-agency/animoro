@@ -93,6 +93,48 @@ test('prioritizes anime and tag matches, deduplicates results, and excludes the 
   assert.ok(related.every(post => post.status === 'published'));
 });
 
+test('finds related posts through every assigned category and the legacy category field', async () => {
+  const entries = [
+    { id: 'current', status: 'published', category: 'Reviews', categories: ['Reviews', 'Anime News'] },
+    { id: 'array-match', status: 'published', categories: ['Anime News'], publishedAt: new Date('2026-10-03') },
+    { id: 'legacy-match', status: 'published', category: 'Reviews', publishedAt: new Date('2026-10-02') },
+    { id: 'unrelated', status: 'published', category: 'Guides' },
+  ];
+  const firestore = {
+    collection() {
+      const filters = [];
+      let maximum = Infinity;
+      return {
+        where(field, operator, value) {
+          filters.push({ field, operator, value });
+          return this;
+        },
+        orderBy() { return this; },
+        limit(value) { maximum = value; return this; },
+        async get() {
+          const categoryArrayFilter = filters.find(filter => filter.field === 'categories');
+          const legacyCategoryFilter = filters.find(filter => filter.field === 'category');
+          const matches = categoryArrayFilter
+            ? entries.filter(entry => entry.categories?.some(category => categoryArrayFilter.value.includes(category)))
+            : legacyCategoryFilter
+              ? entries.filter(entry => Array.isArray(legacyCategoryFilter.value)
+                ? legacyCategoryFilter.value.includes(entry.category)
+                : entry.category === legacyCategoryFilter.value)
+              : entries;
+          return { docs: matches.slice(0, maximum).map(entry => ({ id: entry.id, data: () => entry })) };
+        },
+      };
+    },
+  };
+
+  const related = await loadRelatedPosts(firestore, {
+    category: 'Reviews',
+    categories: ['Reviews', 'Anime News'],
+  }, 'current');
+
+  assert.deepEqual(related.slice(0, 2).map(post => post.id), ['array-match', 'legacy-match']);
+});
+
 test('uses matching secondary and legacy keywords to link related published articles', async () => {
   const entries = [
     { id: 'current', status: 'published', secondaryKeywords: ['Jiro Azuma'] },

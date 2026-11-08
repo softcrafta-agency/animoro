@@ -65,6 +65,22 @@ test('does not display missing author, category, or publication metadata', () =>
   assert.match(html, /<meta name="description" content="Body text\." \/>/);
 });
 
+test('renders all assigned categories and retains the legacy primary category', () => {
+  const html = renderArticleDocument(template, {
+    id: 'multi-category-article',
+    title: 'Multi-category article',
+    slug: 'multi-category-article',
+    category: 'Reviews',
+    categories: ['Reviews', 'Anime News', 'Reviews'],
+    content: '<p>Article body.</p>',
+  });
+
+  assert.match(html, /href="\/category\.html\?category=Reviews" class="badge-category">Reviews<\/a>/);
+  assert.match(html, /href="\/category\.html\?category=Anime%20News" class="badge-category">Anime News<\/a>/);
+  assert.equal((html.match(/class="badge-category"/g) || []).length, 2);
+  assert.match(html, /"articleSection":\["Reviews","Anime News"\]/);
+});
+
 test('links anime labels on articles to the current anime detail route', () => {
   const html = renderArticleDocument(template, {
     id: 'article-with-anime-tag',

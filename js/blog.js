@@ -11,6 +11,7 @@ import { sanitizeArticleEditorHtml } from './article-content.js';
 import { getArticleSeo } from './article-seo.js';
 import { shouldSkipPublicArticleView } from './article-view-policy.js';
 import { trackArticlePageView } from './visitor-analytics.js';
+import { getArticleCategories } from './article-editor-fields.js';
 
 const VISITOR_ID_KEY = 'animoro_visitor_id';
 const THEME_STORAGE_KEY = 'animoro-theme';
@@ -32,6 +33,7 @@ function getFirestoreRuntime() {
       getDocFromServer: firestore.getDocFromServer,
       getDocs: firestore.getDocs,
       limit: firestore.limit,
+      orderBy: firestore.orderBy,
       query: firestore.query,
       runTransaction: firestore.runTransaction,
       serverTimestamp: firestore.serverTimestamp,
@@ -521,11 +523,11 @@ function getArticleReadingTime(content) {
 }
 
 function renderArticleBreadcrumbs(post) {
-  const category = typeof post.category === 'string' ? post.category.trim() : '';
+  const categories = getArticleCategories(post);
   return `<nav aria-label="Breadcrumb" class="article-breadcrumbs"><ol>
     <li><a href="/">Home</a></li>
     <li><a href="/blogs.html">Articles</a></li>
-    ${category ? `<li><a href="/category.html?category=${encodeURIComponent(category)}">${escapeHtml(category)}</a></li>` : ''}
+    ${categories.map(category => `<li><a href="/category.html?category=${encodeURIComponent(category)}">${escapeHtml(category)}</a></li>`).join('')}
     <li aria-current="page">${escapeHtml(post.title || 'Article')}</li>
   </ol></nav>`;
 }
@@ -534,9 +536,7 @@ function renderArticle(container, post, canonicalUrl) {
   const tagsHtml = (post.tags || []).map(t => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join('');
   const currentUrl = canonicalUrl;
   const coverSource = getCoverImageSource(post.coverImage);
-  const category = typeof post.category === 'string' && post.category.trim()
-    ? post.category.trim()
-    : '';
+  const categories = getArticleCategories(post);
   const publishedDate = post.publishedAt;
   const isoPublishedDate = toIsoDateTime(publishedDate);
   const visiblePublishedDate = formatDate(publishedDate);
@@ -551,7 +551,7 @@ function renderArticle(container, post, canonicalUrl) {
     <header class="article-header${coverSource ? ' has-cover' : ''}">
       <div class="article-intro-copy">
         <div class="article-header-meta">
-          ${category ? `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>` : ''}
+          ${categories.map(category => `<a href="/category.html?category=${encodeURIComponent(category)}" class="badge-category">${escapeHtml(category)}</a>`).join('')}
           ${isValidAnimeSlug(post.animeSlug) ? `
             <a href="${getAnimePath({ slug: post.animeSlug, title: post.animeTitle })}" class="badge-category">
               ${escapeHtml(post.animeTitle || 'Anime')}
@@ -753,13 +753,13 @@ function initReadingProgress(articleBody) {
 async function loadRelatedArticles(currentPost, currentId) {
   const container = document.getElementById('relatedArticlesContainer');
   const section = document.getElementById('articleRelatedSection');
-  const category = currentPost.category;
+  const categories = getArticleCategories(currentPost);
   if (!container || !section) return;
 
   const hideSection = () => { section.hidden = true; };
 
   try {
-    const { db, collection, limit, query, where } = await getFirestoreRuntime();
+    const { db, collection, limit, orderBy, query, where } = await getFirestoreRuntime();
     if (!db) return;
     const tags = Array.isArray(currentPost.tags)
       ? currentPost.tags.filter(tag => typeof tag === 'string' && tag.trim()).slice(0, 10)
@@ -770,13 +770,25 @@ async function loadRelatedArticles(currentPost, currentId) {
       ...(Array.isArray(currentPost.keywords) ? currentPost.keywords : []),
     ].filter(keyword => typeof keyword === 'string' && keyword.trim()).slice(0, 10);
     const queries = [];
-    if (typeof category === 'string' && category.trim()) {
-      queries.push(loadRelatedCandidates(query(
-        collection(db, 'posts'),
-        where('status', '==', 'published'),
-        where('category', '==', category.trim()),
-        limit(18)
-      )));
+    if (categories.length) {
+      for (let index = 0; index < categories.length; index += 30) {
+        queries.push(loadRelatedCandidates(query(
+          collection(db, 'posts'),
+          where('status', '==', 'published'),
+          where('categories', 'array-contains-any', categories.slice(index, index + 30)),
+          orderBy('publishedAt', 'desc'),
+          limit(18)
+        )));
+      }
+      for (let index = 0; index < categories.length; index += 30) {
+        queries.push(loadRelatedCandidates(query(
+          collection(db, 'posts'),
+          where('status', '==', 'published'),
+          where('category', 'in', categories.slice(index, index + 30)),
+          orderBy('publishedAt', 'desc'),
+          limit(18)
+        )));
+      }
     }
     if (isValidAnimeSlug(currentPost.animeSlug)) {
       queries.push(loadRelatedCandidates(query(
@@ -834,8 +846,9 @@ async function loadRelatedArticles(currentPost, currentId) {
         const keywordMatch = [...currentTitleWords].some(word =>
           String(post.title || '').toLowerCase().includes(word)
         );
+        const sharedCategory = categories.some(category => getArticleCategories(post).includes(category));
         const score = (sameAnime ? 100 : 0) + matchingKeywords * 15 + matchingTags * 10 +
-          (category && post.category === category ? 5 : 0) + (keywordMatch ? 1 : 0);
+          (sharedCategory ? 5 : 0) + (keywordMatch ? 1 : 0);
         return { post, score };
       })
       .filter(item => item.score > 0 && isValidArticleSlug(item.post.slug) &&

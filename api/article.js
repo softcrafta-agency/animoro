@@ -4,6 +4,7 @@ import { getAdminServices } from './_lib/firebase-admin.js';
 import { renderArticleDocument } from './_lib/article-html.js';
 import { isValidArticleSlug } from '../js/article-url.js';
 import { isValidAnimeSlug } from '../js/anime-url.js';
+import { getArticleCategories } from '../js/article-editor-fields.js';
 
 const ARTICLE_TEMPLATE_PATH = resolve(process.cwd(), 'dist', 'blog.html');
 const ARTICLE_CACHE_CONTROL = 'public, max-age=0, s-maxage=60, must-revalidate';
@@ -95,16 +96,30 @@ export async function loadRelatedPosts(firestore, currentPost, currentId) {
         .get(),
     });
   }
-  if (typeof currentPost.category === 'string' && currentPost.category.trim()) {
-    relatedQueries.push({
-      priority: 2,
-      load: () => firestore.collection('posts')
-        .where('status', '==', 'published')
-        .where('category', '==', currentPost.category)
-        .orderBy('publishedAt', 'desc')
-        .limit(8)
-        .get(),
-    });
+  const categories = getArticleCategories(currentPost);
+  if (categories.length) {
+    for (let index = 0; index < categories.length; index += 30) {
+      relatedQueries.push({
+        priority: 2,
+        load: () => firestore.collection('posts')
+          .where('status', '==', 'published')
+          .where('categories', 'array-contains-any', categories.slice(index, index + 30))
+          .orderBy('publishedAt', 'desc')
+          .limit(8)
+          .get(),
+      });
+    }
+    for (let index = 0; index < categories.length; index += 30) {
+      relatedQueries.push({
+        priority: 2,
+        load: () => firestore.collection('posts')
+          .where('status', '==', 'published')
+          .where('category', 'in', categories.slice(index, index + 30))
+          .orderBy('publishedAt', 'desc')
+          .limit(18)
+          .get(),
+      });
+    }
   }
 
   const candidates = new Map();

@@ -12,6 +12,7 @@ import { createAnimeCard, createArticleCard, setupMobileNav } from './ui.js';
 import { getArticlePath } from './article-url.js';
 import { getAnimePath } from './anime-url.js';
 import { normalizeArticleSearchText, scoreArticleSearch } from './article-search.js';
+import { getArticleCategories } from './article-editor-fields.js';
 
 let allPublishedPosts = [];
 let lastPostDoc = null;
@@ -323,7 +324,7 @@ function renderSuggestions(term) {
     .filter(post => [
       post.title,
       post.slug,
-      post.category,
+      ...getArticleCategories(post),
       post.primaryKeyword,
       post.focusKeyword,
       ...(Array.isArray(post.secondaryKeywords) ? post.secondaryKeywords : []),
@@ -334,8 +335,8 @@ function renderSuggestions(term) {
     .slice(0, 5)
     .map(post => ({ label: post.title, type: 'ARTICLE', href: getArticlePath(post) }));
   const categories = [...new Set(allPublishedPosts
-    .filter(post => String(post.category || '').toLowerCase().includes(normalizedTerm))
-    .map(post => post.category))]
+    .flatMap(getArticleCategories)
+    .filter(category => category.toLowerCase().includes(normalizedTerm)))]
     .slice(0, 2)
     .map(category => ({
       label: category,

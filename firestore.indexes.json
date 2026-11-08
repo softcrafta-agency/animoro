@@ -65,6 +65,33 @@
       ]
     },
     {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "categories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "publishedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "categories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "publishedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "categories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "views", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "anime",
       "queryScope": "COLLECTION",
       "fields": [
