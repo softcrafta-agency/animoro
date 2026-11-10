@@ -83,10 +83,14 @@ async function loadArticles(reset = false) {
   if (reset) {
     lastDoc = null;
     pendingBlogPosts = [];
-    container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
+    container.querySelector('[data-listing-error]')?.remove();
+    if (!container.querySelector('.article-card')) {
+      container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
+    }
   }
 
   isLoading = true;
+  container.setAttribute('aria-busy', 'true');
   if (loadMoreBtn) loadMoreBtn.textContent = 'Loading stories...';
 
   let firestoreErrorHandler;
@@ -209,15 +213,29 @@ async function loadArticles(reset = false) {
       console.error('Could not load Firestore for the article listing.', error);
     }
     if (reset) {
-      container.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <h3 class="empty-state-title">Unable to load stories</h3>
-          <p class="empty-state-desc">Please verify your Firebase configuration and Firestore index rules.</p>
-        </div>
-      `;
+      const hasRenderedArticles = container.querySelector('.article-card');
+      if (hasRenderedArticles) {
+        const errorMessage = document.createElement('p');
+        errorMessage.className = 'empty-state-desc';
+        errorMessage.setAttribute('role', 'alert');
+        errorMessage.setAttribute('data-listing-error', '');
+        errorMessage.textContent = 'Could not refresh articles. Showing the stories already available on this page.';
+        container.appendChild(errorMessage);
+      } else {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <h3 class="empty-state-title">Unable to load stories</h3>
+            <p class="empty-state-desc">Please verify your Firebase configuration and Firestore index rules.</p>
+          </div>
+        `;
+      }
     }
   } finally {
     isLoading = false;
+    container.removeAttribute('aria-busy');
+    if (loadMoreBtn && loadMoreBtn.textContent === 'Loading stories...') {
+      loadMoreBtn.textContent = 'Load More Articles';
+    }
   }
 }
 

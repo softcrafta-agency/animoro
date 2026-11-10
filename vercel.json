@@ -1,6 +1,10 @@
 {
     "rewrites":  [
                      {
+                         "source":  "/blogs.html",
+                         "destination":  "/api/blogs"
+                     },
+                     {
                          "source":  "/blog/:slug",
                          "destination":  "/api/article"
                      },
@@ -50,6 +54,9 @@
                      }
                  ],
     "functions":  {
+                      "api/blogs.js":  {
+                                           "includeFiles":  "dist/blogs.html"
+                                       },
                       "api/article.js":  {
                                              "includeFiles":  "dist/blog.html"
                                          }

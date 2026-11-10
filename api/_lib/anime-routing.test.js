@@ -137,7 +137,7 @@ test('Vercel excludes underscore-prefixed root API tests and stays within the Ho
 
   assert.equal(testFiles.length, 6);
   assert.ok(testFiles.every(entry => entry.name.startsWith('_')));
-  assert.equal(functionFiles.length, 10);
+  assert.equal(functionFiles.length, 11);
   assert.ok(functionFiles.length <= 12);
 });
 

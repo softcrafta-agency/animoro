@@ -19,6 +19,7 @@ test('article path and canonical use the preferred slug route', () => {
 test('Vercel permanently redirects legacy paths before serving the new article route', () => {
   const redirect = vercelConfig.redirects.find(item => item.source === '/blog.html/:slug');
   const rewrite = vercelConfig.rewrites.find(item => item.source === '/blog/:slug');
+  const blogsRewrite = vercelConfig.rewrites.find(item => item.source === '/blogs.html');
 
   assert.deepEqual(redirect, {
     source: '/blog.html/:slug',
@@ -29,6 +30,11 @@ test('Vercel permanently redirects legacy paths before serving the new article r
     source: '/blog/:slug',
     destination: '/api/article',
   });
+  assert.deepEqual(blogsRewrite, {
+    source: '/blogs.html',
+    destination: '/api/blogs',
+  });
+  assert.equal(vercelConfig.functions['api/blogs.js'].includeFiles, 'dist/blogs.html');
   assert.equal(vercelConfig.rewrites.some(item => item.source === '/blog.html/:slug'), false);
 });
 
