@@ -59,8 +59,8 @@ test('Anime List build entry, canonical metadata, internal links, and sitemap us
   assert.match(animeHtml, /id="animeFaqJsonLd" type="application\/ld\+json"/);
   assert.match(animeHtml, /id="animeListFreshness"/);
   assert.match(animeHtml, /name="robots" content="index, follow"/);
-  assert.match(animeHtml, /<meta property="og:url" content="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
-  assert.match(animeHtml, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
+  assert.match(animeHtml, /<meta property="og:url" content="https:\/\/animoro\.in\/anime-list"\s*\/>/);
+  assert.match(animeHtml, /<link rel="canonical" href="https:\/\/animoro\.in\/anime-list"\s*\/>/);
   assert.equal((animeHtml.match(/rel="canonical"/g) || []).length, 1);
   assert.match(animeHtml, /href="\/anime-list"/);
   assert.match(sitemap, /'\/anime-list'/);

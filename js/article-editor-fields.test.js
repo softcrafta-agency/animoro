@@ -9,6 +9,9 @@ import {
   normalizeArticleCategories,
   normalizeArticleKeywords,
   normalizeArticleTags,
+  getArticleKeywordCoverage,
+  getArticleKeywordFields,
+  getArticleSecondaryKeywords,
 } from './article-editor-fields.js';
 
 test('normalizes tags and prevents case-insensitive duplicates', () => {
@@ -29,6 +32,55 @@ test('normalizes newline-separated keywords and removes duplicates', () => {
   assert.deepEqual(
     normalizeArticleKeywords(' Black Torch\nJiro Azuma\r\nblack torch, supernatural anime\n'),
     ['Black Torch', 'Jiro Azuma', 'supernatural anime']
+  );
+});
+
+test('builds the persisted keyword fields consistently for new and edited articles', () => {
+  assert.deepEqual(
+    getArticleKeywordFields(' Black Torch   Story ', 'Jiro Azuma\nsupernatural anime, jiro azuma'),
+    {
+      primaryKeyword: 'Black Torch Story',
+      secondaryKeywords: ['Jiro Azuma', 'supernatural anime'],
+      keywords: ['Black Torch Story', 'Jiro Azuma', 'supernatural anime'],
+      relatedKeywords: ['Jiro Azuma', 'supernatural anime'],
+    }
+  );
+  assert.deepEqual(
+    getArticleKeywordFields('Black Torch Story', 'Jiro Azuma, supernatural anime'),
+    getArticleKeywordFields('Black Torch Story', 'Jiro Azuma\nsupernatural anime')
+  );
+});
+
+test('restores legacy keyword fields when the canonical secondary keyword list is empty', () => {
+  assert.deepEqual(getArticleSecondaryKeywords({
+    primaryKeyword: 'Black Torch',
+    secondaryKeywords: [],
+    keywords: ['Black Torch', 'Jiro Azuma', ' supernatural   anime '],
+  }), ['Jiro Azuma', 'supernatural anime']);
+  assert.deepEqual(getArticleSecondaryKeywords({
+    focusKeyword: 'Black Torch',
+    relatedKeywords: 'Black Torch, Jiro Azuma',
+  }), ['Jiro Azuma']);
+  assert.deepEqual(getArticleSecondaryKeywords({
+    secondaryKeywords: ['Jiro Azuma'],
+    keywords: ['Older phrase'],
+  }), ['Jiro Azuma']);
+  const clearedFields = getArticleKeywordFields('Black Torch', []);
+  assert.deepEqual(clearedFields.relatedKeywords, []);
+  assert.deepEqual(getArticleSecondaryKeywords(clearedFields), []);
+});
+
+test('reports phrase use in article text and headings without changing content', () => {
+  assert.deepEqual(
+    getArticleKeywordCoverage(
+      'Jiro Azuma, supernatural anime, missing phrase',
+      '<h2>Jiro Azuma and the supernatural anime story</h2><p>More context about Jiro Azuma.</p>'
+    ),
+    [
+      { keyword: 'Jiro Azuma', inContent: true, inHeading: true },
+      { keyword: 'supernatural anime', inContent: true, inHeading: true },
+      { keyword: 'missing phrase', inContent: false, inHeading: false },
+    ]
   );
 });
 

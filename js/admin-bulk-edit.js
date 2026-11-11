@@ -56,15 +56,17 @@ function openEditor(config) {
 }
 
 function createDraft(fields, record) {
-  return Object.fromEntries(fields.map(field => [
-    field.key,
-    (record[field.key] == null || record[field.key] === '') &&
-      field.fallbackKey && record[field.fallbackKey] != null
-      ? readFieldValue(record[field.fallbackKey], field)
-      : (record[field.key] == null || record[field.key] === '') && field.defaultValue !== undefined
-        ? field.defaultValue
-        : readFieldValue(record[field.key], field),
-  ]));
+  return Object.fromEntries(fields.map(field => {
+    const value = field.getValue ? field.getValue(record) : record[field.key];
+    return [
+      field.key,
+      value == null && field.fallbackKey && record[field.fallbackKey] != null
+        ? readFieldValue(record[field.fallbackKey], field)
+        : value == null && field.defaultValue !== undefined
+          ? field.defaultValue
+          : readFieldValue(value, field),
+    ];
+  }));
 }
 
 function readFieldValue(value, field) {

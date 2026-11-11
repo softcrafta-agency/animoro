@@ -31,9 +31,9 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /Editor One/);
   assert.match(html, /https:\/\/images\.example\.test\/cover\.webp/);
   assert.match(html, /class="article-cover-img"[^>]+loading="eager" fetchpriority="high"/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\/great-anime-story"/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/animoro\.in\/blog\/great-anime-story"/);
   assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
-  assert.match(html, /"url":"https:\/\/www\.animoro\.in\/logo\.png"/);
+  assert.match(html, /"url":"https:\/\/animoro\.in\/logo\.png"/);
   assert.match(html, /<meta property="og:title" content="A &lt;Great&gt; Anime Story"/);
   assert.match(html, /"@type":"BlogPosting"/);
   assert.match(html, /"@type":"BreadcrumbList"/);
@@ -142,9 +142,32 @@ test('keeps SEO targeting fields private while rendering one canonical H1 and us
   assert.equal((html.match(/<h1\b/g) || []).length, 1);
   assert.match(html, /<h1 class="article-page-title">Black Torch Anime Story Explained<\/h1>/);
   assert.match(html, /<meta name="description" content="A reader-focused introduction to Jiro Azuma and the supernatural story\." \/>/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\/black-torch-story-explained"/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/animoro\.in\/blog\/black-torch-story-explained"/);
   assert.match(html, /"@type":"BlogPosting"/);
   assert.doesNotMatch(html, /private focus phrase|private secondary phrase|informational/);
+});
+
+test('renders secondary phrases only as authored article content, not meta keywords', () => {
+  const html = renderArticleDocument(template, {
+    id: 'natural-keyword-content',
+    title: 'Black Torch Story Explained',
+    slug: 'black-torch-story-explained',
+    seoTitle: 'Black Torch Story and Jiro Azuma',
+    seoDescription: 'Explore Jiro Azuma and the supernatural conflict in Black Torch.',
+    primaryKeyword: 'Black Torch',
+    secondaryKeywords: ['Jiro Azuma', 'supernatural conflict'],
+    content: '<h2>Who is Jiro Azuma?</h2><p>Black Torch follows Jiro Azuma through a supernatural conflict.</p>',
+  });
+  const head = html.slice(0, html.indexOf('</head>'));
+
+  assert.match(html, /<h1 class="article-page-title">Black Torch Story Explained<\/h1>/);
+  assert.match(html, /<h2>Who is Jiro Azuma\?<\/h2>/);
+  assert.match(html, /Jiro Azuma through a supernatural conflict/);
+  assert.match(head, /<title>Black Torch Story and Jiro Azuma — Animoro<\/title>/);
+  assert.match(head, /<meta name="description" content="Explore Jiro Azuma and the supernatural conflict in Black Torch\." \/>/);
+  assert.match(head, /<link rel="canonical" href="https:\/\/animoro\.in\/blog\/black-torch-story-explained"/);
+  assert.doesNotMatch(head, /<meta\s+name=["']keywords["']/i);
+  assert.doesNotMatch(head, /<meta[^>]+(?:Jiro Azuma|supernatural conflict)[^>]+keywords/i);
 });
 
 test('sanitizes executable article markup and safely serializes attacker-controlled metadata', () => {
@@ -165,7 +188,7 @@ test('sanitizes executable article markup and safely serializes attacker-control
   assert.match(html, /&lt;\/title&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.match(html, /&lt;svg onload=alert\(1\)&gt;Author&lt;\/svg&gt;/);
   assert.match(html, /<a href="https:\/\/example\.test" target="_blank" rel="noopener noreferrer">safe link<\/a>/);
-  assert.match(html, /"canonicalUrl":"https:\/\/www\.animoro\.in\/blog\/safe-title"/);
+  assert.match(html, /"canonicalUrl":"https:\/\/animoro\.in\/blog\/safe-title"/);
   assert.match(html, /"headline":"\\u003c\/title\\u003e/);
 });
 

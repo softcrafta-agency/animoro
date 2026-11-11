@@ -140,6 +140,7 @@ test('uses matching secondary and legacy keywords to link related published arti
     { id: 'current', status: 'published', secondaryKeywords: ['Jiro Azuma'] },
     { id: 'new-match', status: 'published', secondaryKeywords: ['Jiro Azuma'] },
     { id: 'legacy-match', status: 'published', keywords: ['Jiro Azuma'] },
+    { id: 'related-keyword-match', status: 'published', relatedKeywords: ['Jiro Azuma'] },
     { id: 'unrelated', status: 'published', secondaryKeywords: ['Other topic'] },
   ];
   const firestore = {
@@ -155,7 +156,7 @@ test('uses matching secondary and legacy keywords to link related published arti
         limit(value) { maximum = value; return this; },
         async get() {
           const keywordFilter = filters.find(filter =>
-            ['secondaryKeywords', 'keywords'].includes(filter.field)
+            ['secondaryKeywords', 'keywords', 'relatedKeywords'].includes(filter.field)
           );
           const matches = keywordFilter
             ? entries.filter(entry => (entry[keywordFilter.field] || [])
@@ -172,7 +173,11 @@ test('uses matching secondary and legacy keywords to link related published arti
     secondaryKeywords: ['Jiro Azuma'],
   }, 'current');
 
-  assert.deepEqual(related.slice(0, 2).map(post => post.id), ['new-match', 'legacy-match']);
+  assert.deepEqual(related.slice(0, 3).map(post => post.id), [
+    'new-match',
+    'legacy-match',
+    'related-keyword-match',
+  ]);
 });
 
 test('returns complete HTML and cache headers for a published article', async () => {
@@ -195,7 +200,7 @@ test('returns complete HTML and cache headers for a published article', async ()
   assert.match(response.headers['cache-control'], /s-maxage=60/);
   assert.match(response.body, /<h1 class="article-page-title">Published Story<\/h1>/);
   assert.match(response.body, /Published article body\./);
-  assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\/published-story"/);
+  assert.match(response.body, /<link rel="canonical" href="https:\/\/animoro\.in\/blog\/published-story"/);
 });
 
 test('renders published article content exceeding 100,000 characters', async () => {

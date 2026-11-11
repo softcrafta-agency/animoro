@@ -78,7 +78,7 @@ test('renders published article cards in the canonical listing HTML', async () =
   assert.equal(response.statusCode, 200);
   assert.match(response.headers['content-type'], /text\/html/);
   assert.match(response.headers['cache-control'], /s-maxage=60/);
-  assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blogs\.html"/);
+  assert.match(response.body, /<link rel="canonical" href="https:\/\/animoro\.in\/blogs\.html"/);
   assert.match(response.body, /href="\/blog\/published-useful"/);
   assert.match(response.body, /Published &amp; Useful/);
   assert.match(response.body, /&lt;script&gt;alert\(1\)&lt;\/script&gt;Useful excerpt\./);

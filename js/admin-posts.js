@@ -24,6 +24,8 @@ import {
   isValidArticleCategory,
   isValidFeaturedOrder,
   isValidSearchIntent,
+  getArticleKeywordFields,
+  getArticleSecondaryKeywords,
   normalizeArticleKeywords,
   normalizeArticleTags,
 } from './article-editor-fields.js';
@@ -52,8 +54,7 @@ const POST_BULK_EDIT_FIELDS = [
     key: 'secondaryKeywords',
     label: 'Secondary Keywords (one per line)',
     type: 'textarea',
-    fallbackKey: 'keywords',
-    formatValue: value => normalizeArticleKeywords(value).join('\n'),
+    getValue: post => getArticleSecondaryKeywords(post).join('\n'),
     hint: 'Enter one phrase per line. Existing comma-separated keywords are supported.',
     rows: 5,
     maxLength: 3000,
@@ -281,6 +282,7 @@ async function savePostBulkRecord(post, draft) {
   if (draft.authorName.trim().length > 100) throw new Error('Author name must be 100 characters or fewer.');
   const primaryKeyword = draft.primaryKeyword.trim().replace(/\s+/g, ' ') || title;
   const secondaryKeywords = normalizeArticleKeywords(draft.secondaryKeywords);
+  const keywordFields = getArticleKeywordFields(primaryKeyword, secondaryKeywords);
   if (primaryKeyword.length > 120) throw new Error('Primary focus keyword must be 120 characters or fewer.');
   if (secondaryKeywords.length > 30 || secondaryKeywords.some(keyword => keyword.length > 120)) {
     throw new Error('Enter up to 30 secondary keywords, each 120 characters or fewer.');
@@ -313,9 +315,7 @@ async function savePostBulkRecord(post, draft) {
     animeSlug: draft.animeSlug.trim() ? normalizeAnimeSlug(draft.animeSlug.trim()) : '',
     seoTitle: draft.seoTitle.trim(),
     seoDescription: draft.seoDescription.trim(),
-    primaryKeyword,
-    secondaryKeywords,
-    keywords: normalizeArticleKeywords([primaryKeyword, ...secondaryKeywords]),
+    ...keywordFields,
     searchIntent: draft.searchIntent,
     authorName: draft.authorName.trim() || post.authorName || 'Animoro Editor',
     status: draft.status,

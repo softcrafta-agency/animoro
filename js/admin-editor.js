@@ -29,6 +29,9 @@ import {
   isValidFeaturedOrder,
   isValidSearchIntent,
   normalizeArticleCategories,
+  getArticleKeywordCoverage,
+  getArticleKeywordFields,
+  getArticleSecondaryKeywords,
   normalizeArticleKeywords,
   normalizeArticleTags,
 } from './article-editor-fields.js';
@@ -262,7 +265,25 @@ function markEditorChanged() {
     setEditorSaveStatus('All changes are saved.', 'saved');
   }
   updateEditorStatistics();
+  updateSecondaryKeywordGuidance();
   if (document.getElementById('articlePreview')?.hidden === false) renderArticlePreview();
+}
+
+function updateSecondaryKeywordGuidance() {
+  const guidance = document.getElementById('postSecondaryKeywordGuidance');
+  if (!guidance) return;
+
+  const keywords = document.getElementById('postSecondaryKeywords')?.value || '';
+  const content = getRichEditor()?.innerHTML || '';
+  const coverage = getArticleKeywordCoverage(keywords, content);
+  if (!coverage.length) {
+    guidance.textContent = 'Optional editorial planning only. Use a supporting phrase in the article where it fits; phrases are never inserted automatically or published as meta keywords.';
+    return;
+  }
+
+  const inContent = coverage.filter(item => item.inContent).length;
+  const inHeadings = coverage.filter(item => item.inHeading).length;
+  guidance.textContent = `Editorial check: ${inContent} of ${coverage.length} phrases appear in the article and ${inHeadings} in a heading. Use only phrases that fit naturally; nothing is inserted automatically or published as meta keywords.`;
 }
 
 function getEditorBlock(range) {
@@ -2341,9 +2362,8 @@ async function loadPostForEditing(postId) {
     document.getElementById('postSeoDescription').value = post.seoDescription || '';
     document.getElementById('postPrimaryKeyword').value =
       post.primaryKeyword || post.focusKeyword || post.title || '';
-    const savedKeywords = post.secondaryKeywords ?? post.keywords ?? post.relatedKeywords ?? [];
     document.getElementById('postSecondaryKeywords').value =
-      normalizeArticleKeywords(savedKeywords).join('\n');
+      getArticleSecondaryKeywords(post).join('\n');
     document.getElementById('postSearchIntent').value =
       isValidSearchIntent(post.searchIntent) ? post.searchIntent : 'informational';
     document.getElementById('postAuthor').value = post.authorName || '';
@@ -2357,6 +2377,7 @@ async function loadPostForEditing(postId) {
 
     const editorArea = document.getElementById('richEditorArea');
     if (editorArea) editorArea.innerHTML = sanitizeArticleEditorHtml(post.content || '', { allowLegacyDataImages: true });
+    updateSecondaryKeywordGuidance();
 
     if (post.coverImage) {
       uploadedCoverUrl = '';
@@ -2458,6 +2479,7 @@ async function submitArticle(e) {
   const primaryKeyword = (primaryKeywordInput?.value || '').trim().replace(/\s+/g, ' ') || title;
   const secondaryKeywordInput = document.getElementById('postSecondaryKeywords');
   const secondaryKeywords = normalizeArticleKeywords(secondaryKeywordInput?.value || '');
+  const keywordFields = getArticleKeywordFields(primaryKeyword, secondaryKeywords);
   const searchIntent = document.getElementById('postSearchIntent')?.value || '';
   const authorName = document.getElementById('postAuthor').value.trim() ||
     originalAuthorName ||
@@ -2660,9 +2682,7 @@ async function submitArticle(e) {
     animeSlug,
     seoTitle,
     seoDescription,
-    primaryKeyword,
-    secondaryKeywords,
-    keywords: normalizeArticleKeywords([primaryKeyword, ...secondaryKeywords]),
+    ...keywordFields,
     searchIntent,
     tags: normalizeArticleTags(postTags),
     authorName,

@@ -85,7 +85,7 @@ test('sitemap reflects Firestore publication and deletion on each uncached reque
   await handler({ method: 'GET' }, publishedResponse);
   assert.equal(publishedResponse.statusCode, 200);
   assert.equal(publishedResponse.headers['cache-control'], 'no-store');
-  assert.match(publishedResponse.body, /https:\/\/www\.animoro\.in\/blog\/new-post/);
+  assert.match(publishedResponse.body, /https:\/\/animoro\.in\/blog\/new-post/);
 
   publishedPosts = [];
   const deletedResponse = createResponse();

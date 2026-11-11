@@ -78,3 +78,65 @@ export function normalizeArticleKeywords(values) {
       return true;
     });
 }
+
+export function getArticleKeywordFields(primaryKeyword, secondaryKeywordInput) {
+  const primary = String(primaryKeyword ?? '').trim().replace(/\s+/g, ' ');
+  const secondaryKeywords = normalizeArticleKeywords(secondaryKeywordInput);
+
+  return {
+    primaryKeyword: primary,
+    secondaryKeywords,
+    keywords: normalizeArticleKeywords([primary, ...secondaryKeywords]),
+    relatedKeywords: secondaryKeywords,
+  };
+}
+
+export function getArticleSecondaryKeywords(post) {
+  const primaryKeyword = normalizeArticleKeywords([
+    post?.primaryKeyword || post?.focusKeyword || '',
+  ])[0]?.toLocaleLowerCase();
+
+  for (const candidate of [
+    post?.secondaryKeywords,
+    post?.keywords,
+    post?.relatedKeywords,
+  ]) {
+    const keywords = normalizeArticleKeywords(candidate)
+      .filter(keyword => keyword.toLocaleLowerCase() !== primaryKeyword);
+    if (keywords.length) return keywords;
+  }
+
+  return [];
+}
+
+function normalizeKeywordCoverageText(value) {
+  return String(value ?? '')
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&(?:#\d+|#x[\da-f]+|[a-z][\da-z]+);/gi, ' ')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function includesKeywordPhrase(text, keyword) {
+  const phrase = normalizeKeywordCoverageText(keyword);
+  return Boolean(phrase && ` ${text} `.includes(` ${phrase} `));
+}
+
+export function getArticleKeywordCoverage(keywords, content) {
+  const html = String(content ?? '');
+  const contentText = normalizeKeywordCoverageText(html);
+  const headingText = [...html.matchAll(/<h[2-6]\b[^>]*>([\s\S]*?)<\/h[2-6]\s*>/gi)]
+    .map(match => normalizeKeywordCoverageText(match[1]))
+    .join(' ');
+
+  return normalizeArticleKeywords(keywords).map(keyword => ({
+    keyword,
+    inContent: includesKeywordPhrase(contentText, keyword),
+    inHeading: includesKeywordPhrase(headingText, keyword),
+  }));
+}
