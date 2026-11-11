@@ -36,6 +36,11 @@ import {
   normalizeArticleTags,
 } from './article-editor-fields.js';
 import { getArticleSeo } from './article-seo.js';
+import {
+  ARTICLE_KEYWORD_GROUPS,
+  buildArticleKeywordGroupsPayload,
+  initializeArticleKeywordGroups,
+} from './article-keyword-groups.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -78,6 +83,8 @@ let articleSubmissionPending = false;
 let registeredArticleCategories = [];
 let selectedArticleCategories = [];
 let categoryLoadError = false;
+let articleKeywordManager = null;
+let originalArticleData = {};
 const THEME_STORAGE_KEY = 'animoro-theme';
 
 function getPreferredTheme() {
@@ -184,6 +191,7 @@ function getEditorSnapshot() {
     values,
     categories: selectedArticleCategories,
     tags: postTags,
+    keywordGroups: articleKeywordManager?.getValues() || {},
     content: getRichEditor()?.innerHTML || '',
   });
 }
@@ -203,6 +211,8 @@ function saveEditorLocally() {
         .map(field => [field.id, field.type === 'checkbox' ? field.checked : field.value]),
       categories: selectedArticleCategories,
       tags: postTags,
+      keywordGroups: articleKeywordManager?.getValues() || {},
+      keywordGroupDirtyKeys: articleKeywordManager?.getDirtyKeys() || [],
       content: sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '', { allowLegacyDataImages: true }),
     }));
     const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date());
@@ -229,6 +239,8 @@ function restoreEditorAutosave() {
     const currentSnapshot = JSON.parse(getEditorSnapshot());
     const differs = saved.content !== (getRichEditor()?.innerHTML || '') ||
       JSON.stringify(saved.values || []) !== JSON.stringify(currentSnapshot.values) ||
+      (saved.keywordGroups &&
+        JSON.stringify(saved.keywordGroups) !== JSON.stringify(currentSnapshot.keywordGroups)) ||
       (Array.isArray(saved.categories) &&
         JSON.stringify(normalizeArticleCategories(saved.categories)) !== JSON.stringify(currentSnapshot.categories));
     if (!differs || !confirm('A newer locally auto-saved draft is available. Restore it?')) return;
@@ -246,6 +258,11 @@ function restoreEditorAutosave() {
     if (Array.isArray(saved.tags)) {
       postTags = saved.tags.filter(tag => typeof tag === 'string');
       renderTagChips();
+    }
+    if (saved.keywordGroups && articleKeywordManager) {
+      articleKeywordManager.setValues(saved.keywordGroups, {
+        dirtyKeys: saved.keywordGroupDirtyKeys || [],
+      });
     }
     getRichEditor().innerHTML = sanitizeArticleEditorHtml(saved.content || '', { allowLegacyDataImages: true });
     markEditorChanged();
@@ -271,19 +288,43 @@ function markEditorChanged() {
 
 function updateSecondaryKeywordGuidance() {
   const guidance = document.getElementById('postSecondaryKeywordGuidance');
-  if (!guidance) return;
-
-  const keywords = document.getElementById('postSecondaryKeywords')?.value || '';
+  const keywordValues = articleKeywordManager?.getValues() || {};
+  const secondaryKeywords = document.getElementById('postSecondaryKeywords')?.value || '';
+  const groupedKeywords = ARTICLE_KEYWORD_GROUPS.flatMap(({ key }) => keywordValues[key] || []);
   const content = getRichEditor()?.innerHTML || '';
-  const coverage = getArticleKeywordCoverage(keywords, content);
+  const coverage = getArticleKeywordCoverage(secondaryKeywords, content);
+  const groupCoverage = getArticleKeywordCoverage(groupedKeywords, content);
+  const coveragePanel = document.getElementById('articleKeywordCoverage');
+  if (coveragePanel) {
+    if (!groupCoverage.length) {
+      coveragePanel.textContent = 'Add editorial phrases to see whether they are represented in the article. This is guidance only; keywords are never inserted automatically.';
+    } else {
+      const inContent = groupCoverage.filter(item => item.inContent).length;
+      const inHeadings = groupCoverage.filter(item => item.inHeading).length;
+      coveragePanel.textContent = `Editorial check: ${inContent} of ${groupCoverage.length} grouped phrases appear in the article and ${inHeadings} in a heading. Use only phrases that fit naturally.`;
+    }
+  }
   if (!coverage.length) {
-    guidance.textContent = 'Optional editorial planning only. Use a supporting phrase in the article where it fits; phrases are never inserted automatically or published as meta keywords.';
-    return;
+    if (guidance) {
+      guidance.textContent = 'Optional editorial planning only. Use supporting phrases where they fit; phrases are never inserted automatically or published as meta keywords.';
+    }
+  } else if (guidance) {
+    const inContent = coverage.filter(item => item.inContent).length;
+    const inHeadings = coverage.filter(item => item.inHeading).length;
+    guidance.textContent = `Editorial check: ${inContent} of ${coverage.length} phrases appear in the article and ${inHeadings} in a heading. Use only phrases that fit naturally; nothing is inserted automatically or published as meta keywords.`;
   }
 
-  const inContent = coverage.filter(item => item.inContent).length;
-  const inHeadings = coverage.filter(item => item.inHeading).length;
-  guidance.textContent = `Editorial check: ${inContent} of ${coverage.length} phrases appear in the article and ${inHeadings} in a heading. Use only phrases that fit naturally; nothing is inserted automatically or published as meta keywords.`;
+  const suggestionPanel = document.getElementById('articleQuestionSuggestions');
+  const suggestionsList = document.getElementById('articleQuestionSuggestionsList');
+  const questions = keywordValues.questionBasedKeywords || [];
+  if (suggestionPanel && suggestionsList) {
+    suggestionsList.replaceChildren(...questions.map(question => {
+      const item = document.createElement('li');
+      item.textContent = question;
+      return item;
+    }));
+    suggestionPanel.hidden = questions.length === 0;
+  }
 }
 
 function getEditorBlock(range) {
@@ -868,6 +909,7 @@ export async function initAdminEditor() {
 }
 
 function setupFormControls() {
+  articleKeywordManager = initializeArticleKeywordGroups(() => markEditorChanged());
   document.getElementById('refreshPostCategories')?.addEventListener('click', () => {
     void loadArticleCategories(selectedArticleCategories);
   });
@@ -2333,6 +2375,7 @@ async function loadPostForEditing(postId) {
     }
 
     const post = snap.data();
+    originalArticleData = post;
     originalPostSlug = typeof post.slug === 'string' ? post.slug : '';
     originalPostStatus = post.status || 'draft';
     originalPostCategories = getArticleCategories(post);
@@ -2364,6 +2407,7 @@ async function loadPostForEditing(postId) {
       post.primaryKeyword || post.focusKeyword || post.title || '';
     document.getElementById('postSecondaryKeywords').value =
       getArticleSecondaryKeywords(post).join('\n');
+    articleKeywordManager?.setValues(post);
     document.getElementById('postSearchIntent').value =
       isValidSearchIntent(post.searchIntent) ? post.searchIntent : 'informational';
     document.getElementById('postAuthor').value = post.authorName || '';
@@ -2683,6 +2727,12 @@ async function submitArticle(e) {
     seoTitle,
     seoDescription,
     ...keywordFields,
+    ...buildArticleKeywordGroupsPayload(
+      articleKeywordManager?.getValues() || {},
+      originalArticleData,
+      articleKeywordManager?.getDirtyKeys() || [],
+      !editingPostId
+    ),
     searchIntent,
     tags: normalizeArticleTags(postTags),
     authorName,
@@ -2748,14 +2798,17 @@ async function submitArticle(e) {
     editorSaveInProgress = true;
     if (editingPostId) {
       await updateDoc(doc(db, 'posts', editingPostId), finalDocumentPayload);
+      originalArticleData = { ...originalArticleData, ...finalDocumentPayload };
       showFeedback(feedbackEl, "Changes saved successfully.", "success");
     } else {
       const newDoc = await addDoc(collection(db, 'posts'), finalDocumentPayload);
       editingPostId = newDoc.id;
+      originalArticleData = { ...finalDocumentPayload };
       showFeedback(feedbackEl, status === 'published' ? "Article published successfully!" : "Draft saved successfully!", "success");
     }
 
     editorSaveInProgress = false;
+    articleKeywordManager?.resetDirty();
     editorIsDirty = false;
     editorInitialSnapshot = getEditorSnapshot();
     try {

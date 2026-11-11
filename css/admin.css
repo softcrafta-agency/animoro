@@ -698,6 +698,119 @@ html[data-theme='light'] .article-image-library-card {
   color: #fbbf24;
 }
 
+.article-keyword-groups {
+  display: grid;
+  gap: 16px;
+  margin: 22px 0;
+  padding: 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.article-keyword-groups > h3,
+.article-keyword-groups > p {
+  margin: 0;
+}
+
+.article-keyword-group {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.article-keyword-group .form-label {
+  margin: 0;
+}
+
+.article-keyword-description {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.article-keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.article-keyword-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 4px 5px 4px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.article-keyword-tag-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.article-keyword-tag-action {
+  flex: 0 0 auto;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.article-keyword-tag-action:hover,
+.article-keyword-tag-action:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.article-keyword-tag-remove {
+  font-size: 1.1rem;
+}
+
+.article-keyword-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.article-keyword-coverage,
+.article-question-suggestions {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.article-question-suggestions[hidden] {
+  display: none;
+}
+
+.article-question-suggestions ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.article-question-suggestions li + li {
+  margin-top: 3px;
+}
+
 .category-multi-select {
   display: grid;
   gap: 8px;

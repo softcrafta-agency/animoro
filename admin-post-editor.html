@@ -302,6 +302,44 @@
                 <small id="postSecondaryKeywordGuidance" class="editor-field-hint" role="status" aria-live="polite">Optional editorial planning only. Use a supporting phrase in the article where it fits; phrases are never inserted automatically or published as meta keywords.</small>
               </div>
 
+              <section class="article-keyword-groups" aria-labelledby="articleKeywordGroupsHeading">
+                <h3 id="articleKeywordGroupsHeading" class="form-label">SEO and AEO Keyword Groups</h3>
+                <p class="editor-field-hint">Editorial guidance only. Add a phrase with Enter or a comma, edit or remove tags, and use only ideas the article supports. These groups are not shown on public pages or emitted as keyword metadata.</p>
+                <div class="article-keyword-group" data-keyword-group="additionalSeoKeywords">
+                  <label for="additionalSeoKeywordsInput" class="form-label">Additional SEO Keywords</label>
+                  <p class="article-keyword-description">Supporting topic phrases that add useful context the article genuinely covers.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Additional SEO keywords"></div>
+                  <input id="additionalSeoKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Black Torch manga adaptation" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </div>
+                <div class="article-keyword-group" data-keyword-group="storyCharacterKeywords">
+                  <label for="storyCharacterKeywordsInput" class="form-label">Story and Character Keywords</label>
+                  <p class="article-keyword-description">Relevant story arcs, characters, relationships, powers, and themes discussed in the article.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Story and character keywords"></div>
+                  <input id="storyCharacterKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Jiro Azuma character analysis" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </div>
+                <div class="article-keyword-group" data-keyword-group="longTailKeywords">
+                  <label for="longTailKeywordsInput" class="form-label">Long-tail SEO Keywords</label>
+                  <p class="article-keyword-description">Specific search phrases that match the article’s scope and likely reader intent.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Long-tail SEO keywords"></div>
+                  <input id="longTailKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. how Black Torch connects ninjas and supernatural lore" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </div>
+                <div class="article-keyword-group" data-keyword-group="questionBasedKeywords">
+                  <label for="questionBasedKeywordsInput" class="form-label">Question-Based Keywords (AEO)</label>
+                  <p class="article-keyword-description">Questions the article answers well. Treat these as FAQ candidates; do not add unsupported answers.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Question-based keywords"></div>
+                  <input id="questionBasedKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Who is Jiro Azuma in Black Torch?" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </div>
+                <div id="articleKeywordCoverage" class="article-keyword-coverage" role="status" aria-live="polite"></div>
+                <div id="articleQuestionSuggestions" class="article-question-suggestions" hidden>
+                  <strong>FAQ candidates to review</strong>
+                  <ul id="articleQuestionSuggestionsList"></ul>
+                </div>
+              </section>
+
               <div class="form-group">
                 <label for="postSearchIntent" class="form-label">Search Intent</label>
                 <select id="postSearchIntent" class="form-select">
