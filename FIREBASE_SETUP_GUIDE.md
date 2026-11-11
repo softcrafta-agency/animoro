@@ -125,7 +125,7 @@ Your article is now live on the homepage, under its category archive, searchable
 
 ## 6. Dynamic XML Sitemap
 
-The public sitemap is served at `https://www.animoro.in/sitemap.xml` through the existing Vercel API setup. It includes public pages, categories represented by published posts, and posts whose `status` is `published`. The endpoint fetches current records for each request and sends the response with `no-store` caching.
+The public sitemap is served at `https://animoro.in/sitemap.xml` through the existing Vercel API setup. It includes public pages, categories represented by published posts, and posts whose `status` is `published`. The endpoint fetches current records for each request and sends the response with `no-store` caching.
 
 The sitemap reuses the existing `FIREBASE_SERVICE_ACCOUNT_JSON` Vercel environment variable used by the image API. Do not expose this value in client-side code. Test the XML generator with `node --test api/_lib/sitemap.test.js`. For an end-to-end local test, run `vercel dev` with the existing server-side Firebase environment variable configured, then request `http://localhost:3000/sitemap.xml`.
 

@@ -11,7 +11,7 @@ export function getSafeImageUrl(value, fallback) {
   if (typeof value !== 'string' || !value.trim()) return fallback;
 
   try {
-    const url = new URL(value, 'https://www.animoro.in/');
+    const url = new URL(value, 'https://animoro.in/');
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
       return fallback;
     }

@@ -59,7 +59,7 @@ async function initCategoryPage() {
   const descEl = document.getElementById('categoryDescription');
   const container = document.getElementById('categoryArticlesContainer');
   const categoryDescription = CATEGORY_DESCRIPTIONS[categoryName] || `Explore all editorial coverage, analysis, and stories in ${categoryName}.`;
-  const canonicalUrl = new URL(`/category.html?category=${encodeURIComponent(categoryName)}`, 'https://www.animoro.in').toString();
+  const canonicalUrl = new URL(`/category.html?category=${encodeURIComponent(categoryName)}`, 'https://animoro.in').toString();
 
   if (titleEl) titleEl.textContent = categoryName;
   if (descEl) descEl.textContent = categoryDescription;
@@ -70,7 +70,7 @@ async function initCategoryPage() {
   ensureMetaTag('property', 'og:title', `${categoryName} — Animoro`);
   ensureMetaTag('property', 'og:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
   ensureMetaTag('property', 'og:url', canonicalUrl);
-  ensureMetaTag('property', 'og:image', 'https://www.animoro.in/logo.png');
+  ensureMetaTag('property', 'og:image', 'https://animoro.in/logo.png');
   ensureMetaTag('name', 'twitter:card', 'summary_large_image');
   ensureMetaTag('name', 'twitter:title', `${categoryName} — Animoro`);
   ensureMetaTag('name', 'twitter:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);

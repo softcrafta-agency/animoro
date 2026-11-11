@@ -1,7 +1,7 @@
 # Animoro SEO URL map
 
 **Snapshot date:** 2026-10-22
-**Canonical host:** `https://www.animoro.in`  
+**Canonical host:** `https://animoro.in`  
 **Source:** Production `/sitemap.xml`, production canonical tags, repository routing configuration. Search Console Pages/Queries exports were not found, so this map includes no click, impression, CTR, ranking, or query data.
 
 The source now uses `/blog/{slug}` for public article URLs. Hosting redirects for legacy URLs and the updated sitemap are configured locally; production must be redeployed before these changes are live.
@@ -18,11 +18,11 @@ The current source sitemap also includes `/anime-list` and `/upcoming-anime` as 
 |---|---|---|
 | `/` | Homepage | Canonical is the `www` root. |
 | `/blogs.html` | Article directory | Canonical is the existing directory URL. |
-| `/anime` | Anime directory | Rewrites to `anime.html`; canonical is `https://www.animoro.in/anime`. Legacy `/anime.html` permanently redirects here. |
+| `/anime` | Anime directory | Rewrites to `anime.html`; canonical is `https://animoro.in/anime`. Legacy `/anime.html` permanently redirects here. |
 | `/anime-calendar.html` | Release calendar | Canonical is the existing calendar URL. |
 | `/about.html` | About | Canonical is the existing page URL. |
 | `/contact.html` | Contact | Canonical is the existing page URL. |
-| `/privacy.html` | Privacy notice | Canonical is `https://www.animoro.in/privacy.html`. |
+| `/privacy.html` | Privacy notice | Canonical is `https://animoro.in/privacy.html`. |
 | `/category.html?category=Anime%20News` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
 | `/category.html?category=Recommendations` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
 | `/category.html?category=Reviews` | Category archive | Query-specific canonical is applied by category-page JavaScript. |
@@ -51,8 +51,8 @@ The sitemap also contains published anime detail URLs when those records exist. 
 
 ## Host and route consistency
 
-- `https://animoro.in/` permanently redirects to `https://www.animoro.in/` with HTTP 308.
-- The sitemap, `robots.txt` sitemap directive, and source canonical helpers use `https://www.animoro.in`.
+- `https://animoro.in/` permanently redirects to `https://animoro.in/` with HTTP 308.
+- The sitemap, `robots.txt` sitemap directive, and source canonical helpers use `https://animoro.in`.
 - The article path changes from `/blog.html/{slug}` to `/blog/{slug}`. Article slugs and the existing www canonical host are unchanged.
 - Verify the production redirect, article response, and live sitemap after redeployment; local source/config tests do not verify deployed behavior.
 - URL-level performance prioritization must be completed after the Search Console exports are supplied.

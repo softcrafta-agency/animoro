@@ -50,7 +50,7 @@ test('analytics classification uses broad categories and strips sensitive referr
     operatingSystem: 'iOS',
   });
   assert.equal(sanitizeReferrer('https://www.google.com/search?q=secret'), 'www.google.com');
-  assert.equal(sanitizeReferrer('https://www.animoro.in/blog/story'), '');
+  assert.equal(sanitizeReferrer('https://animoro.in/blog/story'), '');
   assert.equal(sanitizeReferrer('javascript:alert(1)'), '');
   assert.equal(classifyTrafficSource('www.google.com'), 'organic_search');
   assert.equal(classifyTrafficSource('', {}), 'unknown');

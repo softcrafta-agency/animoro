@@ -11,7 +11,7 @@ const ARTICLE_CACHE_CONTROL = 'public, max-age=0, s-maxage=60, must-revalidate';
 
 function getRequestedSlug(request) {
   if (typeof request.query?.slug === 'string') return request.query.slug;
-  const requestUrl = new URL(request.url || '/', 'https://www.animoro.in');
+  const requestUrl = new URL(request.url || '/', 'https://animoro.in');
   return requestUrl.searchParams.get('slug') || '';
 }
 

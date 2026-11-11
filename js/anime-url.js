@@ -36,5 +36,5 @@ export function getAnimePath(anime) {
 }
 
 export function getAnimeCanonicalUrl(anime) {
-  return new URL(getAnimePath(anime), 'https://www.animoro.in').toString();
+  return new URL(getAnimePath(anime), 'https://animoro.in').toString();
 }

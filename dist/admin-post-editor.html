@@ -22,15 +22,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-post-editor-lOqognRf.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/style-CotqIcgO.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-BufcIuI1.js">
-  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-yKnim9qq.js">
-  <link rel="modulepreload" crossorigin href="/assets/anime-url-DaxlK1Xn.js">
+  <script type="module" crossorigin src="/assets/admin-post-editor-DlTaAnyn.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-V_y52HhV.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-CL7XfXAT.js">
+  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-DjD9yLh-.js">
+  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-CSsh5AoL.js">
   <link rel="modulepreload" crossorigin href="/assets/article-content-C2qxFj9R.js">
   <link rel="modulepreload" crossorigin href="/assets/article-seo-BhW3mpU9.js">
-  <link rel="stylesheet" crossorigin href="/assets/style-CQibhUu9.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-BmFIBRDg.css">
+  <link rel="stylesheet" crossorigin href="/assets/style-BpADe46y.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-kUD-cREQ.css">
 </head>
 <body class="admin-body">
 
@@ -259,10 +259,12 @@
               <h3 style="font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 16px;">Publishing Details</h3>
 
               <div class="form-group">
-                <label for="postCategory" class="form-label">Category</label>
-                <select id="postCategory" class="form-select" disabled>
-                  <option value="">Loading categories...</option>
-                </select>
+                <label for="postCategorySearch" class="form-label">Category</label>
+                <div class="category-multi-select">
+                  <input type="search" id="postCategorySearch" class="form-input" placeholder="Loading categories..." autocomplete="off" disabled aria-label="Search categories" aria-controls="postCategoryOptions" />
+                  <div id="postCategoryOptions" class="category-selection-options" role="listbox" aria-label="Available categories"></div>
+                  <div id="postCategoryChips" class="category-selection-chips" aria-label="Selected categories" aria-live="polite"></div>
+                </div>
                 <small id="postCategoryStatus" class="editor-field-hint" role="status" aria-live="polite">Loading categories...</small>
                 <button type="button" id="refreshPostCategories" class="action-btn-sm" style="margin-top: 8px; padding: 5px 10px;">Refresh categories</button>
               </div>

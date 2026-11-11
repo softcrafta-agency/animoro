@@ -18,8 +18,8 @@ test('anime collection structured data omits ItemList until visible results exis
   const types = data['@graph'].map(item => item['@type']);
 
   assert.deepEqual(types, ['CollectionPage', 'BreadcrumbList']);
-  assert.equal(data['@graph'][0].url, 'https://www.animoro.in/anime-list');
-  assert.equal(data['@graph'][0].publisher['@id'], 'https://www.animoro.in/#organization');
+  assert.equal(data['@graph'][0].url, 'https://animoro.in/anime-list');
+  assert.equal(data['@graph'][0].publisher['@id'], 'https://animoro.in/#organization');
 });
 
 test('anime ItemList mirrors actual directory entries and links to their detail URLs', () => {
@@ -30,20 +30,20 @@ test('anime ItemList mirrors actual directory entries and links to their detail 
   const collection = data['@graph'].find(item => item['@type'] === 'CollectionPage');
   const list = data['@graph'].find(item => item['@type'] === 'ItemList');
 
-  assert.equal(collection.mainEntity['@id'], 'https://www.animoro.in/anime-list#anime-results');
+  assert.equal(collection.mainEntity['@id'], 'https://animoro.in/anime-list#anime-results');
   assert.equal(list.numberOfItems, 2);
   assert.deepEqual(list.itemListElement, [
     {
       '@type': 'ListItem',
       position: 1,
       name: 'Cowboy Bebop',
-      url: 'https://www.animoro.in/anime/cowboy-bebop--1',
+      url: 'https://animoro.in/anime/cowboy-bebop--1',
     },
     {
       '@type': 'ListItem',
       position: 2,
       name: 'Editor-managed Anime',
-      url: 'https://www.animoro.in/anime/editor-managed-anime',
+      url: 'https://animoro.in/anime/editor-managed-anime',
     },
   ]);
 });
@@ -56,10 +56,10 @@ test('homepage metadata and structured data declare the Animoro identity and fun
   const website = graph.find(item => item['@type'] === 'WebSite');
   const faq = graph.find(item => item['@type'] === 'FAQPage');
 
-  assert.equal(organization['@id'], 'https://www.animoro.in/#organization');
+  assert.equal(organization['@id'], 'https://animoro.in/#organization');
   assert.equal(organization.name, 'Animoro');
   assert.equal(website.publisher['@id'], organization['@id']);
-  assert.equal(website.potentialAction.target, 'https://www.animoro.in/search.html?q={search_term_string}');
+  assert.equal(website.potentialAction.target, 'https://animoro.in/search.html?q={search_term_string}');
   assert.equal(faq.mainEntity.length, 3);
   assert.equal((homeHtml.match(/<h1\b/g) || []).length, 1);
   assert.equal((homeHtml.match(/rel="canonical"/g) || []).length, 1);
@@ -128,14 +128,14 @@ test('Anime List applies filters explicitly, supports Enter, resets defaults, an
 
 test('llms.txt points to implemented Animoro routes', () => {
   for (const url of [
-    'https://www.animoro.in/',
-    'https://www.animoro.in/anime-list',
-    'https://www.animoro.in/upcoming-anime',
-    'https://www.animoro.in/anime-calendar.html',
-    'https://www.animoro.in/category.html?category=Anime%20News',
-    'https://www.animoro.in/blogs.html',
-    'https://www.animoro.in/about.html',
-    'https://www.animoro.in/contact.html',
+    'https://animoro.in/',
+    'https://animoro.in/anime-list',
+    'https://animoro.in/upcoming-anime',
+    'https://animoro.in/anime-calendar.html',
+    'https://animoro.in/category.html?category=Anime%20News',
+    'https://animoro.in/blogs.html',
+    'https://animoro.in/about.html',
+    'https://animoro.in/contact.html',
   ]) {
     assert.ok(llms.includes(url), `Missing route in llms.txt: ${url}`);
   }

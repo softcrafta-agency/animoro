@@ -155,7 +155,7 @@ function summarizeEventFields(body, request, page, article, now) {
       articleId: article.id,
       articleSlug: article.slug,
       articleTitle: article.title,
-      canonicalUrl: `https://www.animoro.in${page.pagePath}`,
+      canonicalUrl: `https://animoro.in${page.pagePath}`,
     } : {}),
     pagePath: page.pagePath,
     pageTitle: page.pageTitle || page.pagePath,

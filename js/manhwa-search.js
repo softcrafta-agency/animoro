@@ -66,12 +66,12 @@ function setPageMeta({ title, description, canonical, image = '' }) {
   setMeta('property', 'og:description', description);
   setMeta('property', 'og:url', canonical);
   setMeta('property', 'og:type', 'website');
-  setMeta('property', 'og:image', image || 'https://www.animoro.in/logo.png');
+  setMeta('property', 'og:image', image || 'https://animoro.in/logo.png');
   setMeta('property', 'og:image:alt', image ? `${document.title} cover art` : 'Animoro');
   setMeta('name', 'twitter:card', 'summary_large_image');
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', description);
-  setMeta('name', 'twitter:image', image || 'https://www.animoro.in/logo.png');
+  setMeta('name', 'twitter:image', image || 'https://animoro.in/logo.png');
   setCanonical(canonical);
 }
 
@@ -194,7 +194,7 @@ function setPageLandingState() {
   setPageMeta({
     title: 'Discover Comics, Manga & Webcomics | Animoro',
     description: 'Discover comics and webcomics from Korea, Japan, China, the United States, and beyond. Explore recommendations, genres, and country of origin.',
-    canonical: 'https://www.animoro.in/manhwa',
+    canonical: 'https://animoro.in/manhwa',
   });
 }
 
@@ -234,7 +234,7 @@ function updateDetailMetadata(manhwa) {
   const title = `${manhwa.title} — ${manhwa.contentType} Details | Animoro`;
   const origin = manhwa.countryName ? ` Country of origin: ${manhwa.countryName}.` : '';
   const description = manhwa.synopsis || `Discover ${manhwa.title}, a ${manhwa.contentType.toLowerCase()} recommendation.${origin} Explore its genres, creators, publication status, and official platform.`;
-  const canonical = `https://www.animoro.in${getManhwaPath(manhwa)}`;
+  const canonical = `https://animoro.in${getManhwaPath(manhwa)}`;
   setPageMeta({ title, description, canonical, image: manhwa.coverImage });
   setStructuredData(createManhwaDetailStructuredData({
     ...manhwa,
@@ -250,7 +250,7 @@ async function loadDetails(slug) {
   setPageMeta({
     title: 'Comic Details | Animoro',
     description: 'Explore comic metadata, country of origin, and official publishing platforms on Animoro.',
-    canonical: `https://www.animoro.in/manhwa/${encodeURIComponent(slug)}`,
+    canonical: `https://animoro.in/manhwa/${encodeURIComponent(slug)}`,
   });
 
   try {

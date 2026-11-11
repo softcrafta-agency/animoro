@@ -17,12 +17,12 @@ const POST_SUMMARY_FIELDS = [
 
 function includesDeferredImages(request) {
   if (request.query?.images === '1') return true;
-  return new URL(request.url || '/', 'https://www.animoro.in').searchParams.get('images') === '1';
+  return new URL(request.url || '/', 'https://animoro.in').searchParams.get('images') === '1';
 }
 
 function getRequestedImageId(request) {
   if (typeof request.query?.id === 'string') return request.query.id;
-  return new URL(request.url || '/', 'https://www.animoro.in').searchParams.get('id');
+  return new URL(request.url || '/', 'https://animoro.in').searchParams.get('id');
 }
 
 function sendJson(response, statusCode, payload, cacheControl = 'no-store', headOnly = false) {

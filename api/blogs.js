@@ -14,7 +14,7 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1607604276583-eef5d076
 function getRequestedCategory(request) {
   const queryCategory = typeof request.query?.category === 'string'
     ? request.query.category
-    : new URL(request.url || '/', 'https://www.animoro.in').searchParams.get('category');
+    : new URL(request.url || '/', 'https://animoro.in').searchParams.get('category');
   return typeof queryCategory === 'string' && queryCategory.trim()
     ? queryCategory.trim().slice(0, 100)
     : 'all';

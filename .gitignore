@@ -5,8 +5,13 @@ coverage/
 .DS_Store
 *.log
 .env
+.env.*
 .env.local
 .env.*.local
-.env.*
 !.env.example
-*firebase-adminsdk*.json
+**/*.service-account.json
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+**/*.pem
+**/*.p12
+**/*.key

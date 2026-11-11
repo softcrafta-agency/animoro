@@ -1,4 +1,4 @@
-export const ARTICLE_SITE_ORIGIN = 'https://www.animoro.in';
+export const ARTICLE_SITE_ORIGIN = 'https://animoro.in';
 
 export function normalizeArticleSlug(value) {
   const normalized = String(value ?? '')

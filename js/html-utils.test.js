@@ -16,7 +16,7 @@ test('allows HTTP image URLs and rejects unsafe protocols or credentials', () =>
     getSafeImageUrl('https://images.example.test/cover.webp', fallback),
     'https://images.example.test/cover.webp'
   );
-  assert.equal(getSafeImageUrl('/cover.webp', fallback), 'https://www.animoro.in/cover.webp');
+  assert.equal(getSafeImageUrl('/cover.webp', fallback), 'https://animoro.in/cover.webp');
   assert.equal(getSafeImageUrl('javascript:alert(1)', fallback), fallback);
   assert.equal(getSafeImageUrl('https://user:pass@example.test/cover.webp', fallback), fallback);
 });

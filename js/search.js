@@ -58,7 +58,7 @@ function initSearchPage() {
 
   const params = new URLSearchParams(window.location.search);
   const initialQuery = params.get('q') || '';
-  const canonicalUrl = new URL('/search.html', 'https://www.animoro.in').toString();
+  const canonicalUrl = new URL('/search.html', 'https://animoro.in').toString();
 
   document.title = 'Search Anime Articles — Animoro';
   ensureMetaTag('name', 'description', 'Search Animoro for anime article titles, categories, authors, and topic coverage across the latest guides and reviews.');

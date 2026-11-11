@@ -369,8 +369,8 @@ function renderAnimeDetails(anime) {
   detail.hidden = false;
   setJsonLd('animeBreadcrumbJsonLd', {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
-      { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://www.animoro.in/anime-list' },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://animoro.in/' },
+      { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://animoro.in/anime-list' },
       { '@type': 'ListItem', position: 3, name: anime.title || 'Anime', item: canonicalUrl },
     ],
   });

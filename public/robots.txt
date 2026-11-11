@@ -5,4 +5,4 @@ Disallow: /admin.html
 Disallow: /admin-login.html
 Disallow: /admin-post-editor.html
 Disallow: /api/
-Sitemap: https://www.animoro.in/sitemap.xml
+Sitemap: https://animoro.in/sitemap.xml

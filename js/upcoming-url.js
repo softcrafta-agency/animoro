@@ -14,5 +14,5 @@ export function getUpcomingAnimePath(item) {
 }
 
 export function getUpcomingAnimeCanonicalUrl(item) {
-  return new URL(getUpcomingAnimePath(item), 'https://www.animoro.in').toString();
+  return new URL(getUpcomingAnimePath(item), 'https://animoro.in').toString();
 }

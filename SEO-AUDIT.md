@@ -27,7 +27,7 @@ This source-level follow-up addresses the Rankify findings and scores supplied b
 - Current production behavior remains unverified; source changes require deployment. The owner-provided Rankify scores are baselines only and were not re-measured.
 
 **Audit date:** 2026-10-13  
-**Production origin:** `https://www.animoro.in/`  
+**Production origin:** `https://animoro.in/`  
 **Scope:** Repository source and configuration, production HTML/HTTP responses, `robots.txt`, and the live XML sitemap.  
 **Search Console data:** No Pages or Queries export was present in the repository or workspace files inspected. Findings below are based on observed implementation and live responses, not Search Console performance claims.
 
@@ -60,7 +60,7 @@ The confirmed content-structure issues were a missing homepage H1 and multiple H
 - At the time of the 2026-10-13 production inspection, public article URLs used `/blog.html/{slug}` and were server-rendered by `api/article.js`; the rendered canonical URL matched the requested article URL. Article HTML included a canonical, Open Graph/Twitter metadata, `BlogPosting`, and `BreadcrumbList`.
 - Anime detail URLs use the existing `/anime.html/{slug}` route. Client code sets title, description, canonical, social metadata, and `TVSeries` JSON-LD after loading a published Firestore record. The initial HTTP response is the shared HTML template, so the per-anime metadata is not present until JavaScript runs.
 - Category pages use `/category.html?category=...`; client code sets category-specific title, description, canonical, and social metadata. The sitemap uses these same query URLs.
-- The sitemap and page canonicals use `https://www.animoro.in`. The apex host returned a permanent 308 redirect to `www`.
+- The sitemap and page canonicals use `https://animoro.in`. The apex host returned a permanent 308 redirect to `www`.
 - Representative production checks returned HTTP 200 for the homepage, article, anime/category directories, and static informational pages; `/sitemap.xml` and `/robots.txt` returned 200. A nonexistent top-level path returned 404 with `noindex, nofollow`.
 - The article handler has automated coverage for missing/unpublished articles returning 404. Browser-executed status behavior for unknown anime slugs was not tested in this audit.
 - At the time of the 2026-10-13 audit, no existing page URL or route had been renamed, introduced, or migrated.

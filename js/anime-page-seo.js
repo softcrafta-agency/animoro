@@ -1,6 +1,6 @@
 import { getAnimePath } from './anime-url.js';
 
-const SITE_ORIGIN = 'https://www.animoro.in';
+const SITE_ORIGIN = 'https://animoro.in';
 const ANIME_LIST_URL = `${SITE_ORIGIN}/anime-list`;
 const ANIME_LIST_NAME = 'Anime List: Explore Anime Series & Genres';
 const ANIME_LIST_DESCRIPTION = "Explore anime by title, genre, format, airing status, popularity, and available ratings. Browse Animoro's catalogue and open a series for its available details.";

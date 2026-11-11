@@ -16,7 +16,7 @@ function getArticleId(request) {
   const queryValue = request.query?.id;
   if (typeof queryValue === 'string') return queryValue;
 
-  const requestUrl = new URL(request.url, 'https://www.animoro.in');
+  const requestUrl = new URL(request.url, 'https://animoro.in');
   return requestUrl.searchParams.get('id') || '';
 }
 

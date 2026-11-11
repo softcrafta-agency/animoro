@@ -149,13 +149,14 @@ export function classifyTrafficSource(referrer, utm = {}) {
   return 'referral';
 }
 
-export function sanitizeReferrer(value, siteHost = 'www.animoro.in') {
+export function sanitizeReferrer(value, siteHost = 'animoro.in') {
   if (typeof value !== 'string' || !value) return '';
   try {
     const url = new URL(value);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return '';
     const hostname = url.hostname.toLowerCase();
-    if (hostname === siteHost || hostname === siteHost.replace(/^www\./, '')) return '';
+    const normalizedSiteHost = siteHost.toLowerCase();
+    if (hostname === normalizedSiteHost || hostname === normalizedSiteHost.replace(/^www\./, '')) return '';
     return hostname.slice(0, 253);
   } catch {
     return '';

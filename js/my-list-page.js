@@ -118,7 +118,7 @@ function ensureCanonical(url) {
 function renderMyListPage(list) {
   const items = Array.isArray(list) ? list : (list?.detail?.list || getMyList());
   currentList = items;
-  const canonicalUrl = new URL('/my-list.html', 'https://www.animoro.in').toString();
+  const canonicalUrl = new URL('/my-list.html', 'https://animoro.in').toString();
   document.title = 'My List — Saved Anime & Comics | Animoro';
   ensureMetaTag('name', 'description', 'Save and manage your favorite anime and comic recommendations in your personal Animoro list.');
   ensureMetaTag('name', 'robots', 'noindex, nofollow');

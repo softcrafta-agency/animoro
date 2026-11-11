@@ -80,7 +80,7 @@ No access policy, authentication, Firebase integration, or Firestore rules were 
 
 - Production response checks: homepage, representative article, anime directory, category archive, upcoming-anime template, anime calendar, search, user list, and a nonexistent top-level path. The homepage response still has 0 H1 elements.
 - Host redirect: apex to `www`, HTTP 308.
-- Production `robots.txt`: HTTP 200; sitemap directive points to `https://www.animoro.in/sitemap.xml`; search/list disallows remain live. The local source allow change is not deployed.
+- Production `robots.txt`: HTTP 200; sitemap directive points to `https://animoro.in/sitemap.xml`; search/list disallows remain live. The local source allow change is not deployed.
 - Production sitemap: HTTP 200 XML; URLs use the canonical `www` host. Published article/category routes were present; anime and upcoming-anime detail routes were absent.
 - Browser-rendered category check: dynamic title, description, H1, and query canonical are present; new Twitter metadata is absent in production.
 - Category browser check logged a missing composite-index warning and then used the existing fallback query to render category articles; no index or Firestore rules were changed.

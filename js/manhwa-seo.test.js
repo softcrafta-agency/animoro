@@ -34,7 +34,7 @@ test('creates title-specific structured data and canonical breadcrumb', () => {
   const data = createManhwaDetailStructuredData(featured);
   const series = data['@graph'].find(item => item['@type'] === 'ComicSeries');
   const breadcrumb = data['@graph'].find(item => item['@type'] === 'BreadcrumbList');
-  assert.equal(series.url, 'https://www.animoro.in/manhwa/the-greatest-estate-developer');
+  assert.equal(series.url, 'https://animoro.in/manhwa/the-greatest-estate-developer');
   assert.equal(series.additionalProperty.value, 'Manhwa');
   assert.equal(series.countryOfOrigin.name, 'South Korea');
   assert.equal(series.alternateName, '역대급 영지 설계사');
@@ -57,7 +57,7 @@ test('omits unavailable rating counts for other dynamic Manhwa detail pages', ()
   const series = data['@graph'].find(item => item['@type'] === 'ComicSeries');
   const breadcrumb = data['@graph'].find(item => item['@type'] === 'BreadcrumbList');
 
-  assert.equal(series.url, 'https://www.animoro.in/manhwa/return-of-the-blossoming-blade--132144');
+  assert.equal(series.url, 'https://animoro.in/manhwa/return-of-the-blossoming-blade--132144');
   assert.equal(Object.hasOwn(series, 'aggregateRating'), false);
   assert.equal(data['@graph'].filter(item => item['@type'] === 'BreadcrumbList').length, 1);
   assert.equal(breadcrumb.itemListElement.at(-1).item, series.url);

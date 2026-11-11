@@ -1,4 +1,4 @@
-const SITE_ORIGIN = 'https://www.animoro.in';
+const SITE_ORIGIN = 'https://animoro.in';
 const MANHWA_URL = `${SITE_ORIGIN}/manhwa`;
 const FEATURED_URL = `${MANHWA_URL}/the-greatest-estate-developer`;
 const SITE_REFERENCE = { '@id': `${SITE_ORIGIN}/#website` };
