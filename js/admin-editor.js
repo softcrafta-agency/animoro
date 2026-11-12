@@ -41,6 +41,7 @@ import {
   buildArticleKeywordGroupsPayload,
   initializeArticleKeywordGroups,
 } from './article-keyword-groups.js';
+import { analyzeArticleKeywords } from './article-keyword-analysis.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -85,6 +86,7 @@ let selectedArticleCategories = [];
 let categoryLoadError = false;
 let articleKeywordManager = null;
 let originalArticleData = {};
+let keywordAnalysisTimer = null;
 const THEME_STORAGE_KEY = 'animoro-theme';
 
 function getPreferredTheme() {
@@ -283,7 +285,112 @@ function markEditorChanged() {
   }
   updateEditorStatistics();
   updateSecondaryKeywordGuidance();
+  scheduleKeywordAnalysis();
   if (document.getElementById('articlePreview')?.hidden === false) renderArticlePreview();
+}
+
+function scheduleKeywordAnalysis() {
+  clearTimeout(keywordAnalysisTimer);
+  const state = document.getElementById('seoKeywordAnalysisState');
+  const error = document.getElementById('seoKeywordAnalysisError');
+  if (state) {
+    state.textContent = 'Analyzing article content…';
+    state.dataset.state = 'loading';
+  }
+  if (error) {
+    error.hidden = true;
+    error.textContent = '';
+  }
+  keywordAnalysisTimer = setTimeout(() => {
+    try {
+      const result = analyzeArticleKeywords({
+        title: document.getElementById('postTitle')?.value || '',
+        content: getRichEditor()?.innerHTML || '',
+        keywordGroups: articleKeywordManager?.getValues() || {},
+      });
+      renderKeywordAnalysis(result);
+    } catch (analysisError) {
+      console.error('Article keyword analysis failed:', analysisError);
+      if (state) {
+        state.textContent = 'Analysis failed';
+        state.dataset.state = 'error';
+      }
+      if (error) {
+        error.hidden = false;
+        error.textContent = 'Keyword analysis could not be completed. Continue editing; your article content and keyword values have not been changed.';
+      }
+    }
+  }, 180);
+}
+
+function renderKeywordAnalysis(result) {
+  const state = document.getElementById('seoKeywordAnalysisState');
+  if (state) {
+    state.textContent = 'Analysis updated';
+    state.dataset.state = 'ready';
+  }
+  articleKeywordManager?.setAnalysis(result.keywords);
+
+  document.querySelectorAll('[data-keyword-stat]').forEach((element) => {
+    const key = element.dataset.keywordStat;
+    element.textContent = String(result.stats[key] ?? 0);
+  });
+
+  const suggestions = document.getElementById('seoKeywordSuggestionsList');
+  if (suggestions) {
+    suggestions.replaceChildren();
+    if (!result.suggestions.length) {
+      const empty = document.createElement('li');
+      empty.className = 'seo-keyword-empty';
+      empty.textContent = result.stats.total
+        ? 'All keyword phrases are present somewhere in the visible article. Review relevance and natural usage above.'
+        : 'Add keyword phrases to get editorial suggestions.';
+      suggestions.appendChild(empty);
+    } else {
+      result.suggestions.forEach((suggestion) => {
+        const item = document.createElement('li');
+        item.className = 'seo-keyword-suggestion';
+        const heading = document.createElement('strong');
+        heading.textContent = suggestion.keyword;
+        const details = document.createElement('span');
+        details.textContent = `${suggestion.groupLabel} · ${suggestion.reason} Suggested placement: ${suggestion.placement}. Relevance: ${suggestion.relevance}.`;
+        item.append(heading, details);
+        suggestions.appendChild(item);
+      });
+    }
+  }
+
+  const aeoDetails = document.getElementById('seoKeywordAeoDetails');
+  if (aeoDetails) {
+    aeoDetails.replaceChildren();
+    if (result.questions.length) {
+      const heading = document.createElement('strong');
+      heading.textContent = 'Question and answer checks';
+      aeoDetails.appendChild(heading);
+      result.questions.forEach(({ keyword, answer }) => {
+        const item = document.createElement('div');
+        item.className = `seo-keyword-aeo-item${answer.answered ? ' is-answered' : ' needs-review'}`;
+        const question = document.createElement('strong');
+        question.textContent = keyword;
+        const status = document.createElement('span');
+        status.textContent = answer.status;
+        item.append(question, status);
+        if (answer.answerLocation) {
+          const location = document.createElement('small');
+          location.textContent = answer.answerLocation;
+          item.appendChild(location);
+        }
+        if (answer.answerExcerpt) {
+          const excerpt = document.createElement('p');
+          excerpt.textContent = answer.answerExcerpt;
+          item.appendChild(excerpt);
+        }
+        aeoDetails.appendChild(item);
+      });
+    } else {
+      aeoDetails.textContent = 'Add question-based phrases to review H2/H3 placement and the following answer text.';
+    }
+  }
 }
 
 function updateSecondaryKeywordGuidance() {
@@ -905,6 +1012,7 @@ export async function initAdminEditor() {
       restoreEditorAutosave();
     }
     updateEditorStatistics();
+    scheduleKeywordAnalysis();
   });
 }
 
@@ -2422,6 +2530,7 @@ async function loadPostForEditing(postId) {
     const editorArea = document.getElementById('richEditorArea');
     if (editorArea) editorArea.innerHTML = sanitizeArticleEditorHtml(post.content || '', { allowLegacyDataImages: true });
     updateSecondaryKeywordGuidance();
+    scheduleKeywordAnalysis();
 
     if (post.coverImage) {
       uploadedCoverUrl = '';

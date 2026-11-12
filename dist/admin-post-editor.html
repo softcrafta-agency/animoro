@@ -22,15 +22,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-post-editor-D4sjDv-7.js"></script>
+  <script type="module" crossorigin src="/assets/admin-post-editor-B-flMExe.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/style-V_y52HhV.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-CL7XfXAT.js">
-  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-DjD9yLh-.js">
-  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-CtX8vKAG.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-Dov9qHYI.js">
+  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-CrldZNcq.js">
+  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-D-1yq0Ld.js">
   <link rel="modulepreload" crossorigin href="/assets/article-content-C2qxFj9R.js">
   <link rel="modulepreload" crossorigin href="/assets/article-seo-BhW3mpU9.js">
   <link rel="stylesheet" crossorigin href="/assets/style-BpADe46y.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-kUD-cREQ.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-CeHCQgLu.css">
 </head>
 <body class="admin-body">
 
@@ -308,6 +308,78 @@
                 <small class="editor-field-hint">Enter one supporting phrase per line. Existing comma-separated keywords are supported; duplicates and extra spaces are removed.</small>
                 <small id="postSecondaryKeywordGuidance" class="editor-field-hint" role="status" aria-live="polite">Optional editorial planning only. Use a supporting phrase in the article where it fits; phrases are never inserted automatically or published as meta keywords.</small>
               </div>
+
+              <section class="article-keyword-groups" aria-labelledby="articleKeywordGroupsHeading">
+                <h3 id="articleKeywordGroupsHeading" class="form-label">SEO and AEO Keyword Groups</h3>
+                <p class="editor-field-hint">Editorial guidance only. Add a phrase with Enter or a comma, edit or remove tags, and use only ideas the article supports. These groups are not shown on public pages or emitted as keyword metadata.</p>
+                <p class="article-keyword-description">Exact phrase matches use visible article text. Relevance and answer checks are editorial heuristics based on topic-word overlap and answer length—not semantic fact-checking.</p>
+                <section id="seoKeywordAnalysis" class="seo-keyword-analysis" aria-label="SEO keyword analysis" aria-live="polite">
+                  <div class="seo-keyword-analysis-heading">
+                    <strong>SEO Keyword Analysis</strong>
+                    <span id="seoKeywordAnalysisState" class="seo-keyword-analysis-state">Waiting for article content</span>
+                  </div>
+                  <div class="seo-keyword-metrics" id="seoKeywordMetrics">
+                    <span>Total <strong data-keyword-stat="total">0</strong></span>
+                    <span>In content <strong data-keyword-stat="foundInContent">0</strong></span>
+                    <span>In headings <strong data-keyword-stat="foundInHeadings">0</strong></span>
+                    <span>In title <strong data-keyword-stat="foundInTitle">0</strong></span>
+                    <span>Missing <strong data-keyword-stat="missing">0</strong></span>
+                    <span>Relevant <strong data-keyword-stat="relevant">0</strong></span>
+                    <span>Duplicates <strong data-keyword-stat="duplicates">0</strong></span>
+                    <span>Similar <strong data-keyword-stat="similar">0</strong></span>
+                  </div>
+                  <div class="seo-keyword-aeo">
+                    <strong>AEO Analysis</strong>
+                    <span>Questions <b data-keyword-stat="totalQuestions">0</b></span>
+                    <span>Answered <b data-keyword-stat="answeredQuestions">0</b></span>
+                    <span>Unanswered / review <b data-keyword-stat="unansweredQuestions">0</b></span>
+                  </div>
+                  <div id="seoKeywordSuggestionSection" class="seo-keyword-suggestions">
+                    <strong>Suggestions to review</strong>
+                    <p class="article-keyword-description">Suggestions are editorial prompts only. Nothing is added to the article automatically.</p>
+                    <ul id="seoKeywordSuggestionsList"></ul>
+                  </div>
+                  <div id="seoKeywordAeoDetails" class="seo-keyword-aeo-details"></div>
+                  <div id="seoKeywordAnalysisError" class="seo-keyword-analysis-error" role="alert" hidden></div>
+                </section>
+                <details class="article-keyword-group" data-keyword-group="additionalSeoKeywords">
+                  <summary class="article-keyword-group-summary"><span>Additional SEO Keywords</span><span class="article-keyword-count"><b data-keyword-count>0</b> phrases</span></summary>
+                  <p class="article-keyword-description">Supporting topic phrases that add useful context the article genuinely covers.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Additional SEO keywords"></div>
+                  <label for="additionalSeoKeywordsInput" class="sr-only">Add an additional SEO keyword</label>
+                  <input id="additionalSeoKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Black Torch manga adaptation" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </details>
+                <details class="article-keyword-group" data-keyword-group="storyCharacterKeywords">
+                  <summary class="article-keyword-group-summary"><span>Story and Character Keywords</span><span class="article-keyword-count"><b data-keyword-count>0</b> phrases</span></summary>
+                  <p class="article-keyword-description">Relevant story arcs, characters, relationships, powers, and themes discussed in the article.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Story and character keywords"></div>
+                  <label for="storyCharacterKeywordsInput" class="sr-only">Add a story or character keyword</label>
+                  <input id="storyCharacterKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Jiro Azuma character analysis" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </details>
+                <details class="article-keyword-group" data-keyword-group="longTailKeywords">
+                  <summary class="article-keyword-group-summary"><span>Long-tail SEO Keywords</span><span class="article-keyword-count"><b data-keyword-count>0</b> phrases</span></summary>
+                  <p class="article-keyword-description">Specific search phrases that match the article’s scope and likely reader intent.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Long-tail SEO keywords"></div>
+                  <label for="longTailKeywordsInput" class="sr-only">Add a long-tail SEO keyword</label>
+                  <input id="longTailKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. how Black Torch connects ninjas and supernatural lore" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </details>
+                <details class="article-keyword-group" data-keyword-group="questionBasedKeywords">
+                  <summary class="article-keyword-group-summary"><span>Question-Based Keywords (AEO)</span><span class="article-keyword-count"><b data-keyword-count>0</b> questions</span></summary>
+                  <p class="article-keyword-description">Questions the article answers well. The analyzer checks matching H2/H3 headings and the following text; answers are never generated.</p>
+                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Question-based keywords"></div>
+                  <label for="questionBasedKeywordsInput" class="sr-only">Add a question-based keyword</label>
+                  <input id="questionBasedKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Who is Jiro Azuma in Black Torch?" />
+                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
+                </details>
+                <div id="articleKeywordCoverage" class="article-keyword-coverage" role="status" aria-live="polite"></div>
+                <div id="articleQuestionSuggestions" class="article-question-suggestions" hidden>
+                  <strong>FAQ candidates to review</strong>
+                  <ul id="articleQuestionSuggestionsList"></ul>
+                </div>
+              </section>
 
               <div class="form-group">
                 <label for="postSearchIntent" class="form-label">Search Intent</label>

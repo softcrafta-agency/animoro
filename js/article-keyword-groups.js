@@ -58,12 +58,26 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
   const state = new Map(ARTICLE_KEYWORD_GROUPS.map(({ key }) => [key, []]));
   const dirtyKeys = new Set();
   const controls = new Map();
+  const analysisByKeyword = new Map();
+
+  function normalizeKeyPhrase(keyword) {
+    return keyword.normalize('NFKC')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
+      .toLocaleLowerCase('en');
+  }
+
+  function getKeywordKey(key, keyword) {
+    return `${key}:${normalizeKeyPhrase(keyword)}`;
+  }
 
   function renderGroup(key) {
     const control = controls.get(key);
     if (!control) return;
 
     control.tags.replaceChildren();
+    const count = control.root.querySelector('[data-keyword-count]');
+    if (count) count.textContent = String(state.get(key).length);
     state.get(key).forEach((keyword, index) => {
       const tag = document.createElement('span');
       tag.className = 'article-keyword-tag';
@@ -71,6 +85,14 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
       const text = document.createElement('span');
       text.className = 'article-keyword-tag-text';
       text.textContent = keyword;
+      const analysis = analysisByKeyword.get(getKeywordKey(key, keyword));
+      const indicator = document.createElement('small');
+      indicator.className = `article-keyword-status${analysis?.found ? ' is-found' : ''}`;
+      indicator.textContent = analysis?.status || 'Analyzing…';
+      indicator.setAttribute('aria-label', analysis
+        ? `${analysis.status}${analysis.locations.length ? `: ${analysis.locations.join(', ')}` : ''}`
+        : 'Keyword analysis pending');
+      if (analysis?.locations.length) indicator.title = `Found in: ${analysis.locations.join(', ')}`;
 
       const edit = document.createElement('button');
       edit.type = 'button';
@@ -97,7 +119,7 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
         renderGroup(key);
       });
 
-      tag.append(text, edit, remove);
+      tag.append(text, indicator, edit, remove);
       control.tags.appendChild(tag);
     });
   }
@@ -120,12 +142,18 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
     if (!phrases.length) return;
 
     const current = state.get(key);
-    const currentSet = new Set(current.map(value => value.toLocaleLowerCase()));
-    const additions = phrases.filter(value => !currentSet.has(value.toLocaleLowerCase()));
+    const currentSet = new Set(ARTICLE_KEYWORD_GROUPS
+      .flatMap(group => state.get(group.key))
+      .map(normalizeKeyPhrase));
+    const additions = phrases.filter(value => !currentSet.has(normalizeKeyPhrase(value)));
     const duplicates = phrases.length - additions.length;
+    const duplicateGroup = ARTICLE_KEYWORD_GROUPS.find(group =>
+      group.key !== key && state.get(group.key)
+        .some(value => phrases.some(phrase => normalizeKeyPhrase(phrase) === normalizeKeyPhrase(value)))
+    );
     if (additions.length) {
       state.set(key, [...current, ...additions]);
-      setStatus(key, `Added ${additions.length} keyword${additions.length === 1 ? '' : 's'}${duplicates ? `; skipped ${duplicates} duplicate${duplicates === 1 ? '' : 's'}` : ''}.`);
+      setStatus(key, `Added ${additions.length} keyword${additions.length === 1 ? '' : 's'}${duplicates ? `; skipped ${duplicates} duplicate${duplicates === 1 ? '' : 's'}${duplicateGroup ? ` already listed under ${duplicateGroup.label}` : ''}` : ''}.`);
       markChanged(key);
       renderGroup(key);
     } else {
@@ -141,7 +169,7 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
     if (!root || !input || !tags || !status) {
       throw new Error(`Keyword editor controls are missing for ${key}.`);
     }
-    controls.set(key, { input, tags, status });
+    controls.set(key, { input, tags, status, root });
     input.addEventListener('input', () => {
       if (input.value.includes(',')) addInputValue(key);
       else markChanged(key);
@@ -168,6 +196,13 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
     },
     resetDirty() {
       dirtyKeys.clear();
+    },
+    setAnalysis(analysis) {
+      analysisByKeyword.clear();
+      for (const item of analysis || []) {
+        analysisByKeyword.set(getKeywordKey(item.groupKey, item.keyword), item);
+      }
+      for (const { key } of ARTICLE_KEYWORD_GROUPS) renderGroup(key);
     },
     setValues(values = {}, { markDirty = false, dirtyKeys: keysToMark = [] } = {}) {
       const normalized = normalizeKeywordGroupValues(values);
