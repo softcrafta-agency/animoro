@@ -38,6 +38,33 @@ export function normalizeKeywordGroupValues(values = {}) {
   ]));
 }
 
+function normalizeKeywordPhraseKey(keyword) {
+  return keyword.normalize('NFKC')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLocaleLowerCase('en');
+}
+
+export function getUniqueKeywordAdditions(currentValues = {}, candidates = []) {
+  const seen = new Set(ARTICLE_KEYWORD_GROUPS
+    .flatMap(({ key }) => normalizeArticleKeywords(currentValues[key]))
+    .map(normalizeKeywordPhraseKey));
+  const additions = [];
+  let skippedCount = 0;
+
+  for (const keyword of normalizeArticleKeywords(candidates)) {
+    const key = normalizeKeywordPhraseKey(keyword);
+    if (seen.has(key)) {
+      skippedCount += 1;
+      continue;
+    }
+    seen.add(key);
+    additions.push(keyword);
+  }
+
+  return { additions, skippedCount };
+}
+
 export function buildArticleKeywordGroupsPayload(
   values,
   existingArticle = {},
@@ -60,15 +87,8 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
   const controls = new Map();
   const analysisByKeyword = new Map();
 
-  function normalizeKeyPhrase(keyword) {
-    return keyword.normalize('NFKC')
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .trim()
-      .toLocaleLowerCase('en');
-  }
-
   function getKeywordKey(key, keyword) {
-    return `${key}:${normalizeKeyPhrase(keyword)}`;
+    return `${key}:${normalizeKeywordPhraseKey(keyword)}`;
   }
 
   function renderGroup(key) {
@@ -142,14 +162,15 @@ export function initializeArticleKeywordGroups(onChange = () => {}) {
     if (!phrases.length) return;
 
     const current = state.get(key);
-    const currentSet = new Set(ARTICLE_KEYWORD_GROUPS
-      .flatMap(group => state.get(group.key))
-      .map(normalizeKeyPhrase));
-    const additions = phrases.filter(value => !currentSet.has(normalizeKeyPhrase(value)));
-    const duplicates = phrases.length - additions.length;
+    const { additions, skippedCount: duplicates } = getUniqueKeywordAdditions(
+      Object.fromEntries(ARTICLE_KEYWORD_GROUPS.map(group => [group.key, state.get(group.key)])),
+      phrases
+    );
     const duplicateGroup = ARTICLE_KEYWORD_GROUPS.find(group =>
       group.key !== key && state.get(group.key)
-        .some(value => phrases.some(phrase => normalizeKeyPhrase(phrase) === normalizeKeyPhrase(value)))
+        .some(value => phrases.some(phrase =>
+          normalizeKeywordPhraseKey(phrase) === normalizeKeywordPhraseKey(value)
+        ))
     );
     if (additions.length) {
       state.set(key, [...current, ...additions]);

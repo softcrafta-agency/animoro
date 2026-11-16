@@ -200,7 +200,7 @@ test('returns complete HTML and cache headers for a published article', async ()
   assert.match(response.headers['cache-control'], /s-maxage=60/);
   assert.match(response.body, /<h1 class="article-page-title">Published Story<\/h1>/);
   assert.match(response.body, /Published article body\./);
-  assert.match(response.body, /<link rel="canonical" href="https:\/\/animoro\.in\/blog\/published-story"/);
+  assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\/published-story"/);
 });
 
 test('renders published article content exceeding 100,000 characters', async () => {

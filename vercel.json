@@ -26,7 +26,7 @@
                      },
                      {
                          "source":  "/anime/:slug*",
-                         "destination":  "/anime.html"
+                         "destination":  "/api/seo-page?type=anime&slug=:slug"
                      },
                      {
                          "source":  "/anime-list",
@@ -42,7 +42,11 @@
                      },
                      {
                          "source":  "/upcoming-anime/:slug*",
-                         "destination":  "/upcoming-anime.html"
+                         "destination":  "/api/seo-page?type=upcoming&slug=:slug"
+                     },
+                     {
+                         "source":  "/category.html",
+                         "destination":  "/api/seo-page?type=category"
                      },
                      {
                          "source":  "/my-list",
@@ -59,6 +63,9 @@
                                        },
                       "api/article.js":  {
                                              "includeFiles":  "dist/blog.html"
+                      },
+                      "api/seo-page.js":  {
+                                               "includeFiles":  "dist/*.html"
                                          }
                   },
     "redirects":  [
@@ -106,6 +113,17 @@
                           "source":  "/upcoming-anime.html/:slug*",
                           "destination":  "/upcoming-anime/:slug*",
                           "statusCode":  301
+                      },
+                      {
+                          "source":  "/:path*",
+                          "has": [
+                              {
+                                  "type": "host",
+                                  "value": "animoro.in"
+                              }
+                          ],
+                          "destination":  "https://www.animoro.in/:path*",
+                          "permanent":  true
                       }
                   ],
     "headers": [

@@ -35,17 +35,17 @@ test('builds a sitemap with public URLs and excludes unpublished posts', () => {
   );
 
   assert.match(xml, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
-  assert.match(xml, /<loc>https:\/\/animoro\.in\/<\/loc>/);
-  assert.match(xml, /https:\/\/animoro\.in\/blogs\.html/);
-  assert.match(xml, /<loc>https:\/\/animoro\.in\/anime-list<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/animoro\.in\/manhwa<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/animoro\.in\/manhwa\/the-greatest-estate-developer<\/loc>/);
-  assert.doesNotMatch(xml, /<loc>https:\/\/animoro\.in\/anime\.html<\/loc>/);
-  assert.doesNotMatch(xml, /https:\/\/animoro\.in\/upcoming-anime\.html/);
-  assert.match(xml, /https:\/\/animoro\.in\/about\.html/);
-  assert.match(xml, /https:\/\/animoro\.in\/contact\.html/);
-  assert.match(xml, /https:\/\/animoro\.in\/privacy\.html/);
-  assert.match(xml, /https:\/\/animoro\.in\/anime-calendar\.html/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/<\/loc>/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/blogs\.html/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime-list<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/manhwa<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/manhwa\/the-greatest-estate-developer<\/loc>/);
+  assert.doesNotMatch(xml, /<loc>https:\/\/www\.animoro\.in\/anime\.html<\/loc>/);
+  assert.doesNotMatch(xml, /https:\/\/www\.animoro\.in\/upcoming-anime\.html/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/about\.html/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/contact\.html/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/privacy\.html/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/anime-calendar\.html/);
   assert.doesNotMatch(xml, /search\.html/);
   assert.match(xml, /category\.html\?category=Anime%20%26%20Manga/);
   assert.match(xml, /\/blog\/first-post/);
@@ -160,7 +160,38 @@ test('adds only published anime to the sitemap using slug URLs', () => {
   ]);
   const xml = buildSitemap([], [], anime);
 
-  assert.match(xml, /<loc>https:\/\/animoro\.in\/anime\/kagurabachi<\/loc>/);
-  assert.match(xml, /<loc>https:\/\/animoro\.in\/anime\/kagurabachi-2<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime\/kagurabachi<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/www\.animoro\.in\/anime\/kagurabachi-2<\/loc>/);
   assert.doesNotMatch(xml, /draft-id|private-anime|search\.html/);
+});
+
+test('includes published upcoming records and excludes private or deleted public-looking records', () => {
+  const xml = buildSitemap(
+    [
+      { slug: 'public-story', status: 'published' },
+      { slug: 'deleted-story', status: 'published', deleted: true },
+      { slug: 'private-story', status: 'published', isPrivate: true },
+      { slug: 'archived-story', status: 'archived' },
+    ],
+    [],
+    [
+      { slug: 'public-anime', visibility: 'published' },
+      { slug: 'deleted-anime', visibility: 'published', deletedAt: new Date() },
+      { slug: 'private-anime', visibility: 'private' },
+    ],
+    [
+      { slug: 'public-upcoming', status: 'published', updatedAt: new Date('2026-11-15T12:00:00Z') },
+      { slug: 'deleted-upcoming', status: 'published', isDeleted: true },
+      { slug: 'draft-upcoming', status: 'draft' },
+    ]
+  );
+
+  assert.match(xml, /https:\/\/www\.animoro\.in\/blog\/public-story/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/anime\/public-anime/);
+  assert.match(xml, /https:\/\/www\.animoro\.in\/upcoming-anime\/public-upcoming/);
+  assert.match(xml, /<lastmod>2026-11-15<\/lastmod>/);
+  assert.doesNotMatch(xml, /deleted-story|private-story|archived-story|deleted-anime|private-anime|deleted-upcoming|draft-upcoming/);
+  const locations = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map(match => match[1]);
+  assert.equal(new Set(locations).size, locations.length);
+  assert.ok(locations.every(location => location.startsWith('https://www.animoro.in/')));
 });

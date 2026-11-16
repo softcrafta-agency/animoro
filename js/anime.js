@@ -303,12 +303,13 @@ function renderAnimeDetails(anime) {
   const canonicalUrl = getAnimeCanonicalUrl(anime);
   const imageUrl = safeImageUrl(anime.coverImage);
   title.textContent = anime.title || 'Anime';
-  description.textContent = anime.synopsis || 'Anime information and related Animoro articles.';
+  const summary = anime.synopsis || `Details for ${anime.title || 'this anime'} on Animoro.`;
+  description.textContent = summary;
   if (breadcrumb) breadcrumb.textContent = anime.title || 'Anime';
-  document.title = `${anime.title || 'Anime'} — Anime Details | Animoro`;
-  setMeta('name', 'description', anime.synopsis || `Anime details for ${anime.title || 'this series'} on Animoro.`);
-  setMeta('property', 'og:title', `${anime.title || 'Anime'} — Anime Details | Animoro`);
-  setMeta('property', 'og:description', anime.synopsis || `Anime details for ${anime.title || 'this series'} on Animoro.`);
+  document.title = `${anime.title || 'Anime'} ${anime.releaseYear ? `(${anime.releaseYear})` : ''} | Animoro`;
+  setMeta('name', 'description', summary.slice(0, 180));
+  setMeta('property', 'og:title', `${anime.title || 'Anime'}${anime.releaseYear ? ` (${anime.releaseYear})` : ''} | Animoro`);
+  setMeta('property', 'og:description', summary.slice(0, 200));
   setMeta('property', 'og:url', canonicalUrl);
   setMeta('property', 'og:type', 'website');
   if (imageUrl) setMeta('property', 'og:image', imageUrl);
@@ -369,8 +370,8 @@ function renderAnimeDetails(anime) {
   detail.hidden = false;
   setJsonLd('animeBreadcrumbJsonLd', {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://animoro.in/' },
-      { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://animoro.in/anime-list' },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
+      { '@type': 'ListItem', position: 2, name: 'Anime List', item: 'https://www.animoro.in/anime-list' },
       { '@type': 'ListItem', position: 3, name: anime.title || 'Anime', item: canonicalUrl },
     ],
   });
@@ -479,6 +480,11 @@ async function initAnimePage() {
     if (!slug) {
       window.location.replace('/404.html');
       return;
+    }
+    const currentPath = window.location.pathname;
+    const canonical = getAnimeCanonicalUrl({ title: slug, slug, malId: Number.parseInt(String(slug.match(/--(\d+)$/)?.[1] || ''), 10) || undefined });
+    if (currentPath !== new URL(canonical).pathname) {
+      window.history.replaceState(window.history.state, '', new URL(canonical).pathname);
     }
     return loadAnimeDetails(slug);
   }

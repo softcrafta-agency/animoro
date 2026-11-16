@@ -130,7 +130,11 @@ function matchesFilters(item, filters) {
 function sortUpcoming(items, sort) {
   return [...items].sort((left, right) => {
     if (sort === 'a-z') return String(left.title || '').localeCompare(String(right.title || ''));
-    if (sort === 'popularity') return Number(right.scoredBy || 0) - Number(left.scoredBy || 0);
+    if (sort === 'popularity') {
+      const leftPopularity = Number(left.popularity ?? left.scoredBy ?? 0);
+      const rightPopularity = Number(right.popularity ?? right.scoredBy ?? 0);
+      return rightPopularity - leftPopularity || String(left.title || '').localeCompare(String(right.title || ''));
+    }
     if (sort === 'rating') return Number(right.rating || 0) - Number(left.rating || 0);
     return getUpcomingReleaseTimestamp(left.releaseDate) - getUpcomingReleaseTimestamp(right.releaseDate) || String(left.title || '').localeCompare(String(right.title || ''));
   });

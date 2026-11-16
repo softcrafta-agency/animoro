@@ -26,12 +26,13 @@ function createServices(posts) {
       collection(name) {
         assert.equal(name, 'posts');
         function createQuery(filters = []) {
+          let maximum = Infinity;
           return {
             where(field, operator, value) {
               return createQuery([...filters, { field, operator, value }]);
             },
             orderBy() { return createQuery(filters); },
-            limit() { return createQuery(filters); },
+            limit(value) { maximum = value; return this; },
             async get() {
               const matches = posts.filter(post => filters.every(filter => {
                 if (filter.field === 'status') return post.status === filter.value;
@@ -40,10 +41,13 @@ function createServices(posts) {
                 return true;
               }));
               return {
-                docs: matches.map((post, index) => ({
+                docs: matches
+                  .sort((left, right) => new Date(right.publishedAt || 0) - new Date(left.publishedAt || 0))
+                  .slice(0, maximum)
+                  .map((post, index) => ({
                   id: post.id || String(index),
                   data: () => post,
-                })),
+                  })),
               };
             },
           };
@@ -78,11 +82,50 @@ test('renders published article cards in the canonical listing HTML', async () =
   assert.equal(response.statusCode, 200);
   assert.match(response.headers['content-type'], /text\/html/);
   assert.match(response.headers['cache-control'], /s-maxage=60/);
-  assert.match(response.body, /<link rel="canonical" href="https:\/\/animoro\.in\/blogs\.html"/);
+  assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blogs\.html"/);
   assert.match(response.body, /href="\/blog\/published-useful"/);
   assert.match(response.body, /Published &amp; Useful/);
   assert.match(response.body, /&lt;script&gt;alert\(1\)&lt;\/script&gt;Useful excerpt\./);
   assert.doesNotMatch(response.body, /Draft Story|Missing Slug|BLOG_ARTICLES/);
+  assert.doesNotMatch(response.body, /BLOG_PAGINATION/);
+});
+
+test('renders crawlable pagination links with distinct page canonicals', async () => {
+  const posts = Array.from({ length: 20 }, (_, index) => ({
+    id: `post-${index + 1}`,
+    title: `Article ${index + 1}`,
+    slug: `article-${index + 1}`,
+    status: 'published',
+    publishedAt: new Date(`2026-11-${String(20 - index).padStart(2, '0')}T12:00:00Z`),
+  }));
+  const handler = createBlogsHandler({
+    getServices: () => createServices(posts),
+    loadTemplate: async () => template,
+    logger: { error() { assert.fail('A valid archive page must not be logged as an error.'); } },
+  });
+  const response = createResponse();
+
+  await handler({ method: 'GET', query: { page: '2' } }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.match(response.body, /href="\/blogs\.html" rel="prev"/);
+  assert.match(response.body, /href="\/blogs\.html\?page=3" rel="next"/);
+  assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blogs\.html\?page=2"/);
+  assert.match(response.body, /Article 10/);
+  assert.doesNotMatch(response.body, /Article 1</);
+});
+
+test('rejects invalid archive page numbers instead of silently serving page one', async () => {
+  const handler = createBlogsHandler({
+    getServices: () => createServices([]),
+    loadTemplate: async () => template,
+    logger: { error() { assert.fail('Invalid page input is not a service error.'); } },
+  });
+  const response = createResponse();
+
+  await handler({ method: 'GET', query: { page: '1001' } }, response);
+
+  assert.equal(response.statusCode, 400);
 });
 
 test('renders category-filtered results from current and legacy category fields', async () => {

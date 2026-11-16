@@ -445,7 +445,7 @@ function setArticleStructuredData(post, canonicalUrl, title, description) {
     publisher: {
       '@type': 'Organization',
       name: 'Animoro',
-      url: 'https://animoro.in/'
+      url: 'https://www.animoro.in/'
     },
     ...(image ? { image: [image] } : {}),
     ...(post.authorName ? { author: { '@type': 'Person', name: post.authorName } } : {}),

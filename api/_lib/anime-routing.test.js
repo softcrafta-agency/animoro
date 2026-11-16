@@ -23,7 +23,7 @@ test('Vercel rewrites the anime directory and detail paths and permanently redir
   });
   assert.deepEqual(vercel.rewrites.find(item => item.source === '/anime/:slug*'), {
     source: '/anime/:slug*',
-    destination: '/anime.html',
+    destination: '/api/seo-page?type=anime&slug=:slug',
   });
   assert.deepEqual(vercel.redirects.find(item => item.source === '/anime.html'), {
     source: '/anime.html',
@@ -59,8 +59,8 @@ test('Anime List build entry, canonical metadata, internal links, and sitemap us
   assert.match(animeHtml, /id="animeFaqJsonLd" type="application\/ld\+json"/);
   assert.match(animeHtml, /id="animeListFreshness"/);
   assert.match(animeHtml, /name="robots" content="index, follow"/);
-  assert.match(animeHtml, /<meta property="og:url" content="https:\/\/animoro\.in\/anime-list"\s*\/>/);
-  assert.match(animeHtml, /<link rel="canonical" href="https:\/\/animoro\.in\/anime-list"\s*\/>/);
+  assert.match(animeHtml, /<meta property="og:url" content="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
+  assert.match(animeHtml, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/anime-list"\s*\/>/);
   assert.equal((animeHtml.match(/rel="canonical"/g) || []).length, 1);
   assert.match(animeHtml, /href="\/anime-list"/);
   assert.match(sitemap, /'\/anime-list'/);
@@ -72,6 +72,27 @@ test('Anime List build entry, canonical metadata, internal links, and sitemap us
   assert.match(animeClient, /document\.getElementById\('animeListJsonLd'\)\?\.remove\(\)/);
   assert.match(robots, /^Allow: \/api\/tenrai$/m);
   assert.match(robots, /^Disallow: \/api\/$/m);
+});
+
+test('Vercel uses a permanent apex-to-www redirect and server-rendered detail routes', () => {
+  assert.deepEqual(vercel.redirects.find(item => item.has?.some(condition =>
+    condition.type === 'host' && condition.value === 'animoro.in'
+  )), {
+    source: '/:path*',
+    has: [{ type: 'host', value: 'animoro.in' }],
+    destination: 'https://www.animoro.in/:path*',
+    permanent: true,
+  });
+  assert.deepEqual(vercel.rewrites.find(item => item.source === '/upcoming-anime/:slug*'), {
+    source: '/upcoming-anime/:slug*',
+    destination: '/api/seo-page?type=upcoming&slug=:slug',
+  });
+  assert.deepEqual(vercel.rewrites.find(item => item.source === '/category.html'), {
+    source: '/category.html',
+    destination: '/api/seo-page?type=category',
+  });
+  assert.equal(vercel.functions['api/seo-page.js'].includeFiles,
+    'dist/*.html');
 });
 
 test('anime detail renderer omits source links and Tenrai attribution while preserving details', () => {
@@ -92,11 +113,11 @@ test('calendar navigation labels are consistent in desktop, mobile, and shared n
 });
 
 test('Upcoming Anime rewrites and redirects do not target one another', () => {
-  for (const config of [vercel, firebase.hosting]) {
-    const rewrites = config.rewrites;
-    const redirects = config.redirects;
-    assert.ok(rewrites.some(item => item.source === '/upcoming-anime' && item.destination === '/upcoming-anime.html'));
-    assert.ok(rewrites.some(item => item.source.startsWith('/upcoming-anime/') && item.destination === '/upcoming-anime.html'));
+  assert.ok(vercel.rewrites.some(item => item.source === '/upcoming-anime' && item.destination === '/upcoming-anime.html'));
+  assert.ok(vercel.rewrites.some(item => item.source === '/upcoming-anime/:slug*' && item.destination.startsWith('/api/seo-page?')));
+  assert.ok(firebase.hosting.rewrites.some(item => item.source === '/upcoming-anime' && item.destination === '/upcoming-anime.html'));
+  assert.ok(firebase.hosting.rewrites.some(item => item.source.startsWith('/upcoming-anime/') && item.destination === '/upcoming-anime.html'));
+  for (const redirects of [vercel.redirects, firebase.hosting.redirects]) {
     assert.ok(redirects.some(item => item.source === '/upcoming-anime.html' && item.destination === '/upcoming-anime'));
     assert.equal(redirects.some(item => item.destination === '/upcoming-anime.html'), false);
   }
@@ -137,7 +158,7 @@ test('Vercel excludes underscore-prefixed root API tests and stays within the Ho
 
   assert.equal(testFiles.length, 6);
   assert.ok(testFiles.every(entry => entry.name.startsWith('_')));
-  assert.equal(functionFiles.length, 11);
+  assert.equal(functionFiles.length, 12);
   assert.ok(functionFiles.length <= 12);
 });
 

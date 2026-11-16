@@ -27,6 +27,10 @@ import {
   buildArticleKeywordGroupsPayload,
   normalizeKeywordGroupValues,
 } from '../js/article-keyword-groups.js';
+import {
+  getArticleKeywordFields,
+  getArticleSecondaryKeywords,
+} from '../js/article-editor-fields.js';
 
 const PROJECT_ID = 'demo-animoro-keyword-test';
 const FIRESTORE_HOST = process.env.FIRESTORE_EMULATOR_HOST;
@@ -69,6 +73,13 @@ let signedInUser;
 
 function assertKeywordGroups(article, expectedValues) {
   assert.deepEqual(normalizeKeywordGroupValues(article), expectedValues);
+}
+
+function assertSecondaryKeywords(article, expectedValues, primaryKeyword = 'Akira') {
+  assert.deepEqual(getArticleSecondaryKeywords(article), expectedValues);
+  assert.deepEqual(article.secondaryKeywords, expectedValues);
+  assert.deepEqual(article.relatedKeywords, expectedValues);
+  assert.deepEqual(article.keywords, getArticleKeywordFields(primaryKeyword, expectedValues).keywords);
 }
 
 function createArticleBase(id, status, authorId) {
@@ -114,6 +125,7 @@ async function run() {
     const draftRef = doc(primaryDb, 'posts', draftId);
     const createPayload = {
       ...createArticleBase(draftId, 'draft', authorId),
+      ...getArticleKeywordFields('Akira', ['Akira character guide', 'Akira story analysis']),
       ...buildArticleKeywordGroupsPayload(initialGroups, {}, [], true),
     };
     await setDoc(draftRef, createPayload);
@@ -122,10 +134,11 @@ async function run() {
     const firstRead = await getDocFromServer(draftRef);
     assert.ok(firstRead.exists());
     assertKeywordGroups(firstRead.data(), initialGroups);
+    assertSecondaryKeywords(firstRead.data(), ['Akira character guide', 'Akira story analysis']);
     assert.equal(firstRead.data().status, 'draft');
     assert.equal(firstRead.data().title, createPayload.title);
     assert.equal(firstRead.data().content, createPayload.content);
-    console.log('PASS create and read back a draft with all four keyword groups');
+    console.log('PASS create and read back a draft with all five keyword groups');
 
     const refreshApp = initializeApp(firebaseConfig, `keyword-refresh-${randomUUID()}`);
     secondApp = refreshApp;
@@ -143,6 +156,7 @@ async function run() {
     ));
     const refreshedDraft = await getDocFromServer(doc(refreshDb, 'posts', draftId));
     assertKeywordGroups(refreshedDraft.data(), initialGroups);
+    assertSecondaryKeywords(refreshedDraft.data(), ['Akira character guide', 'Akira story analysis']);
     console.log('PASS refresh and reload persisted keyword groups from a fresh client');
 
     let updatedGroups = initialGroups;
@@ -166,6 +180,53 @@ async function run() {
     assert.equal(updatedDraft.data().content, createPayload.content);
     console.log('PASS update each keyword group independently without losing other groups or article fields');
 
+    const groupWithRemovableKeyword = {
+      ...updatedGroups,
+      storyCharacterKeywords: [
+        'storyCharacterKeywords revised phrase',
+        'temporary character phrase',
+      ],
+    };
+    await updateDoc(draftRef, buildArticleKeywordGroupsPayload(
+      groupWithRemovableKeyword,
+      updatedDraft.data(),
+      ['storyCharacterKeywords'],
+      false
+    ));
+    let editedGroupDraft = await getDocFromServer(draftRef);
+    assertKeywordGroups(editedGroupDraft.data(), groupWithRemovableKeyword);
+    const groupAfterIndividualRemoval = {
+      ...groupWithRemovableKeyword,
+      storyCharacterKeywords: ['storyCharacterKeywords revised phrase'],
+    };
+    await updateDoc(draftRef, buildArticleKeywordGroupsPayload(
+      groupAfterIndividualRemoval,
+      editedGroupDraft.data(),
+      ['storyCharacterKeywords'],
+      false
+    ));
+    editedGroupDraft = await getDocFromServer(draftRef);
+    assertKeywordGroups(editedGroupDraft.data(), groupAfterIndividualRemoval);
+    updatedGroups = groupAfterIndividualRemoval;
+    updatedDraft = editedGroupDraft;
+    console.log('PASS remove an individual grouped keyword without changing the others');
+
+    await updateDoc(draftRef, getArticleKeywordFields('Akira', [
+      'revised secondary phrase',
+      'secondary phrase to remove',
+    ]));
+    let updatedSecondaryDraft = await getDocFromServer(draftRef);
+    assertSecondaryKeywords(updatedSecondaryDraft.data(), [
+      'revised secondary phrase',
+      'secondary phrase to remove',
+    ]);
+    assertKeywordGroups(updatedSecondaryDraft.data(), updatedGroups);
+    await updateDoc(draftRef, getArticleKeywordFields('Akira', ['revised secondary phrase']));
+    updatedSecondaryDraft = await getDocFromServer(draftRef);
+    assertSecondaryKeywords(updatedSecondaryDraft.data(), ['revised secondary phrase']);
+    assertKeywordGroups(updatedSecondaryDraft.data(), updatedGroups);
+    console.log('PASS edit and remove a secondary keyword while synchronizing legacy aliases');
+
     const clearedGroups = {
       ...updatedGroups,
       additionalSeoKeywords: [],
@@ -187,10 +248,14 @@ async function run() {
     delete legacyArticle.updatedAt;
     delete legacyArticle.publishedAt;
     legacyArticle.title = 'Legacy article without keyword groups';
+    legacyArticle.primaryKeyword = 'Akira';
+    legacyArticle.keywords = ['Akira', 'legacy secondary phrase'];
+    legacyArticle.relatedKeywords = ['legacy secondary phrase'];
     legacyArticle.content = '<p>Legacy article content is retained.</p>';
     await setDoc(legacyRef, legacyArticle);
     createdDocumentIds.push(legacyId);
     const legacyRead = await getDocFromServer(legacyRef);
+    assert.deepEqual(getArticleSecondaryKeywords(legacyRead.data()), ['legacy secondary phrase']);
     const legacyKeywordPayload = buildArticleKeywordGroupsPayload(
       {},
       legacyRead.data(),
@@ -206,6 +271,9 @@ async function run() {
     assert.equal(updatedLegacy.content, legacyArticle.content);
     assert.equal(updatedLegacy.title, legacyArticle.title);
     assert.equal(updatedLegacy.seoDescription, 'Updated legacy description.');
+    assert.deepEqual(updatedLegacy.keywords, legacyArticle.keywords);
+    assert.deepEqual(updatedLegacy.relatedKeywords, legacyArticle.relatedKeywords);
+    assert.deepEqual(getArticleSecondaryKeywords(updatedLegacy), ['legacy secondary phrase']);
     for (const { key } of ARTICLE_KEYWORD_GROUPS) {
       assert.equal(Object.hasOwn(updatedLegacy, key), false, `${key} should remain absent`);
     }
@@ -221,12 +289,14 @@ async function run() {
     };
     await setDoc(publishedRef, {
       ...createArticleBase(publishedId, 'published', authorId),
+      ...getArticleKeywordFields('published primary', ['published secondary phrase']),
       ...buildArticleKeywordGroupsPayload(publishedGroups, {}, [], true),
     });
     createdDocumentIds.push(publishedId);
     const published = await getDocFromServer(publishedRef);
     assert.equal(published.data().status, 'published');
     assertKeywordGroups(published.data(), publishedGroups);
+    assertSecondaryKeywords(published.data(), ['published secondary phrase'], 'published primary');
     assert.equal(published.data().publishedAt.toDate instanceof Function, true);
 
     anonymousApp = initializeApp(firebaseConfig, `keyword-anonymous-${randomUUID()}`);
@@ -238,6 +308,7 @@ async function run() {
     const publicPublished = await getDocFromServer(doc(anonymousDb, 'posts', publishedId));
     assert.ok(publicPublished.exists());
     assertKeywordGroups(publicPublished.data(), publishedGroups);
+    assertSecondaryKeywords(publicPublished.data(), ['published secondary phrase'], 'published primary');
     console.log('PASS published article visibility and draft access rules remain intact');
   } finally {
     if (signedInUser && primaryAuth.currentUser) {

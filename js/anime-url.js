@@ -35,6 +35,8 @@ export function getAnimePath(anime) {
   return `/anime/${encodeURIComponent(stableSlug)}`;
 }
 
+export const ANIMORO_SITE_ORIGIN = 'https://www.animoro.in';
+
 export function getAnimeCanonicalUrl(anime) {
-  return new URL(getAnimePath(anime), 'https://animoro.in').toString();
+  return new URL(getAnimePath(anime), ANIMORO_SITE_ORIGIN).toString();
 }

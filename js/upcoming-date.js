@@ -48,6 +48,13 @@ export function formatUpcomingReleaseDate(value) {
         /^\d{4}$/.test(normalized)) {
       return normalized;
     }
+    if (/^\d{4}-\d{2}-\d{2}$/i.test(normalized)) {
+      const [year, month, day] = normalized.split('-').map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      return Number.isFinite(date.getTime())
+        ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+        : normalized;
+    }
   }
   const date = toUpcomingDate(value);
   return date
@@ -62,14 +69,22 @@ export function getUpcomingReleaseDescription(item) {
   if (confidence === 'unconfirmed') return 'Unconfirmed announcement';
 
   if (item?.releaseDatePrecision === 'exact') {
-    return item.source === 'jikan' ? 'Exact date listed by Jikan' : 'Exact date listed by editor';
+    return item?.source === 'jikan'
+      ? 'Exact date listed by Jikan'
+      : item?.source === 'tenrai'
+        ? 'Exact date listed by Tenrai'
+        : 'Exact date listed by editor';
   }
   if (['month', 'year'].includes(item?.releaseDatePrecision)) return 'Approximate release window';
 
   const value = item?.releaseDate;
   if (value instanceof Date ||
       (value && typeof value.toDate === 'function')) {
-    return item.source === 'jikan' ? 'Exact date listed by Jikan' : 'Exact date listed by editor';
+    return item?.source === 'jikan'
+      ? 'Exact date listed by Jikan'
+      : item?.source === 'tenrai'
+        ? 'Exact date listed by Tenrai'
+        : 'Exact date listed by editor';
   }
   const date = String(value || '').trim();
   if (/^(winter|spring|summer|fall|autumn)\s+\d{4}$/i.test(date) ||

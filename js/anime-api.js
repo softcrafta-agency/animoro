@@ -161,9 +161,13 @@ async function requestTenrai(path, ttl = LIST_CACHE_MS) {
 }
 
 function namesFrom(items) {
-  return Array.isArray(items)
-    ? items.map(item => typeof item?.name === 'string' ? item.name.trim() : '').filter(Boolean)
-    : [];
+  if (Array.isArray(items)) {
+    return items.map(item => typeof item?.name === 'string' ? item.name.trim() : '').filter(Boolean);
+  }
+  if (typeof items === 'string') {
+    return items.split(',').map(item => item.trim()).filter(Boolean);
+  }
+  return [];
 }
 
 function firstImage(images) {
@@ -192,16 +196,18 @@ function getRelease(item) {
     return {
       date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
       precision: 'exact',
+      source: 'Tenrai',
     };
   }
   if (Number.isInteger(year) && year >= 1900 && year < 2200 && month >= 1 && month <= 12) {
     return {
       date: `${new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)))} ${year}`,
       precision: 'month',
+      source: 'Tenrai',
     };
   }
-  if (Number.isInteger(year) && year >= 1900 && year < 2200) return { date: String(year), precision: 'year' };
-  return { date: '', precision: 'unknown' };
+  if (Number.isInteger(year) && year >= 1900 && year < 2200) return { date: String(year), precision: 'year', source: 'Tenrai' };
+  return { date: '', precision: 'unknown', source: 'Tenrai' };
 }
 
 function normalizeStatus(status) {
@@ -229,8 +235,10 @@ export function normalizeAnime(item, kind = 'anime') {
     ...namesFrom(item?.explicit_genres),
     ...namesFrom(item?.themes),
     ...namesFrom(item?.demographics),
-  ])];
+  ].flatMap(value => Array.isArray(value) ? value : [value]))];
   const score = Number(item?.score);
+  const popularity = Number(item?.popularity);
+  const releaseDateSource = item?.source === 'jikan' ? 'Jikan' : 'Tenrai';
   return {
     id: Number.isInteger(malId) && malId > 0 ? `tenrai-${malId}` : slugBase,
     malId: Number.isInteger(malId) && malId > 0 ? malId : null,
@@ -250,16 +258,15 @@ export function normalizeAnime(item, kind = 'anime') {
     type: item?.type || '',
     status: normalizeStatus(item?.status),
     releaseStatus: kind === 'upcoming'
-      ? release.precision === 'unknown' ? 'Release date not listed by Tenrai' : 'Tenrai catalogue listing'
+      ? release.precision === 'unknown' ? 'Release date not listed by Tenrai' : `${releaseDateSource} catalogue listing`
       : '',
     releaseDate: kind === 'upcoming' ? release.date : release.date,
     releaseDatePrecision: kind === 'upcoming' ? release.precision : '',
+    releaseDateSource,
     releaseYear: Number.isInteger(year) && year >= 1900 && year < 2200 ? String(year) : '',
     season,
     rating: Number.isFinite(score) && score > 0 ? score : '',
-    popularity: Number.isFinite(Number(item?.popularity)) && Number(item.popularity) > 0
-      ? Number(item.popularity)
-      : '',
+    popularity: Number.isFinite(popularity) && popularity > 0 ? popularity : '',
     scoredBy: Number.isFinite(Number(item?.scored_by)) ? Number(item.scored_by) : 0,
     episodes: item?.episodes ?? '',
     studio: namesFrom(item?.studios).join(', '),
@@ -290,13 +297,19 @@ function mapGenreToTenrai(genre) {
 }
 
 function requestGenre(options = {}) {
-  if (Array.isArray(options.genres)) {
-    return options.genres.map(mapGenreToTenrai).join(',');
+  const genres = Array.isArray(options.genres)
+    ? options.genres
+    : typeof options.genres === 'string' && options.genres.trim()
+      ? options.genres.split(',').map(item => item.trim()).filter(Boolean)
+      : [];
+
+  if (genres.length > 0) {
+    return genres.map(mapGenreToTenrai).join(',');
   }
-  if (options.genres !== undefined && options.genres !== null && options.genres !== '') {
-    return mapGenreToTenrai(options.genres);
+  if (options.genre !== undefined && options.genre !== null && options.genre !== '') {
+    return mapGenreToTenrai(options.genre);
   }
-  return mapGenreToTenrai(options.genre);
+  return '';
 }
 
 function normalizeApiStatus(status) {

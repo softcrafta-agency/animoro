@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ARTICLE_KEYWORD_GROUPS,
   buildArticleKeywordGroupsPayload,
+  getUniqueKeywordAdditions,
   normalizeKeywordGroupValues,
 } from './article-keyword-groups.js';
 
@@ -19,6 +20,20 @@ test('normalizes all keyword groups and removes whitespace/case duplicates', () 
     storyCharacterKeywords: ['Jiro Azuma'],
     longTailKeywords: ['how the story ends'],
     questionBasedKeywords: ['Who is Jiro?'],
+  });
+});
+
+test('prevents duplicates within one batch and across keyword groups', () => {
+  const result = getUniqueKeywordAdditions({
+    additionalSeoKeywords: ['Jiro Azuma'],
+    storyCharacterKeywords: [],
+    longTailKeywords: [],
+    questionBasedKeywords: [],
+  }, ['Jiro-Azuma, Black Torch, black-torch']);
+
+  assert.deepEqual(result, {
+    additions: ['Black Torch'],
+    skippedCount: 2,
   });
 });
 

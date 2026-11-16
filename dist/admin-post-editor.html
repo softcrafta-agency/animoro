@@ -22,15 +22,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-post-editor-B-flMExe.js"></script>
+  <script type="module" crossorigin src="/assets/admin-post-editor-D0qSFbcN.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/style-V_y52HhV.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-Dov9qHYI.js">
-  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-CrldZNcq.js">
-  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-D-1yq0Ld.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-BkxOaftY.js">
+  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-EELO6gNd.js">
+  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-BPfIU3xX.js">
   <link rel="modulepreload" crossorigin href="/assets/article-content-C2qxFj9R.js">
   <link rel="modulepreload" crossorigin href="/assets/article-seo-BhW3mpU9.js">
   <link rel="stylesheet" crossorigin href="/assets/style-BpADe46y.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-CeHCQgLu.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-Cb09oLIa.css">
 </head>
 <body class="admin-body">
 
@@ -341,6 +341,37 @@
                   </div>
                   <div id="seoKeywordAeoDetails" class="seo-keyword-aeo-details"></div>
                   <div id="seoKeywordAnalysisError" class="seo-keyword-analysis-error" role="alert" hidden></div>
+                </section>
+                <section id="contentRelevanceAnalysis" class="content-relevance-analysis" aria-labelledby="contentRelevanceHeading" aria-live="polite">
+                  <div class="seo-keyword-analysis-heading">
+                    <strong id="contentRelevanceHeading">Content Relevance Analysis</strong>
+                    <span id="contentRelevanceState" class="seo-keyword-analysis-state">Waiting for article content</span>
+                  </div>
+                  <p class="article-keyword-description">Advisory editorial checks only. These heuristic scores are not Google ranking scores or predictions and do not fact-check anime canon.</p>
+                  <div class="content-quality-scores" aria-label="Editorial analysis scores">
+                    <span>Keyword Coverage <strong data-quality-score="keywordCoverage">0</strong><small>/100</small></span>
+                    <span>Search Intent <strong data-quality-score="searchIntent">0</strong><small>/100</small></span>
+                    <span>Content Relevance <strong data-quality-score="contentRelevance">0</strong><small>/100</small></span>
+                    <span>AEO Coverage <strong data-quality-score="aeoCoverage">0</strong><small>/100</small></span>
+                    <span>Heading Quality <strong data-quality-score="headingQuality">0</strong><small>/100</small></span>
+                    <span>Character/Story Coverage <strong data-quality-score="characterStoryCoverage">0</strong><small>/100</small></span>
+                  </div>
+                  <details class="content-quality-methodology">
+                    <summary>How these scores are calculated</summary>
+                    <ul>
+                      <li>Keyword Coverage: share of entered focus, secondary, and grouped phrases found as complete phrases in visible text or headings.</li>
+                      <li>Search Intent: introduction/topic overlap (35%), text volume capped at 180 meaningful words (20%), selected-intent signals (25%), and SEO-title promise fulfillment (20%).</li>
+                      <li>Content Relevance: average keyword context score—paragraph explanation is weighted above title/heading mentions and partial lexical overlap.</li>
+                      <li>AEO Coverage: share of questions with an H2/H3 match, a relevant direct first sentence, and contextual supporting detail; it does not verify factual accuracy.</li>
+                      <li>Heading Quality: H2 presence (30%), descriptive H2/H3 share (50%), and H3 hierarchy under an H2 (20%).</li>
+                      <li>Character/Story Coverage: share of supplied story phrases present in paragraphs, with additional credit for explanatory context. It cannot verify identities, powers, or canon.</li>
+                    </ul>
+                    <p class="article-keyword-description">A score of 0 can mean no phrases/questions were supplied, not necessarily poor article quality. Phrase overlap, word counts, and structure are limited editorial signals; review the article and sources yourself.</p>
+                  </details>
+                  <div class="content-quality-recommendations">
+                    <strong>Editorial recommendations</strong>
+                    <ul id="contentQualityRecommendations"></ul>
+                  </div>
                 </section>
                 <details class="article-keyword-group" data-keyword-group="additionalSeoKeywords">
                   <summary class="article-keyword-group-summary"><span>Additional SEO Keywords</span><span class="article-keyword-count"><b data-keyword-count>0</b> phrases</span></summary>

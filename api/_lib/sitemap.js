@@ -24,6 +24,22 @@ const STATIC_PATHS = [
   '/contact.html',
   '/privacy.html',
 ];
+const MAX_SITEMAP_URLS = 50000;
+
+function isPublicRecord(record) {
+  return record.deleted !== true &&
+    record.isDeleted !== true &&
+    record.isPrivate !== true &&
+    record.private !== true &&
+    record.isPublic !== false &&
+    record.public !== false &&
+    record.deletedAt == null &&
+    record.visibility !== 'private' &&
+    record.visibility !== 'deleted' &&
+    record.status !== 'private' &&
+    record.status !== 'deleted' &&
+    record.status !== 'archived';
+}
 
 function escapeXml(value) {
   return String(value)
@@ -118,6 +134,9 @@ export function buildSitemap(posts, categories, animeEntries = [], upcomingEntri
 
   function add(location, lastModified) {
     if (seenLocations.has(location)) return;
+    if (seenLocations.size >= MAX_SITEMAP_URLS) {
+      throw new RangeError(`Sitemap exceeds the ${MAX_SITEMAP_URLS}-URL protocol limit.`);
+    }
     seenLocations.add(location);
     appendUrl(urls, location, lastModified);
   }
@@ -127,13 +146,13 @@ export function buildSitemap(posts, categories, animeEntries = [], upcomingEntri
   }
 
   const publicPosts = posts.filter(post =>
-    post.status === 'published' && isValidArticleSlug(post.slug)
+    post.status === 'published' && isPublicRecord(post) && isValidArticleSlug(post.slug)
   );
   const publicAnime = animeEntries.filter(anime =>
-    anime.visibility === 'published' && isValidAnimeSlug(anime.slug)
+    anime.visibility === 'published' && isPublicRecord(anime) && isValidAnimeSlug(anime.slug)
   );
   const publicUpcoming = upcomingEntries.filter(anime =>
-    anime.status === 'published' && isValidAnimeSlug(anime.slug)
+    anime.status === 'published' && isPublicRecord(anime) && isValidAnimeSlug(anime.slug)
   );
   const categoryLastModified = new Map();
 

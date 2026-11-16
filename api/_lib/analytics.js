@@ -154,9 +154,9 @@ export function sanitizeReferrer(value, siteHost = 'animoro.in') {
   try {
     const url = new URL(value);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return '';
-    const hostname = url.hostname.toLowerCase();
-    const normalizedSiteHost = siteHost.toLowerCase();
-    if (hostname === normalizedSiteHost || hostname === normalizedSiteHost.replace(/^www\./, '')) return '';
+    const normalizeHost = hostname => hostname.toLowerCase().replace(/\.$/, '').replace(/^www\./, '');
+    const hostname = url.hostname.toLowerCase().replace(/\.$/, '');
+    if (normalizeHost(hostname) === normalizeHost(siteHost)) return '';
     return hostname.slice(0, 253);
   } catch {
     return '';

@@ -12,7 +12,7 @@ test('article path and canonical use the preferred slug route', () => {
   assert.equal(getArticlePath(article), '/blog/best-magic-fantasy-anime');
   assert.equal(
     getCanonicalArticleUrl(article),
-    'https://animoro.in/blog/best-magic-fantasy-anime'
+    'https://www.animoro.in/blog/best-magic-fantasy-anime'
   );
 });
 

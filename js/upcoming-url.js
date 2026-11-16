@@ -13,6 +13,8 @@ export function getUpcomingAnimePath(item) {
   return `/upcoming-anime/${encodeURIComponent(getUpcomingAnimeSlug(item))}`;
 }
 
+export const ANIMORO_SITE_ORIGIN = 'https://www.animoro.in';
+
 export function getUpcomingAnimeCanonicalUrl(item) {
-  return new URL(getUpcomingAnimePath(item), 'https://animoro.in').toString();
+  return new URL(getUpcomingAnimePath(item), ANIMORO_SITE_ORIGIN).toString();
 }

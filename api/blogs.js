@@ -1,92 +1,49 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { getAdminServices } from './_lib/firebase-admin.js';
-import { getArticlePath, isValidArticleSlug } from '../js/article-url.js';
+import { isValidArticleSlug } from '../js/article-url.js';
 import { getArticleCategories } from '../js/article-editor-fields.js';
-import { escapeHtml, getSafeImageUrl } from '../js/html-utils.js';
+import { escapeHtml } from '../js/html-utils.js';
+import { renderArticleList } from './_lib/article-list-html.js';
 
 const BLOGS_TEMPLATE_PATH = resolve(process.cwd(), 'dist', 'blogs.html');
 const BLOG_ARTICLES_MARKER = '<!-- BLOG_ARTICLES -->';
+const BLOG_PAGINATION_MARKER = '<!-- BLOG_PAGINATION -->';
 const PAGE_SIZE = 9;
+const MAX_ARCHIVE_PAGE = 100;
 const CACHE_CONTROL = 'public, max-age=0, s-maxage=60, must-revalidate';
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80';
 
 function getRequestedCategory(request) {
   const queryCategory = typeof request.query?.category === 'string'
     ? request.query.category
-    : new URL(request.url || '/', 'https://animoro.in').searchParams.get('category');
+    : new URL(request.url || '/', 'https://www.animoro.in').searchParams.get('category');
   return typeof queryCategory === 'string' && queryCategory.trim()
     ? queryCategory.trim().slice(0, 100)
     : 'all';
 }
 
-function formatPublishedDate(value) {
-  if (!value) return '';
-  const date = value.toDate ? value.toDate() : new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
-function renderArticleCard(post) {
-  const articlePath = getArticlePath(post);
-  const title = escapeHtml(post.title || 'Untitled article');
-  const categories = getArticleCategories(post);
-  const category = escapeHtml(categories[0] || 'General');
-  const categoryLinks = categories.map(name =>
-    `<a class="badge-category" href="/category.html?category=${encodeURIComponent(name)}">${escapeHtml(name)}</a>`
-  ).join('');
-  const excerpt = escapeHtml(post.excerpt || '');
-  const authorName = typeof post.authorName === 'string' ? post.authorName.trim() : '';
-  const imageUrl = escapeHtml(getSafeImageUrl(post.coverImage, FALLBACK_IMAGE));
-  const publishedDate = formatPublishedDate(post.publishedAt);
-
-  return `<article class="article-card">
-    <a href="${articlePath}" class="card-img-wrap">
-      <img class="card-img" src="${imageUrl}" alt="${title}" width="800" height="450" loading="lazy" decoding="async" />
-      <span class="card-category-badge">${category}</span>
-    </a>
-    <div class="card-body">
-      ${publishedDate ? `<div class="card-meta"><span>${escapeHtml(publishedDate)}</span></div>` : ''}
-      ${categoryLinks ? `<div class="card-category-list">${categoryLinks}</div>` : ''}
-      <h3 class="card-title"><a href="${articlePath}">${title}</a></h3>
-      <p class="card-excerpt">${excerpt}</p>
-      <div class="card-footer">
-        <div class="author-info">
-          ${authorName ? `<div class="author-avatar">${escapeHtml(authorName[0].toUpperCase())}</div><span>${escapeHtml(authorName)}</span>` : ''}
-        </div>
-        <a href="${articlePath}" style="color: var(--accent-crimson); font-weight: 600; display: flex; align-items: center; gap: 4px;">
-          Read
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </a>
-      </div>
-    </div>
-  </article>`;
-}
-
-function renderArticleList(posts) {
-  if (!posts.length) {
-    return `<div class="empty-state" style="grid-column: 1 / -1;">
-      <h2 class="empty-state-title">No stories found</h2>
-      <p class="empty-state-desc">There are no published articles in this selection yet. Browse all articles or check back soon.</p>
-      <a class="btn-outline" href="/blogs.html">Browse All Articles</a>
-    </div>`;
+function getRequestedPage(request) {
+  const queryPage = typeof request.query?.page === 'string'
+    ? request.query.page
+    : new URL(request.url || '/', 'https://www.animoro.in').searchParams.get('page');
+  if (!queryPage) return 1;
+  if (!/^[1-9]\d{0,2}$/.test(queryPage) || Number(queryPage) > MAX_ARCHIVE_PAGE) {
+    const error = new Error(`The archive page must be between 1 and ${MAX_ARCHIVE_PAGE}.`);
+    error.status = 400;
+    throw error;
   }
-  return posts.map(renderArticleCard).join('\n');
+  return Number(queryPage);
 }
 
-async function loadPublishedPosts(firestore, category) {
+async function loadPublishedPosts(firestore, category, page) {
   const collection = firestore.collection('posts');
   const baseQuery = collection.where('status', '==', 'published');
+  const windowSize = (page - 1) * PAGE_SIZE + PAGE_SIZE + 1;
   const queries = category === 'all'
-    ? [baseQuery.orderBy('publishedAt', 'desc').limit(PAGE_SIZE).get()]
+    ? [baseQuery.orderBy('publishedAt', 'desc').limit(windowSize).get()]
     : [
-        baseQuery.where('categories', 'array-contains', category).orderBy('publishedAt', 'desc').limit(PAGE_SIZE).get(),
-        baseQuery.where('category', '==', category).orderBy('publishedAt', 'desc').limit(PAGE_SIZE).get(),
+        baseQuery.where('categories', 'array-contains', category).orderBy('publishedAt', 'desc').limit(windowSize).get(),
+        baseQuery.where('category', '==', category).orderBy('publishedAt', 'desc').limit(windowSize).get(),
       ];
   const snapshots = await Promise.all(queries);
   const postsById = new Map();
@@ -104,12 +61,41 @@ async function loadPublishedPosts(firestore, category) {
       postsById.set(document.id, post);
     }
   }
-  return [...postsById.values()]
+  const orderedPosts = [...postsById.values()]
     .sort((left, right) =>
       new Date(right.publishedAt?.toDate?.() || right.publishedAt || 0) -
       new Date(left.publishedAt?.toDate?.() || left.publishedAt || 0)
-    )
-    .slice(0, PAGE_SIZE);
+    );
+  const start = (page - 1) * PAGE_SIZE;
+  return {
+    posts: orderedPosts.slice(start, start + PAGE_SIZE),
+    hasNext: orderedPosts.length > start + PAGE_SIZE,
+  };
+}
+
+function renderPagination(page, hasNext, category) {
+  if (page === 1 && !hasNext) return '';
+  const urlForPage = pageNumber => {
+    const params = new URLSearchParams();
+    if (category !== 'all') params.set('category', category);
+    if (pageNumber > 1) params.set('page', String(pageNumber));
+    const query = params.toString();
+    return `/blogs.html${query ? `?${query}` : ''}`;
+  };
+  return `<nav class="anime-pagination" aria-label="Article archive pages">
+    ${page > 1 ? `<a class="btn-outline" href="${escapeHtml(urlForPage(page - 1))}" rel="prev">Previous articles</a>` : ''}
+    <span>Page ${page}</span>
+    ${hasNext ? `<a class="btn-outline" href="${escapeHtml(urlForPage(page + 1))}" rel="next">Next articles</a>` : ''}
+  </nav>`;
+}
+
+function setArchiveCanonical(html, page, category) {
+  const canonical = category !== 'all'
+    ? `https://www.animoro.in/category.html?category=${encodeURIComponent(category)}`
+    : `https://www.animoro.in/blogs.html${page > 1 ? `?page=${page}` : ''}`;
+  return html
+    .replace(/<link\s+rel=["']canonical["'][^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}" />`)
+    .replace(/<meta\s+property=["']og:url["'][^>]*>/i, `<meta property="og:url" content="${escapeHtml(canonical)}" />`);
 }
 
 function sendHtml(response, statusCode, html, cacheControl = 'no-store') {
@@ -137,23 +123,31 @@ export function createBlogsHandler({
 
     let stage = 'initialize_firebase';
     try {
+      const page = getRequestedPage(request);
+      const category = getRequestedCategory(request);
       const { firestore } = getServices();
       stage = 'query_articles';
-      const posts = await loadPublishedPosts(firestore, getRequestedCategory(request));
+      const { posts, hasNext } = await loadPublishedPosts(firestore, category, page);
       stage = 'load_template';
       const template = await loadTemplate();
       if (typeof template !== 'string' || !template.includes(BLOG_ARTICLES_MARKER)) {
         throw new TypeError('Articles template is empty or missing its render marker.');
       }
       stage = 'render_articles';
-      const html = template.replace(BLOG_ARTICLES_MARKER, renderArticleList(posts));
+      const html = template
+        .replace(BLOG_ARTICLES_MARKER, renderArticleList(posts))
+        .replace(BLOG_PAGINATION_MARKER, renderPagination(page, hasNext, category));
+      const canonicalHtml = setArchiveCanonical(html, page, category);
       return sendHtml(
         response,
         200,
-        request.method === 'HEAD' ? '' : html,
+        request.method === 'HEAD' ? '' : canonicalHtml,
         CACHE_CONTROL
       );
     } catch (error) {
+      if (Number(error?.status) === 400) {
+        return sendHtml(response, 400, request.method === 'HEAD' ? '' : getErrorDocument());
+      }
       logger.error('Article listing request failed.', JSON.stringify({
         stage,
         errorName: error?.name || 'Error',

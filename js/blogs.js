@@ -7,6 +7,7 @@ let currentSort = 'latest'; // latest, popular, oldest
 let lastDoc = null;
 let pendingBlogPosts = [];
 let isLoading = false;
+let hasMoreArticles = true;
 const PAGE_SIZE = 9;
 const CATEGORY_SCAN_SIZE = 30;
 
@@ -41,7 +42,11 @@ async function initBlogsPage() {
   }
 
   setupFilterEvents();
-  loadArticles(true);
+  const requestedPage = Math.min(100, Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1));
+  await loadArticles(true);
+  for (let page = 2; page <= requestedPage && hasMoreArticles; page += 1) {
+    await loadArticles(false);
+  }
 }
 
 function setupFilterEvents() {
@@ -83,6 +88,7 @@ async function loadArticles(reset = false) {
   if (reset) {
     lastDoc = null;
     pendingBlogPosts = [];
+    hasMoreArticles = true;
     container.querySelector('[data-listing-error]')?.remove();
     if (!container.querySelector('.article-card')) {
       container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
@@ -112,6 +118,7 @@ async function loadArticles(reset = false) {
         </div>
       `;
       if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+      hasMoreArticles = false;
       return;
     }
 
@@ -189,6 +196,7 @@ async function loadArticles(reset = false) {
         </div>
       `;
       if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+      hasMoreArticles = false;
       return;
     }
 
@@ -205,8 +213,10 @@ async function loadArticles(reset = false) {
       loadMoreBtn.textContent = 'Load More Articles';
       loadMoreBtn.style.display = hasMore || pendingBlogPosts.length ? 'inline-flex' : 'none';
     }
+    hasMoreArticles = hasMore || pendingBlogPosts.length > 0;
 
   } catch (error) {
+    hasMoreArticles = false;
     if (firestoreErrorHandler) {
       firestoreErrorHandler(error, 'list', 'posts');
     } else {

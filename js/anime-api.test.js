@@ -51,7 +51,7 @@ test('Tenrai catalogue responses normalize real catalogue fields and preserve MA
   const result = await getAnimeDirectory({ query: 'naruto', page: 2, limit: 1 });
 
   assert.match(requestUrl, /^\/api\/tenrai\?/);
-  assert.equal(new URL(requestUrl, 'https://animoro.in').searchParams.get('q'), 'naruto');
+  assert.equal(new URL(requestUrl, 'https://www.animoro.in').searchParams.get('q'), 'naruto');
   assert.equal(result.items[0].source, 'tenrai');
   assert.equal(result.items[0].malId, 20);
   assert.equal(result.items[0].slug, 'naruto--20');
@@ -65,7 +65,7 @@ test('Tenrai directory sort fields use the correct fields and directions', async
   storage.clear();
   const requests = [];
   globalThis.fetch = async url => {
-    const params = new URL(url, 'https://animoro.in').searchParams;
+    const params = new URL(url, 'https://www.animoro.in').searchParams;
     requests.push(params);
     return response(200, {
       data: [animeRecord({ popularity: 12, score: 8.5 })],
@@ -109,7 +109,7 @@ test('Tenrai directory sends every selected filter together and trims search ter
     orderBy: 'popularity',
   });
 
-  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+  const params = new URL(requestUrl, 'https://www.animoro.in').searchParams;
   assert.equal(params.get('q'), 'Naruto');
   assert.equal(params.get('type'), 'tv');
   assert.equal(params.get('status'), 'airing');
@@ -122,7 +122,7 @@ test('Tenrai directory integrates movie, TV, status, genre, search, and sort fil
   storage.clear();
   const requests = [];
   globalThis.fetch = async url => {
-    requests.push(new URL(url, 'https://animoro.in').searchParams);
+    requests.push(new URL(url, 'https://www.animoro.in').searchParams);
     return response(200, { data: [], pagination: { has_next_page: false } });
   };
 
@@ -159,7 +159,7 @@ test('every configured Tenrai genre maps to its supported ID and invalid genres 
 
     await getAnimeDirectory({ genre });
     assert.equal(
-      new URL(requestUrl, 'https://animoro.in').searchParams.get('genres'),
+      new URL(requestUrl, 'https://www.animoro.in').searchParams.get('genres'),
       id,
       `${genre} must map to Tenrai genre ID ${id}`
     );
@@ -181,7 +181,7 @@ test('Tenrai pagination changes only the page while preserving the applied filte
   storage.clear();
   const requests = [];
   globalThis.fetch = async url => {
-    requests.push(new URL(url, 'https://animoro.in').searchParams);
+    requests.push(new URL(url, 'https://www.animoro.in').searchParams);
     return response(200, { data: [], pagination: { has_next_page: false } });
   };
   const filters = {
@@ -222,7 +222,7 @@ test('reset filter defaults request the unfiltered popular directory', async () 
     page: 1,
   });
 
-  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+  const params = new URL(requestUrl, 'https://www.animoro.in').searchParams;
   for (const name of ['q', 'type', 'status', 'genres']) assert.equal(params.has(name), false);
   assert.equal(params.get('order_by'), 'popularity');
   assert.equal(params.get('sort'), 'asc');
@@ -233,7 +233,7 @@ test('Tenrai upcoming catalogue falls back to anime marked upcoming when seasona
   storage.clear();
   const requestedResources = [];
   globalThis.fetch = async url => {
-    const params = new URL(url, 'https://animoro.in').searchParams;
+    const params = new URL(url, 'https://www.animoro.in').searchParams;
     const resource = params.get('resource');
     requestedResources.push(resource);
     if (resource === 'upcoming') return response(200, { data: [], pagination: { has_next_page: false } });
@@ -271,7 +271,7 @@ test('Tenrai upcoming catalogue omits unsupported ordering and maps real anime r
   };
 
   const result = await getUpcomingAnime({ page: 1, limit: 24 });
-  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+  const params = new URL(requestUrl, 'https://www.animoro.in').searchParams;
 
   assert.equal(params.get('resource'), 'upcoming');
   assert.equal(params.get('page'), '1');
@@ -304,7 +304,7 @@ test('Tenrai schedule catalogue maps broadcast data from schedule records', asyn
   };
 
   const result = await getAnimeSchedules({ limit: 2 });
-  const params = new URL(requestUrl, 'https://animoro.in').searchParams;
+  const params = new URL(requestUrl, 'https://www.animoro.in').searchParams;
 
   assert.equal(params.get('resource'), 'schedules');
   assert.equal(params.get('limit'), '2');
@@ -331,7 +331,7 @@ test('Tenrai upcoming request errors are not converted to empty results or hidde
   storage.clear();
   const requestedResources = [];
   globalThis.fetch = async url => {
-    requestedResources.push(new URL(url, 'https://animoro.in').searchParams.get('resource'));
+    requestedResources.push(new URL(url, 'https://www.animoro.in').searchParams.get('resource'));
     return response(400, { error: 'querystring/order_by must be equal to one of the allowed values' });
   };
 

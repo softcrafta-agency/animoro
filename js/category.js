@@ -12,21 +12,13 @@ import { db, isConfigured, handleFirestoreError } from './firebase-init.js';
 import { createArticleCard, setupMobileNav } from './ui.js';
 import { escapeHtml } from './html-utils.js';
 import { getArticleCategories } from './article-editor-fields.js';
-
-const CATEGORY_DESCRIPTIONS = {
-  'Anime News': 'Breaking news, seasonal announcements, studio updates, and production insights.',
-  'Reviews': 'Critical analyses, spoiler-free breakdowns, and in-depth episodic reviews.',
-  'Rankings': 'Community top tier lists, best-of-season countdowns, and iconic character rankings.',
-  'Guides': 'Watch orders, beginner roadmaps, lore explanations, and manga reading companions.',
-  'Recommendations': 'Handpicked anime recommendations curated by genre, mood, and storytelling caliber.',
-  'Manga': 'Manga chapter discussions, adaptations comparison, and light novel spotlights.',
-  'Seasonal Anime': 'Previews, schedules, and essential guides for current and upcoming anime seasons.'
-};
+import { getCategoryDescription, getCategoryMetadata } from './category-seo.js';
 const PAGE_SIZE = 9;
 const CATEGORY_SCAN_SIZE = 30;
 let lastCategoryDoc = null;
 let isLoadingCategory = false;
 let pendingCategoryPosts = [];
+let hasMoreCategoryPosts = true;
 
 function ensureMetaTag(attribute, name, value) {
   const selector = `meta[${attribute}="${name}"]`;
@@ -54,26 +46,29 @@ async function initCategoryPage() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const categoryName = urlParams.get('category') || 'Anime News';
+  const requestedPage = Math.min(100, Math.max(1, Number.parseInt(urlParams.get('page') || '1', 10) || 1));
 
   const titleEl = document.getElementById('categoryTitle');
   const descEl = document.getElementById('categoryDescription');
   const container = document.getElementById('categoryArticlesContainer');
-  const categoryDescription = CATEGORY_DESCRIPTIONS[categoryName] || `Explore all editorial coverage, analysis, and stories in ${categoryName}.`;
-  const canonicalUrl = new URL(`/category.html?category=${encodeURIComponent(categoryName)}`, 'https://animoro.in').toString();
+  const categoryDescription = getCategoryDescription(categoryName);
+  const metadata = getCategoryMetadata(categoryName);
+  const canonicalPath = `/category.html?category=${encodeURIComponent(categoryName)}${requestedPage > 1 ? `&page=${requestedPage}` : ''}`;
+  const canonicalUrl = new URL(canonicalPath, 'https://www.animoro.in').toString();
 
   if (titleEl) titleEl.textContent = categoryName;
   if (descEl) descEl.textContent = categoryDescription;
 
-  document.title = `${categoryName} — Animoro`;
+  document.title = metadata.title;
   const metaDescription = document.querySelector('meta[name="description"]');
-  if (metaDescription) metaDescription.setAttribute('content', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
-  ensureMetaTag('property', 'og:title', `${categoryName} — Animoro`);
-  ensureMetaTag('property', 'og:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
+  if (metaDescription) metaDescription.setAttribute('content', metadata.description);
+  ensureMetaTag('property', 'og:title', metadata.title);
+  ensureMetaTag('property', 'og:description', metadata.description);
   ensureMetaTag('property', 'og:url', canonicalUrl);
-  ensureMetaTag('property', 'og:image', 'https://animoro.in/logo.png');
+  ensureMetaTag('property', 'og:image', 'https://www.animoro.in/logo.png');
   ensureMetaTag('name', 'twitter:card', 'summary_large_image');
-  ensureMetaTag('name', 'twitter:title', `${categoryName} — Animoro`);
-  ensureMetaTag('name', 'twitter:description', `${categoryDescription} Discover the latest Animoro stories in ${categoryName}.`);
+  ensureMetaTag('name', 'twitter:title', metadata.title);
+  ensureMetaTag('name', 'twitter:description', metadata.description);
   ensureCanonical(canonicalUrl);
 
   if (!container) return;
@@ -94,6 +89,9 @@ async function initCategoryPage() {
   }
 
   await loadCategoryArticles();
+  for (let page = 2; page <= requestedPage && hasMoreCategoryPosts; page += 1) {
+    await loadCategoryArticles(lastCategoryDoc);
+  }
 }
 
 async function loadCategoryArticles(cursor = null) {
@@ -106,6 +104,7 @@ async function loadCategoryArticles(cursor = null) {
   if (!cursor) {
     lastCategoryDoc = null;
     pendingCategoryPosts = [];
+    hasMoreCategoryPosts = true;
     container.innerHTML = '<div class="home-loading-state" role="status" aria-label="Loading category articles"><span class="home-loading-line"></span><span class="home-loading-line"></span><span class="home-loading-line"></span></div>';
   }
   if (loadMoreBtn) {
@@ -162,6 +161,7 @@ async function loadCategoryArticles(cursor = null) {
     }
 
     if (!posts.length && !cursor) {
+      hasMoreCategoryPosts = false;
       ensureMetaTag('name', 'robots', 'noindex, follow');
       container.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
@@ -175,6 +175,7 @@ async function loadCategoryArticles(cursor = null) {
       if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       return;
     } else if (!posts.length) {
+      hasMoreCategoryPosts = false;
       if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       return;
     }
@@ -191,7 +192,9 @@ async function loadCategoryArticles(cursor = null) {
       loadMoreBtn.textContent = 'Load More Articles';
       loadMoreBtn.style.display = hasMore || pendingCategoryPosts.length ? 'inline-flex' : 'none';
     }
+    hasMoreCategoryPosts = hasMore || pendingCategoryPosts.length > 0;
   } catch (error) {
+    hasMoreCategoryPosts = false;
     handleFirestoreError(error, 'list', 'posts');
     const errorState = document.createElement('div');
     errorState.className = 'empty-state';

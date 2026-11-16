@@ -85,7 +85,7 @@ test('sitemap reflects Firestore publication and deletion on each uncached reque
   await handler({ method: 'GET' }, publishedResponse);
   assert.equal(publishedResponse.statusCode, 200);
   assert.equal(publishedResponse.headers['cache-control'], 'no-store');
-  assert.match(publishedResponse.body, /https:\/\/animoro\.in\/blog\/new-post/);
+  assert.match(publishedResponse.body, /https:\/\/www\.animoro\.in\/blog\/new-post/);
 
   publishedPosts = [];
   const deletedResponse = createResponse();
@@ -93,4 +93,28 @@ test('sitemap reflects Firestore publication and deletion on each uncached reque
 
   assert.equal(deletedResponse.statusCode, 200);
   assert.doesNotMatch(deletedResponse.body, /\/blog\/new-post/);
+});
+
+test('sitemap data retrieval includes public anime and upcoming collections without writing records', async () => {
+  const collections = [];
+  const firestore = {
+    collection(name) {
+      collections.push(name);
+      return {
+        where() { return this; },
+        async get() { return { docs: [] }; },
+      };
+    },
+    batch() {
+      assert.fail('Generating a sitemap must not mutate Firestore.');
+    },
+  };
+  const handler = createSitemapHandler({ getServices: () => ({ firestore }) });
+  const response = createResponse();
+
+  await handler({ method: 'GET' }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(collections.sort(), ['anime', 'posts', 'upcomingAnime']);
+  assert.match(response.body, /https:\/\/www\.animoro\.in/);
 });

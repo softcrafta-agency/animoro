@@ -90,9 +90,92 @@ test('flags missing headings, missing answers, short answers, and weakly related
 
   assert.equal(result.stats.totalQuestions, 3);
   assert.equal(result.stats.answeredQuestions, 0);
-  assert.equal(result.questions[0].answer.status, 'Answer may be too short');
-  assert.equal(result.questions[1].answer.status, 'Answer relevance needs review');
+  assert.equal(result.questions[0].answer.status, 'Answer may need more contextual detail');
+  assert.equal(result.questions[1].answer.status, 'Answer may not directly answer the question');
+  assert.equal(result.questions[1].answer.directAnswer, false);
   assert.equal(result.questions[2].answer.status, 'Question not found in an H2/H3 heading');
+});
+
+test('requires a relevant direct first-sentence answer instead of length or later keyword mention alone', () => {
+  const result = analyzeArticleKeywords({
+    content: `
+      <h2>Who is the strongest anime villain?</h2>
+      <p>This section starts with a vague statement. It later mentions the strongest villain and discusses abilities, story context, and supporting details in depth.</p>
+    `,
+    keywordGroups: {
+      longTailKeywords: ['Who is the strongest anime villain?'],
+      questionBasedKeywords: ['Who is the strongest anime villain?'],
+    },
+  });
+
+  assert.equal(result.questions[0].answer.answered, false);
+  assert.equal(result.questions[0].answer.directAnswer, false);
+  assert.equal(result.stats.unansweredQuestions, 1);
+  assert.equal(result.contentQuality.longTailChecks[0].sufficientlyAddressed, false);
+  assert.ok(result.contentQuality.recommendations.some(item => item.type === 'long-tail-query-quality'));
+});
+
+test('scores editorial coverage and returns actionable, localized recommendations', () => {
+  const repeatedParagraph = 'Anime villains are powerful story characters with abilities and motivations that shape each conflict.';
+  const stuffedParagraph = `${'Anime villains '.repeat(8)}remain central to this example.`;
+  const result = analyzeArticleKeywords({
+    title: 'Top 3 Anime Villains Ranked',
+    seoTitle: 'Top 3 Anime Villains Ranked',
+    primaryKeyword: 'anime villains',
+    secondaryKeywords: ['Jiro Azuma'],
+    searchIntent: 'informational',
+    content: `
+      <p>Anime villains shape the story through distinct abilities and motivations that readers can compare.</p>
+      <h2>Overview</h2>
+      <p>Jiro Azuma abilities officially confirmed are notable.</p>
+      <p>${stuffedParagraph}</p>
+      <p>${repeatedParagraph}</p>
+      <p>${repeatedParagraph}</p>
+    `,
+    keywordGroups: {
+      storyCharacterKeywords: ['Jiro Azuma abilities'],
+      longTailKeywords: ['unrelated cooking recipes for beginners'],
+      questionBasedKeywords: ['Who is Jiro Azuma?'],
+    },
+  });
+
+  const { contentQuality } = result;
+  assert.equal(contentQuality.searchIntent.queryFormat, 'list-based');
+  assert.equal(contentQuality.searchIntent.titlePromises.some(item => item.promise === 'list' && !item.fulfilled), true);
+  for (const score of Object.values(contentQuality.scores)) {
+    assert.ok(Number.isInteger(score) && score >= 0 && score <= 100);
+  }
+  for (const recommendation of contentQuality.recommendations) {
+    assert.ok(recommendation.issue);
+    assert.ok(recommendation.why);
+    assert.ok(recommendation.where);
+    assert.ok(recommendation.improve);
+  }
+  for (const type of [
+    'title-promise',
+    'keyword-stuffing',
+    'irrelevant-keyword',
+    'long-tail-query-quality',
+    'character-story-context',
+    'weak-heading',
+    'repeated-paragraph',
+    'unsupported-claim-review',
+  ]) {
+    assert.ok(contentQuality.recommendations.some(item => item.type === type), `expected ${type} recommendation`);
+  }
+});
+
+test('flags a weak introduction and selected intent without matching evidence', () => {
+  const result = analyzeArticleKeywords({
+    title: 'Where to Watch the Series',
+    primaryKeyword: 'Where to watch the series',
+    searchIntent: 'transactional',
+    content: '<p>Colorful characters appear throughout this story.</p>',
+  });
+
+  assert.ok(result.contentQuality.recommendations.some(item => item.type === 'weak-introduction'));
+  assert.ok(result.contentQuality.recommendations.some(item => item.type === 'search-intent'));
+  assert.equal(result.contentQuality.searchIntent.selected, 'transactional');
 });
 
 test('reports exact duplicates, similar phrases, relevance, and human-reviewed suggestions', () => {
@@ -111,6 +194,22 @@ test('reports exact duplicates, similar phrases, relevance, and human-reviewed s
   assert.equal(result.keywords.find(item => item.keyword === 'unrelated cooking recipes').relevance, 'Potentially unrelated—review');
   assert.equal(result.suggestions.length, 3);
   assert.ok(result.suggestions.some(item => /Review relevance/.test(item.placement)));
+});
+
+test('matches complete phrases and reports punctuation variants duplicated in one group', () => {
+  const result = analyzeArticleKeywords({
+    title: 'Goku guide',
+    content: '<h2>Black Torch story</h2><p>Gokushima protects the village.</p>',
+    keywordGroups: {
+      additionalSeoKeywords: ['Goku', 'Black Torch', 'Black-Torch'],
+    },
+  });
+
+  assert.equal(result.keywords.find(item => item.keyword === 'Goku').titleFound, true);
+  assert.equal(result.keywords.find(item => item.keyword === 'Goku').contentFound, false);
+  assert.equal(result.stats.duplicates, 1);
+  assert.equal(result.keywords.find(item => item.keyword === 'Black Torch').duplicate, true);
+  assert.equal(result.keywords.find(item => item.keyword === 'Black-Torch').duplicate, true);
 });
 
 test('handles empty groups and punctuation-only or unusually long terms safely', () => {

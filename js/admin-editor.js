@@ -305,6 +305,12 @@ function scheduleKeywordAnalysis() {
     try {
       const result = analyzeArticleKeywords({
         title: document.getElementById('postTitle')?.value || '',
+        seoTitle: document.getElementById('postSeoTitle')?.value || '',
+        primaryKeyword: document.getElementById('postPrimaryKeyword')?.value || '',
+        secondaryKeywords: normalizeArticleKeywords(
+          document.getElementById('postSecondaryKeywords')?.value || ''
+        ),
+        searchIntent: document.getElementById('postSearchIntent')?.value || 'informational',
         content: getRichEditor()?.innerHTML || '',
         keywordGroups: articleKeywordManager?.getValues() || {},
       });
@@ -319,6 +325,11 @@ function scheduleKeywordAnalysis() {
         error.hidden = false;
         error.textContent = 'Keyword analysis could not be completed. Continue editing; your article content and keyword values have not been changed.';
       }
+      const qualityState = document.getElementById('contentRelevanceState');
+      if (qualityState) {
+        qualityState.textContent = 'Analysis failed';
+        qualityState.dataset.state = 'error';
+      }
     }
   }, 180);
 }
@@ -329,12 +340,53 @@ function renderKeywordAnalysis(result) {
     state.textContent = 'Analysis updated';
     state.dataset.state = 'ready';
   }
+  const qualityState = document.getElementById('contentRelevanceState');
+  if (qualityState) {
+    qualityState.textContent = `${result.contentQuality.recommendations.length} advisory recommendation${result.contentQuality.recommendations.length === 1 ? '' : 's'}`;
+    qualityState.dataset.state = 'ready';
+  }
   articleKeywordManager?.setAnalysis(result.keywords);
 
   document.querySelectorAll('[data-keyword-stat]').forEach((element) => {
     const key = element.dataset.keywordStat;
     element.textContent = String(result.stats[key] ?? 0);
   });
+
+  document.querySelectorAll('[data-quality-score]').forEach((element) => {
+    const key = element.dataset.qualityScore;
+    element.textContent = String(result.contentQuality.scores[key] ?? 0);
+  });
+
+  const qualityRecommendations = document.getElementById('contentQualityRecommendations');
+  if (qualityRecommendations) {
+    qualityRecommendations.replaceChildren();
+    if (!result.contentQuality.recommendations.length) {
+      const empty = document.createElement('li');
+      empty.className = 'seo-keyword-empty';
+      empty.textContent = 'No advisory flags from these checks. This is not a factual or quality guarantee.';
+      qualityRecommendations.appendChild(empty);
+    } else {
+      result.contentQuality.recommendations.forEach((recommendation) => {
+        const item = document.createElement('li');
+        item.className = `content-quality-recommendation content-quality-${recommendation.type}`;
+        const issue = document.createElement('strong');
+        issue.textContent = recommendation.issue;
+        const why = document.createElement('p');
+        why.textContent = `Why it matters: ${recommendation.why}`;
+        const where = document.createElement('small');
+        where.textContent = `Where: ${recommendation.where}`;
+        const improve = document.createElement('p');
+        improve.textContent = `Editor action: ${recommendation.improve}`;
+        item.append(issue, why, where, improve);
+        if (recommendation.evidence) {
+          const evidence = document.createElement('small');
+          evidence.textContent = `Evidence to review: ${recommendation.evidence}`;
+          item.appendChild(evidence);
+        }
+        qualityRecommendations.appendChild(item);
+      });
+    }
+  }
 
   const suggestions = document.getElementById('seoKeywordSuggestionsList');
   if (suggestions) {
