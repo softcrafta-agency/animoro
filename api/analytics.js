@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { authorizeAdminRequest } from './_lib/admin-auth.js';
+import { isMissingFirestoreIndexError } from './_lib/firestore-errors.js';
 import { createSeoCopilotHandler } from './_lib/seo-copilot.js';
 import {
   getDateInTimeZone,
@@ -438,6 +439,12 @@ export function createAnalyticsHandler({ authorize = authorizeAdminRequest, cloc
           code: error?.code || 'unknown',
           message: error?.message || String(error),
         });
+        if (isMissingFirestoreIndexError(error)) {
+          return sendJson(response, 503, {
+            code: 'FIRESTORE_INDEX_REQUIRED',
+            error: 'Firestore is missing a required composite index for analytics. Deploy the reviewed firestore.indexes.json configuration, then retry.',
+          });
+        }
         const detail = process.env.NODE_ENV === 'production' ? undefined : error?.message;
         return sendJson(response, 503, {
           error: 'Analytics data is temporarily unavailable.',
@@ -465,6 +472,12 @@ export function createAnalyticsHandler({ authorize = authorizeAdminRequest, cloc
       return sendJson(response, 400, { error: 'Unsupported analytics request mode.' });
     } catch (error) {
       logger.error('Analytics dashboard query failed.', error);
+      if (isMissingFirestoreIndexError(error)) {
+        return sendJson(response, 503, {
+          code: 'FIRESTORE_INDEX_REQUIRED',
+          error: 'Firestore is missing a required composite index for analytics. Deploy the reviewed firestore.indexes.json configuration, then retry.',
+        });
+      }
       return sendJson(response, 503, { error: 'Analytics data is temporarily unavailable.' });
     }
   };

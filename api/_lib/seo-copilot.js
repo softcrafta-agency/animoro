@@ -1,6 +1,7 @@
 import { createHash, createSign } from 'node:crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import { authorizeAdminRequest } from './admin-auth.js';
+import { isMissingFirestoreIndexError } from './firestore-errors.js';
 import { getCanonicalArticleUrl } from '../../js/article-url.js';
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
@@ -744,6 +745,12 @@ export function createSeoCopilotHandler({
         return sendJson(response, 200, await loadDashboard(firestore, params));
       } catch (error) {
         logger.error('SEO Copilot dashboard request failed.', { message: error?.message || String(error) });
+        if (isMissingFirestoreIndexError(error)) {
+          return sendJson(response, 503, {
+            code: 'FIRESTORE_INDEX_REQUIRED',
+            error: 'Firestore is missing a required composite index for analytics_events article view data. Deploy the reviewed firestore.indexes.json configuration, then retry.',
+          });
+        }
         return sendJson(response, 503, { error: 'SEO Copilot data is temporarily unavailable.' });
       }
     }
@@ -913,6 +920,12 @@ export function createSeoCopilotHandler({
         message: error?.message || String(error),
         code: error?.code || 'unknown',
       });
+      if (isMissingFirestoreIndexError(error)) {
+        return sendJson(response, 503, {
+          code: 'FIRESTORE_INDEX_REQUIRED',
+          error: 'Firestore requires the analytics_events composite index (articleId ASCENDING, eventType ASCENDING, timestamp ASCENDING). Deploy the reviewed firestore.indexes.json configuration, then retry analysis.',
+        });
+      }
       return sendJson(response, 503, { error: error?.message || 'SEO Copilot analysis failed.' });
     }
   };

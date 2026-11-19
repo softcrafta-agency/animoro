@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { createSeoCopilotHandler } from './seo-copilot.js';
 
@@ -18,6 +19,8 @@ class MemoryFirestore {
     this.documents = new Map(Object.entries(seed).flatMap(([collection, records]) =>
       Object.entries(records).map(([id, value]) => [`${collection}/${id}`, value])
     ));
+    this.queryTrace = [];
+    this.missingIndex = false;
   }
 
   collection(name) {
@@ -45,6 +48,7 @@ class MemoryCollection {
   }
 
   where(field, operator, value) {
+    this.firestore.queryTrace.push({ collection: this.name, field, operator });
     return new MemoryCollection(this.firestore, this.name, [...this.filters, { field, operator, value }], this.maximum);
   }
 
@@ -55,6 +59,11 @@ class MemoryCollection {
   }
 
   async get() {
+    if (this.name === 'analytics_events' && this.firestore.missingIndex) {
+      throw Object.assign(new Error('The query requires a composite index for analytics_events.'), {
+        code: 'failed-precondition',
+      });
+    }
     const docs = [];
     for (const [path, data] of this.firestore.documents) {
       if (!path.startsWith(`${this.name}/`)) continue;
@@ -228,6 +237,12 @@ test('analyzes a saved article with verified Groq model, caches it, and saves re
     const cachedAfterDecision = makeResponse();
     await handler(createRequest('POST', { body }), cachedAfterDecision);
     assert.equal(cachedAfterDecision.body.analysis.recommendations[0].status, 'accepted');
+
+    const reanalysis = makeResponse();
+    await handler(createRequest('POST', { body: { ...body, force: true } }), reanalysis);
+    assert.equal(reanalysis.statusCode, 200);
+    assert.equal(reanalysis.body.cached, false);
+    assert.equal(groqCalls, 2);
   } finally {
     for (const [name, value] of Object.entries(originalEnvironment)) {
       if (value === undefined) delete process.env[name];
@@ -322,4 +337,63 @@ test('reports consented page-view trends separately from other analytics events'
   assert.equal(response.body.trend7Days.direction, 'up');
   assert.equal(response.body.trend7Days.changePercent, 100);
   assert.equal(response.body.shortRangeEventCount, 3);
+  assert.deepEqual(
+    firestore.queryTrace
+      .filter(query => query.collection === 'analytics_events')
+      .map(({ field, operator }) => [field, operator]),
+    [
+      ['articleId', '=='],
+      ['eventType', '=='],
+      ['timestamp', '>='],
+    ],
+  );
+});
+
+test('Firestore config declares the analytics page-view index at collection scope', async () => {
+  const config = JSON.parse(await readFile(new URL('../../firestore.indexes.json', import.meta.url), 'utf8'));
+  assert.ok(config.indexes.some(index =>
+    index.collectionGroup === 'analytics_events' &&
+    index.queryScope === 'COLLECTION' &&
+    JSON.stringify(index.fields) === JSON.stringify([
+      { fieldPath: 'articleId', order: 'ASCENDING' },
+      { fieldPath: 'eventType', order: 'ASCENDING' },
+      { fieldPath: 'timestamp', order: 'ASCENDING' },
+    ])
+  ));
+});
+
+test('article overview surfaces a missing analytics index without inventing view counts', async () => {
+  const firestore = new MemoryFirestore({
+    posts: { 'article-1': { title: 'Article', views: 12 } },
+  });
+  firestore.missingIndex = true;
+  const handler = createSeoCopilotHandler({
+    authorize: async () => ({ authorized: true, uid: 'admin-1', services: { firestore } }),
+    logger: { error() {} },
+  });
+  const response = makeResponse();
+
+  await handler(createRequest('GET', {
+    query: { mode: 'performance', articleId: 'article-1' },
+  }), response);
+
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.body.code, 'FIRESTORE_INDEX_REQUIRED');
+  assert.match(response.body.error, /composite index for analytics_events/);
+  assert.equal(response.body.last7Days, undefined);
+  assert.equal(response.body.totalViews, undefined);
+
+  const analysisResponse = makeResponse();
+  await handler(createRequest('POST', {
+    body: {
+      action: 'analyze',
+      articleId: 'article-1',
+      title: 'Article',
+      content: `<p>${'Representative article text. '.repeat(12)}</p>`,
+      force: true,
+    },
+  }), analysisResponse);
+  assert.equal(analysisResponse.statusCode, 503);
+  assert.equal(analysisResponse.body.code, 'FIRESTORE_INDEX_REQUIRED');
+  assert.match(analysisResponse.body.error, /articleId ASCENDING, eventType ASCENDING, timestamp ASCENDING/);
 });

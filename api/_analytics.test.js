@@ -222,7 +222,7 @@ test('performance endpoint paginates large event sets without truncating counts'
   assert.equal(response.body.summary.uniqueVisitors, 1);
 });
 
-test('performance endpoint exposes the Firestore query error in development and logs it', async () => {
+test('performance endpoint reports missing composite indexes without hiding or fabricating analytics', async () => {
   const firestore = makePerformanceFirestore([], []);
   const errors = [];
   firestore.collection = () => ({
@@ -240,9 +240,9 @@ test('performance endpoint exposes the Firestore query error in development and 
   await handler(makeRequest({ mode: 'performance', date: '2025-02-03' }), response);
 
   assert.equal(response.statusCode, 503);
-  if (process.env.NODE_ENV !== 'production') {
-    assert.equal(response.body.detail, 'Missing Firestore composite index.');
-  }
+  assert.equal(response.body.code, 'FIRESTORE_INDEX_REQUIRED');
+  assert.match(response.body.error, /required composite index/);
+  assert.equal(response.body.summary, undefined);
   assert.equal(errors[0].message, 'Analytics performance query failed.');
   assert.equal(errors[0].error.code, 'failed-precondition');
 });
