@@ -139,7 +139,12 @@ test('Vercel API route source files and browser endpoint paths agree', async () 
   const apiJikan = await readFile(new URL('api/jikan.js', root), 'utf8');
   const adminClient = await readFile(new URL('js/admin-visitor-analytics.js', root), 'utf8');
   const publicClient = await readFile(new URL('js/visitor-analytics.js', root), 'utf8');
-  assert.match(apiAnalytics, /export default createAnalyticsHandler\(\)/);
+  assert.match(apiAnalytics, /export default function handler/);
+  assert.match(apiAnalytics, /request\.query\?\.service === 'seo-copilot'/);
+  assert.ok(vercel.rewrites.some(item =>
+    item.source === '/api/seo-copilot' &&
+    item.destination === '/api/analytics?service=seo-copilot'
+  ));
   assert.match(apiIngestion, /export default createAnalyticsEventHandler\(\)/);
   assert.match(apiJikan, /export default createJikanHandler\(\)/);
   assert.match(apiJikan, /getJikanRequestUrl/);

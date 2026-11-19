@@ -20,6 +20,7 @@ import { setupAnimeManager } from './admin-anime.js';
 import { setupUpcomingManager } from './admin-upcoming.js';
 import { setupVisitorAnalytics } from './admin-visitor-analytics.js';
 import { setupAdminArticlePerformance } from './admin-article-performance.js';
+import { setupAdminSeoCopilot } from './admin-seo-copilot.js';
 
 let currentAdmin = null;
 
@@ -29,6 +30,7 @@ async function initAdminDashboard() {
     updateAdminUserDisplay(user);
     setupVisitorAnalytics();
     setupAdminArticlePerformance();
+    void setupAdminSeoCopilot();
     setupTabs();
     setupMobileAdminNavigation();
     setupPostsTableControls();
@@ -72,6 +74,7 @@ function setupTabs() {
       const titles = {
         overview: 'Dashboard Overview',
         analytics: 'Visitor Analytics',
+        'seo-copilot': 'Smart SEO Copilot',
         posts: 'Articles Management',
         anime: 'Anime List',
         upcoming: 'Upcoming Anime',

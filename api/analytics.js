@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase-admin/firestore';
 import { authorizeAdminRequest } from './_lib/admin-auth.js';
+import { createSeoCopilotHandler } from './_lib/seo-copilot.js';
 import {
   getDateInTimeZone,
   getIndiaDayBounds,
@@ -469,4 +470,12 @@ export function createAnalyticsHandler({ authorize = authorizeAdminRequest, cloc
   };
 }
 
-export default createAnalyticsHandler();
+const analyticsHandler = createAnalyticsHandler();
+const seoCopilotHandler = createSeoCopilotHandler();
+
+export default function handler(request, response) {
+  if (request.query?.service === 'seo-copilot') {
+    return seoCopilotHandler(request, response);
+  }
+  return analyticsHandler(request, response);
+}

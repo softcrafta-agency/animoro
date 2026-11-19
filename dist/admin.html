@@ -11,18 +11,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-B1GJ9g_t.js"></script>
+  <script type="module" crossorigin src="/assets/admin-DPIMhoM0.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/style-V_y52HhV.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-BkxOaftY.js">
-  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-EELO6gNd.js">
-  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-BPfIU3xX.js">
-  <link rel="modulepreload" crossorigin href="/assets/my-list-BzPozfVr.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-CisrxLRE.js">
+  <link rel="modulepreload" crossorigin href="/assets/seo-copilot-client-Bi83O2xz.js">
+  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-DuUQm-qK.js">
+  <link rel="modulepreload" crossorigin href="/assets/my-list-DgzOuOVg.js">
   <link rel="modulepreload" crossorigin href="/assets/visitor-analytics-DeZrPwQv.js">
-  <link rel="modulepreload" crossorigin href="/assets/ui-DAnYdVgk.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-CG8FBtnv.js">
   <link rel="modulepreload" crossorigin href="/assets/article-content-C2qxFj9R.js">
   <link rel="modulepreload" crossorigin href="/assets/anime-release-calendar-Dx-3IlpD.js">
   <link rel="stylesheet" crossorigin href="/assets/style-BpADe46y.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-Cb09oLIa.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-TWN6g6J0.css">
 </head>
 <body class="admin-body">
 
@@ -45,6 +45,11 @@
       <div class="admin-nav-item" data-tab="analytics">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-5 5"></path></svg>
         Visitor Analytics
+      </div>
+
+      <div class="admin-nav-item" data-tab="seo-copilot">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3m0 12v3M3 12h3m12 0h3"></path><path d="m5.64 5.64 2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12"></path><circle cx="12" cy="12" r="4"></circle></svg>
+        Smart SEO Copilot
       </div>
 
       <div class="admin-nav-item" data-tab="posts">
@@ -311,6 +316,101 @@
           <button type="button" id="analyticsVisitorHistoryNext" class="action-btn-sm" hidden>Load Older Activity</button>
         </article>
         <p class="analytics-metric-note">Unique and returning visitors are based on the opted-in random first-party visitor ID. Sessions use a 30-minute inactivity timeout. IDs may change when browser storage is cleared or a different browser/device is used. Engagement is reported when a page is left and may be incomplete if the browser closes abruptly.</p>
+      </section>
+
+      <section class="admin-tab-pane seo-copilot-dashboard" id="tab-seo-copilot" style="display: none;">
+        <div class="seo-copilot-dashboard-header">
+          <div>
+            <p class="article-performance-eyebrow">Editorial intelligence</p>
+            <h2>Smart SEO Copilot</h2>
+            <p>Groq-generated editorial suggestions and separately sourced analytics. Accept or reject suggestions; article text is never changed automatically.</p>
+          </div>
+          <span id="seoCopilotUsageSummary" class="seo-copilot-usage-summary">Usage metrics will appear after analysis.</span>
+        </div>
+
+        <div class="seo-copilot-filters" aria-label="Filter SEO Copilot records">
+          <label class="analytics-control"><span>Article</span><select id="seoCopilotFilterArticle" class="form-input"><option value="">All articles</option></select></label>
+          <label class="analytics-control"><span>From</span><input id="seoCopilotFilterStart" class="form-input" type="date" /></label>
+          <label class="analytics-control"><span>To</span><input id="seoCopilotFilterEnd" class="form-input" type="date" /></label>
+          <label class="analytics-control"><span>Recommendation type</span>
+            <select id="seoCopilotFilterType" class="form-input">
+              <option value="all">All types</option>
+              <option value="primary-topic">Primary topic</option>
+              <option value="secondary-topic">Secondary topic</option>
+              <option value="long-tail">Long-tail</option>
+              <option value="semantic">Semantic</option>
+              <option value="content-gap">Content gap</option>
+              <option value="heading">Heading</option>
+              <option value="faq">FAQ</option>
+              <option value="internal-link">Internal link</option>
+              <option value="grammar">Grammar</option>
+              <option value="readability">Readability</option>
+              <option value="search-console">Search Console</option>
+            </select>
+          </label>
+          <label class="analytics-control"><span>Status</span>
+            <select id="seoCopilotFilterStatus" class="form-input">
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </label>
+          <button type="button" id="seoCopilotRefresh" class="action-btn-sm">Refresh</button>
+        </div>
+        <p id="seoCopilotDashboardStatus" class="analytics-dashboard-status" role="status" aria-live="polite">Loading SEO Copilot…</p>
+
+        <article class="analytics-chart-card seo-copilot-performance">
+          <div class="seo-copilot-section-heading">
+            <div><h3>Article Performance</h3><p>Reader views are distinct from Google Search Console impressions and rankings.</p></div>
+            <label class="analytics-control"><span>Analyze article</span><select id="seoCopilotPerformanceArticle" class="form-input"><option value="">Select an article</option></select></label>
+            <button type="button" id="seoCopilotAnalyzeSelected" class="btn-cta">Analyze selected</button>
+          </div>
+          <div id="seoCopilotArticlePerformance" class="seo-copilot-performance-grid">Select an article to view its recorded performance.</div>
+        </article>
+
+        <div class="seo-copilot-dashboard-grid">
+          <article class="analytics-chart-card">
+            <h3>Semantic SEO Analysis</h3>
+            <div id="seoCopilotDashboardSemantic">Run an analysis to see semantic SEO findings.</div>
+            <h4>Suggested headings</h4>
+            <div id="seoCopilotDashboardHeadings"></div>
+            <h4>Internal links</h4>
+            <div id="seoCopilotDashboardInternalLinks"></div>
+          </article>
+          <article class="analytics-chart-card">
+            <h3>Content Quality</h3>
+            <div id="seoCopilotDashboardQuality">Content quality results will appear after analysis.</div>
+          </article>
+        </div>
+
+        <article class="analytics-chart-card">
+          <h3>AI Keyword Suggestions</h3>
+          <div id="seoCopilotDashboardSuggestions" class="seo-copilot-recommendations">No pending recommendations loaded.</div>
+        </article>
+
+        <article class="analytics-chart-card">
+          <h3>Search Console Opportunities</h3>
+          <p id="seoCopilotDashboardGscStatus">Search Console is not connected. No impressions or rankings are inferred.</p>
+          <div id="seoCopilotDashboardGscRows"></div>
+          <div id="seoCopilotDashboardConsoleSuggestions" class="seo-copilot-recommendations">No Search Console opportunities loaded.</div>
+        </article>
+
+        <div class="seo-copilot-dashboard-grid">
+          <article class="analytics-chart-card">
+            <h3>Accepted Suggestions</h3>
+            <div id="seoCopilotAccepted" class="seo-copilot-recommendations">No accepted suggestions loaded.</div>
+          </article>
+          <article class="analytics-chart-card">
+            <h3>Rejected Suggestions</h3>
+            <div id="seoCopilotRejected" class="seo-copilot-recommendations">No rejected suggestions loaded.</div>
+          </article>
+        </div>
+
+        <article class="analytics-chart-card">
+          <h3>Historical Analysis</h3>
+          <div id="seoCopilotHistory" class="seo-copilot-history">No analysis history loaded.</div>
+        </article>
       </section>
 
       <!-- ============================================================

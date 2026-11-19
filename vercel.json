@@ -1,6 +1,10 @@
 {
     "rewrites":  [
                      {
+                         "source":  "/api/seo-copilot",
+                         "destination":  "/api/analytics?service=seo-copilot"
+                     },
+                     {
                          "source":  "/blogs.html",
                          "destination":  "/api/blogs"
                      },

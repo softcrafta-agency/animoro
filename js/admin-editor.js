@@ -29,19 +29,11 @@ import {
   isValidFeaturedOrder,
   isValidSearchIntent,
   normalizeArticleCategories,
-  getArticleKeywordCoverage,
-  getArticleKeywordFields,
-  getArticleSecondaryKeywords,
-  normalizeArticleKeywords,
   normalizeArticleTags,
 } from './article-editor-fields.js';
 import { getArticleSeo } from './article-seo.js';
-import {
-  ARTICLE_KEYWORD_GROUPS,
-  buildArticleKeywordGroupsPayload,
-  initializeArticleKeywordGroups,
-} from './article-keyword-groups.js';
-import { analyzeArticleKeywords } from './article-keyword-analysis.js';
+import { setupEditorSeoCopilot } from './article-editor-seo-copilot.js';
+import { linkDraftRecommendations } from './seo-copilot-client.js';
 
 let currentAdminUser = null;
 let editingPostId = null;
@@ -51,7 +43,6 @@ let originalPostCategories = [];
 let originalPublishedAt = null;
 let originalCreatedAt = null;
 let slugWasManuallyEdited = false;
-let primaryKeywordWasManuallyEdited = false;
 let postTags = [];
 let animeSearchTimer = null;
 let animeSearchRequest = 0;
@@ -84,9 +75,6 @@ let articleSubmissionPending = false;
 let registeredArticleCategories = [];
 let selectedArticleCategories = [];
 let categoryLoadError = false;
-let articleKeywordManager = null;
-let originalArticleData = {};
-let keywordAnalysisTimer = null;
 const THEME_STORAGE_KEY = 'animoro-theme';
 
 function getPreferredTheme() {
@@ -193,7 +181,6 @@ function getEditorSnapshot() {
     values,
     categories: selectedArticleCategories,
     tags: postTags,
-    keywordGroups: articleKeywordManager?.getValues() || {},
     content: getRichEditor()?.innerHTML || '',
   });
 }
@@ -213,8 +200,6 @@ function saveEditorLocally() {
         .map(field => [field.id, field.type === 'checkbox' ? field.checked : field.value]),
       categories: selectedArticleCategories,
       tags: postTags,
-      keywordGroups: articleKeywordManager?.getValues() || {},
-      keywordGroupDirtyKeys: articleKeywordManager?.getDirtyKeys() || [],
       content: sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '', { allowLegacyDataImages: true }),
     }));
     const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date());
@@ -241,8 +226,6 @@ function restoreEditorAutosave() {
     const currentSnapshot = JSON.parse(getEditorSnapshot());
     const differs = saved.content !== (getRichEditor()?.innerHTML || '') ||
       JSON.stringify(saved.values || []) !== JSON.stringify(currentSnapshot.values) ||
-      (saved.keywordGroups &&
-        JSON.stringify(saved.keywordGroups) !== JSON.stringify(currentSnapshot.keywordGroups)) ||
       (Array.isArray(saved.categories) &&
         JSON.stringify(normalizeArticleCategories(saved.categories)) !== JSON.stringify(currentSnapshot.categories));
     if (!differs || !confirm('A newer locally auto-saved draft is available. Restore it?')) return;
@@ -260,11 +243,6 @@ function restoreEditorAutosave() {
     if (Array.isArray(saved.tags)) {
       postTags = saved.tags.filter(tag => typeof tag === 'string');
       renderTagChips();
-    }
-    if (saved.keywordGroups && articleKeywordManager) {
-      articleKeywordManager.setValues(saved.keywordGroups, {
-        dirtyKeys: saved.keywordGroupDirtyKeys || [],
-      });
     }
     getRichEditor().innerHTML = sanitizeArticleEditorHtml(saved.content || '', { allowLegacyDataImages: true });
     markEditorChanged();
@@ -284,206 +262,7 @@ function markEditorChanged() {
     setEditorSaveStatus('All changes are saved.', 'saved');
   }
   updateEditorStatistics();
-  updateSecondaryKeywordGuidance();
-  scheduleKeywordAnalysis();
   if (document.getElementById('articlePreview')?.hidden === false) renderArticlePreview();
-}
-
-function scheduleKeywordAnalysis() {
-  clearTimeout(keywordAnalysisTimer);
-  const state = document.getElementById('seoKeywordAnalysisState');
-  const error = document.getElementById('seoKeywordAnalysisError');
-  if (state) {
-    state.textContent = 'Analyzing article content…';
-    state.dataset.state = 'loading';
-  }
-  if (error) {
-    error.hidden = true;
-    error.textContent = '';
-  }
-  keywordAnalysisTimer = setTimeout(() => {
-    try {
-      const result = analyzeArticleKeywords({
-        title: document.getElementById('postTitle')?.value || '',
-        seoTitle: document.getElementById('postSeoTitle')?.value || '',
-        primaryKeyword: document.getElementById('postPrimaryKeyword')?.value || '',
-        secondaryKeywords: normalizeArticleKeywords(
-          document.getElementById('postSecondaryKeywords')?.value || ''
-        ),
-        searchIntent: document.getElementById('postSearchIntent')?.value || 'informational',
-        content: getRichEditor()?.innerHTML || '',
-        keywordGroups: articleKeywordManager?.getValues() || {},
-      });
-      renderKeywordAnalysis(result);
-    } catch (analysisError) {
-      console.error('Article keyword analysis failed:', analysisError);
-      if (state) {
-        state.textContent = 'Analysis failed';
-        state.dataset.state = 'error';
-      }
-      if (error) {
-        error.hidden = false;
-        error.textContent = 'Keyword analysis could not be completed. Continue editing; your article content and keyword values have not been changed.';
-      }
-      const qualityState = document.getElementById('contentRelevanceState');
-      if (qualityState) {
-        qualityState.textContent = 'Analysis failed';
-        qualityState.dataset.state = 'error';
-      }
-    }
-  }, 180);
-}
-
-function renderKeywordAnalysis(result) {
-  const state = document.getElementById('seoKeywordAnalysisState');
-  if (state) {
-    state.textContent = 'Analysis updated';
-    state.dataset.state = 'ready';
-  }
-  const qualityState = document.getElementById('contentRelevanceState');
-  if (qualityState) {
-    qualityState.textContent = `${result.contentQuality.recommendations.length} advisory recommendation${result.contentQuality.recommendations.length === 1 ? '' : 's'}`;
-    qualityState.dataset.state = 'ready';
-  }
-  articleKeywordManager?.setAnalysis(result.keywords);
-
-  document.querySelectorAll('[data-keyword-stat]').forEach((element) => {
-    const key = element.dataset.keywordStat;
-    element.textContent = String(result.stats[key] ?? 0);
-  });
-
-  document.querySelectorAll('[data-quality-score]').forEach((element) => {
-    const key = element.dataset.qualityScore;
-    element.textContent = String(result.contentQuality.scores[key] ?? 0);
-  });
-
-  const qualityRecommendations = document.getElementById('contentQualityRecommendations');
-  if (qualityRecommendations) {
-    qualityRecommendations.replaceChildren();
-    if (!result.contentQuality.recommendations.length) {
-      const empty = document.createElement('li');
-      empty.className = 'seo-keyword-empty';
-      empty.textContent = 'No advisory flags from these checks. This is not a factual or quality guarantee.';
-      qualityRecommendations.appendChild(empty);
-    } else {
-      result.contentQuality.recommendations.forEach((recommendation) => {
-        const item = document.createElement('li');
-        item.className = `content-quality-recommendation content-quality-${recommendation.type}`;
-        const issue = document.createElement('strong');
-        issue.textContent = recommendation.issue;
-        const why = document.createElement('p');
-        why.textContent = `Why it matters: ${recommendation.why}`;
-        const where = document.createElement('small');
-        where.textContent = `Where: ${recommendation.where}`;
-        const improve = document.createElement('p');
-        improve.textContent = `Editor action: ${recommendation.improve}`;
-        item.append(issue, why, where, improve);
-        if (recommendation.evidence) {
-          const evidence = document.createElement('small');
-          evidence.textContent = `Evidence to review: ${recommendation.evidence}`;
-          item.appendChild(evidence);
-        }
-        qualityRecommendations.appendChild(item);
-      });
-    }
-  }
-
-  const suggestions = document.getElementById('seoKeywordSuggestionsList');
-  if (suggestions) {
-    suggestions.replaceChildren();
-    if (!result.suggestions.length) {
-      const empty = document.createElement('li');
-      empty.className = 'seo-keyword-empty';
-      empty.textContent = result.stats.total
-        ? 'All keyword phrases are present somewhere in the visible article. Review relevance and natural usage above.'
-        : 'Add keyword phrases to get editorial suggestions.';
-      suggestions.appendChild(empty);
-    } else {
-      result.suggestions.forEach((suggestion) => {
-        const item = document.createElement('li');
-        item.className = 'seo-keyword-suggestion';
-        const heading = document.createElement('strong');
-        heading.textContent = suggestion.keyword;
-        const details = document.createElement('span');
-        details.textContent = `${suggestion.groupLabel} · ${suggestion.reason} Suggested placement: ${suggestion.placement}. Relevance: ${suggestion.relevance}.`;
-        item.append(heading, details);
-        suggestions.appendChild(item);
-      });
-    }
-  }
-
-  const aeoDetails = document.getElementById('seoKeywordAeoDetails');
-  if (aeoDetails) {
-    aeoDetails.replaceChildren();
-    if (result.questions.length) {
-      const heading = document.createElement('strong');
-      heading.textContent = 'Question and answer checks';
-      aeoDetails.appendChild(heading);
-      result.questions.forEach(({ keyword, answer }) => {
-        const item = document.createElement('div');
-        item.className = `seo-keyword-aeo-item${answer.answered ? ' is-answered' : ' needs-review'}`;
-        const question = document.createElement('strong');
-        question.textContent = keyword;
-        const status = document.createElement('span');
-        status.textContent = answer.status;
-        item.append(question, status);
-        if (answer.answerLocation) {
-          const location = document.createElement('small');
-          location.textContent = answer.answerLocation;
-          item.appendChild(location);
-        }
-        if (answer.answerExcerpt) {
-          const excerpt = document.createElement('p');
-          excerpt.textContent = answer.answerExcerpt;
-          item.appendChild(excerpt);
-        }
-        aeoDetails.appendChild(item);
-      });
-    } else {
-      aeoDetails.textContent = 'Add question-based phrases to review H2/H3 placement and the following answer text.';
-    }
-  }
-}
-
-function updateSecondaryKeywordGuidance() {
-  const guidance = document.getElementById('postSecondaryKeywordGuidance');
-  const keywordValues = articleKeywordManager?.getValues() || {};
-  const secondaryKeywords = document.getElementById('postSecondaryKeywords')?.value || '';
-  const groupedKeywords = ARTICLE_KEYWORD_GROUPS.flatMap(({ key }) => keywordValues[key] || []);
-  const content = getRichEditor()?.innerHTML || '';
-  const coverage = getArticleKeywordCoverage(secondaryKeywords, content);
-  const groupCoverage = getArticleKeywordCoverage(groupedKeywords, content);
-  const coveragePanel = document.getElementById('articleKeywordCoverage');
-  if (coveragePanel) {
-    if (!groupCoverage.length) {
-      coveragePanel.textContent = 'Add editorial phrases to see whether they are represented in the article. This is guidance only; keywords are never inserted automatically.';
-    } else {
-      const inContent = groupCoverage.filter(item => item.inContent).length;
-      const inHeadings = groupCoverage.filter(item => item.inHeading).length;
-      coveragePanel.textContent = `Editorial check: ${inContent} of ${groupCoverage.length} grouped phrases appear in the article and ${inHeadings} in a heading. Use only phrases that fit naturally.`;
-    }
-  }
-  if (!coverage.length) {
-    if (guidance) {
-      guidance.textContent = 'Optional editorial planning only. Use supporting phrases where they fit; phrases are never inserted automatically or published as meta keywords.';
-    }
-  } else if (guidance) {
-    const inContent = coverage.filter(item => item.inContent).length;
-    const inHeadings = coverage.filter(item => item.inHeading).length;
-    guidance.textContent = `Editorial check: ${inContent} of ${coverage.length} phrases appear in the article and ${inHeadings} in a heading. Use only phrases that fit naturally; nothing is inserted automatically or published as meta keywords.`;
-  }
-
-  const suggestionPanel = document.getElementById('articleQuestionSuggestions');
-  const suggestionsList = document.getElementById('articleQuestionSuggestionsList');
-  const questions = keywordValues.questionBasedKeywords || [];
-  if (suggestionPanel && suggestionsList) {
-    suggestionsList.replaceChildren(...questions.map(question => {
-      const item = document.createElement('li');
-      item.textContent = question;
-      return item;
-    }));
-    suggestionPanel.hidden = questions.length === 0;
-  }
 }
 
 function getEditorBlock(range) {
@@ -1064,12 +843,11 @@ export async function initAdminEditor() {
       restoreEditorAutosave();
     }
     updateEditorStatistics();
-    scheduleKeywordAnalysis();
+    setupEditorSeoCopilot();
   });
 }
 
 function setupFormControls() {
-  articleKeywordManager = initializeArticleKeywordGroups(() => markEditorChanged());
   document.getElementById('refreshPostCategories')?.addEventListener('click', () => {
     void loadArticleCategories(selectedArticleCategories);
   });
@@ -1084,19 +862,11 @@ function setupFormControls() {
       if (!editingPostId && !slugWasManuallyEdited) {
         slugInput.value = normalizeArticleSlug(titleInput.value);
       }
-      const primaryKeywordInput = document.getElementById('postPrimaryKeyword');
-      if (!editingPostId && primaryKeywordInput && !primaryKeywordWasManuallyEdited) {
-        primaryKeywordInput.value = titleInput.value.trim();
-      }
     });
     slugInput.addEventListener('input', () => {
       slugWasManuallyEdited = true;
     });
   }
-
-  document.getElementById('postPrimaryKeyword')?.addEventListener('input', () => {
-    primaryKeywordWasManuallyEdited = true;
-  });
 
   // Tags input
   const tagInput = document.getElementById('tagInput');
@@ -2535,7 +2305,6 @@ async function loadPostForEditing(postId) {
     }
 
     const post = snap.data();
-    originalArticleData = post;
     originalPostSlug = typeof post.slug === 'string' ? post.slug : '';
     originalPostStatus = post.status || 'draft';
     originalPostCategories = getArticleCategories(post);
@@ -2563,11 +2332,6 @@ async function loadPostForEditing(postId) {
     animeSlugWasManuallyEdited = Boolean(post.animeSlug && !lastAutoAnimeSlug);
     document.getElementById('postSeoTitle').value = post.seoTitle || '';
     document.getElementById('postSeoDescription').value = post.seoDescription || '';
-    document.getElementById('postPrimaryKeyword').value =
-      post.primaryKeyword || post.focusKeyword || post.title || '';
-    document.getElementById('postSecondaryKeywords').value =
-      getArticleSecondaryKeywords(post).join('\n');
-    articleKeywordManager?.setValues(post);
     document.getElementById('postSearchIntent').value =
       isValidSearchIntent(post.searchIntent) ? post.searchIntent : 'informational';
     document.getElementById('postAuthor').value = post.authorName || '';
@@ -2581,8 +2345,6 @@ async function loadPostForEditing(postId) {
 
     const editorArea = document.getElementById('richEditorArea');
     if (editorArea) editorArea.innerHTML = sanitizeArticleEditorHtml(post.content || '', { allowLegacyDataImages: true });
-    updateSecondaryKeywordGuidance();
-    scheduleKeywordAnalysis();
 
     if (post.coverImage) {
       uploadedCoverUrl = '';
@@ -2680,11 +2442,6 @@ async function submitArticle(e) {
   const animeSlug = animeSlugInput ? normalizeAnimeSlug(animeSlugInput) : '';
   let seoTitle = document.getElementById('postSeoTitle').value.trim();
   let seoDescription = document.getElementById('postSeoDescription').value.trim();
-  const primaryKeywordInput = document.getElementById('postPrimaryKeyword');
-  const primaryKeyword = (primaryKeywordInput?.value || '').trim().replace(/\s+/g, ' ') || title;
-  const secondaryKeywordInput = document.getElementById('postSecondaryKeywords');
-  const secondaryKeywords = normalizeArticleKeywords(secondaryKeywordInput?.value || '');
-  const keywordFields = getArticleKeywordFields(primaryKeyword, secondaryKeywords);
   const searchIntent = document.getElementById('postSearchIntent')?.value || '';
   const authorName = document.getElementById('postAuthor').value.trim() ||
     originalAuthorName ||
@@ -2707,14 +2464,6 @@ async function submitArticle(e) {
   }
   if (title.length > 200) {
     showFeedback(feedbackEl, "Title must be 200 characters or less.", "error");
-    return;
-  }
-  if (primaryKeyword.length > 120) {
-    showFeedback(feedbackEl, "Primary focus keyword must be 120 characters or fewer.", "error");
-    return;
-  }
-  if (secondaryKeywords.length > 30 || secondaryKeywords.some(keyword => keyword.length > 120)) {
-    showFeedback(feedbackEl, "Enter up to 30 secondary keywords, each 120 characters or fewer.", "error");
     return;
   }
   if (!isValidSearchIntent(searchIntent)) {
@@ -2778,7 +2527,6 @@ async function submitArticle(e) {
     seoDescription,
     excerpt,
     content,
-    primaryKeyword,
   });
   seoTitle = seoDefaults.title;
   seoDescription = seoDefaults.description;
@@ -2887,13 +2635,6 @@ async function submitArticle(e) {
     animeSlug,
     seoTitle,
     seoDescription,
-    ...keywordFields,
-    ...buildArticleKeywordGroupsPayload(
-      articleKeywordManager?.getValues() || {},
-      originalArticleData,
-      articleKeywordManager?.getDirtyKeys() || [],
-      !editingPostId
-    ),
     searchIntent,
     tags: normalizeArticleTags(postTags),
     authorName,
@@ -2957,19 +2698,31 @@ async function submitArticle(e) {
 
   try {
     editorSaveInProgress = true;
+    let draftLinkWarning = '';
     if (editingPostId) {
       await updateDoc(doc(db, 'posts', editingPostId), finalDocumentPayload);
-      originalArticleData = { ...originalArticleData, ...finalDocumentPayload };
       showFeedback(feedbackEl, "Changes saved successfully.", "success");
     } else {
       const newDoc = await addDoc(collection(db, 'posts'), finalDocumentPayload);
       editingPostId = newDoc.id;
-      originalArticleData = { ...finalDocumentPayload };
-      showFeedback(feedbackEl, status === 'published' ? "Article published successfully!" : "Draft saved successfully!", "success");
+      const copilotDraftKey = sessionStorage.getItem('animoro-seo-copilot-draft-key');
+      if (copilotDraftKey) {
+        try {
+          await linkDraftRecommendations(copilotDraftKey, newDoc.id);
+          sessionStorage.removeItem('animoro-seo-copilot-draft-key');
+        } catch (linkError) {
+          console.error('SEO Copilot draft recommendations could not be linked to the saved article:', linkError);
+          draftLinkWarning = ' The article is saved, but its SEO Copilot history could not be linked; retry from the editor if needed.';
+        }
+      }
+      showFeedback(
+        feedbackEl,
+        `${status === 'published' ? "Article published successfully!" : "Draft saved successfully!"}${draftLinkWarning}`,
+        draftLinkWarning ? 'error' : 'success'
+      );
     }
 
     editorSaveInProgress = false;
-    articleKeywordManager?.resetDirty();
     editorIsDirty = false;
     editorInitialSnapshot = getEditorSnapshot();
     try {

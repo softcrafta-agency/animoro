@@ -22,15 +22,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="/assets/admin-post-editor-D0qSFbcN.js"></script>
+  <script type="module" crossorigin src="/assets/admin-post-editor-qjLFZf-b.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/style-V_y52HhV.js">
-  <link rel="modulepreload" crossorigin href="/assets/auth-BkxOaftY.js">
-  <link rel="modulepreload" crossorigin href="/assets/image-upload-field-EELO6gNd.js">
-  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-BPfIU3xX.js">
+  <link rel="modulepreload" crossorigin href="/assets/auth-CisrxLRE.js">
+  <link rel="modulepreload" crossorigin href="/assets/seo-copilot-client-Bi83O2xz.js">
+  <link rel="modulepreload" crossorigin href="/assets/article-editor-fields-DuUQm-qK.js">
   <link rel="modulepreload" crossorigin href="/assets/article-content-C2qxFj9R.js">
   <link rel="modulepreload" crossorigin href="/assets/article-seo-BhW3mpU9.js">
   <link rel="stylesheet" crossorigin href="/assets/style-BpADe46y.css">
-  <link rel="stylesheet" crossorigin href="/assets/admin-Cb09oLIa.css">
+  <link rel="stylesheet" crossorigin href="/assets/admin-TWN6g6J0.css">
 </head>
 <body class="admin-body">
 
@@ -296,121 +296,51 @@
                 <small id="postSeoDescriptionGuidance" class="editor-field-hint">Aim for approximately 150–160 characters.</small>
               </div>
 
-              <div class="form-group">
-                <label for="postPrimaryKeyword" class="form-label">Primary Focus Keyword</label>
-                <input type="text" id="postPrimaryKeyword" class="form-input" maxlength="120" placeholder="Defaults to the article title" />
-                <small class="editor-field-hint">Choose one phrase the article genuinely answers. Include it naturally in the title and opening only where it fits. If blank, the article title is used.</small>
-              </div>
-
-              <div class="form-group">
-                <label for="postSecondaryKeywords" class="form-label">Secondary Keywords (Optional)</label>
-                <textarea id="postSecondaryKeywords" class="form-textarea" rows="5" maxlength="3000" placeholder="Jiro Azuma&#10;supernatural anime&#10;manga adaptation" style="min-height: 120px;"></textarea>
-                <small class="editor-field-hint">Enter one supporting phrase per line. Existing comma-separated keywords are supported; duplicates and extra spaces are removed.</small>
-                <small id="postSecondaryKeywordGuidance" class="editor-field-hint" role="status" aria-live="polite">Optional editorial planning only. Use a supporting phrase in the article where it fits; phrases are never inserted automatically or published as meta keywords.</small>
-              </div>
-
-              <section class="article-keyword-groups" aria-labelledby="articleKeywordGroupsHeading">
-                <h3 id="articleKeywordGroupsHeading" class="form-label">SEO and AEO Keyword Groups</h3>
-                <p class="editor-field-hint">Editorial guidance only. Add a phrase with Enter or a comma, edit or remove tags, and use only ideas the article supports. These groups are not shown on public pages or emitted as keyword metadata.</p>
-                <p class="article-keyword-description">Exact phrase matches use visible article text. Relevance and answer checks are editorial heuristics based on topic-word overlap and answer length—not semantic fact-checking.</p>
-                <section id="seoKeywordAnalysis" class="seo-keyword-analysis" aria-label="SEO keyword analysis" aria-live="polite">
-                  <div class="seo-keyword-analysis-heading">
-                    <strong>SEO Keyword Analysis</strong>
-                    <span id="seoKeywordAnalysisState" class="seo-keyword-analysis-state">Waiting for article content</span>
+              <details id="seoCopilotPanel" class="seo-copilot-panel" open>
+                <summary>
+                  <span>Smart SEO Copilot</span>
+                  <small>Groq-powered editorial guidance</small>
+                </summary>
+                <div class="seo-copilot-panel-content">
+                  <p class="seo-copilot-disclaimer">Suggestions are advisory. Review for accuracy and natural fit; nothing is inserted or published automatically.</p>
+                  <div class="seo-copilot-toolbar">
+                    <span id="seoCopilotStatus" role="status" aria-live="polite">Waiting for article content.</span>
+                    <button type="button" id="seoCopilotRun" class="action-btn-sm">Reanalyze</button>
                   </div>
-                  <div class="seo-keyword-metrics" id="seoKeywordMetrics">
-                    <span>Total <strong data-keyword-stat="total">0</strong></span>
-                    <span>In content <strong data-keyword-stat="foundInContent">0</strong></span>
-                    <span>In headings <strong data-keyword-stat="foundInHeadings">0</strong></span>
-                    <span>In title <strong data-keyword-stat="foundInTitle">0</strong></span>
-                    <span>Missing <strong data-keyword-stat="missing">0</strong></span>
-                    <span>Relevant <strong data-keyword-stat="relevant">0</strong></span>
-                    <span>Duplicates <strong data-keyword-stat="duplicates">0</strong></span>
-                    <span>Similar <strong data-keyword-stat="similar">0</strong></span>
-                  </div>
-                  <div class="seo-keyword-aeo">
-                    <strong>AEO Analysis</strong>
-                    <span>Questions <b data-keyword-stat="totalQuestions">0</b></span>
-                    <span>Answered <b data-keyword-stat="answeredQuestions">0</b></span>
-                    <span>Unanswered / review <b data-keyword-stat="unansweredQuestions">0</b></span>
-                  </div>
-                  <div id="seoKeywordSuggestionSection" class="seo-keyword-suggestions">
-                    <strong>Suggestions to review</strong>
-                    <p class="article-keyword-description">Suggestions are editorial prompts only. Nothing is added to the article automatically.</p>
-                    <ul id="seoKeywordSuggestionsList"></ul>
-                  </div>
-                  <div id="seoKeywordAeoDetails" class="seo-keyword-aeo-details"></div>
-                  <div id="seoKeywordAnalysisError" class="seo-keyword-analysis-error" role="alert" hidden></div>
-                </section>
-                <section id="contentRelevanceAnalysis" class="content-relevance-analysis" aria-labelledby="contentRelevanceHeading" aria-live="polite">
-                  <div class="seo-keyword-analysis-heading">
-                    <strong id="contentRelevanceHeading">Content Relevance Analysis</strong>
-                    <span id="contentRelevanceState" class="seo-keyword-analysis-state">Waiting for article content</span>
-                  </div>
-                  <p class="article-keyword-description">Advisory editorial checks only. These heuristic scores are not Google ranking scores or predictions and do not fact-check anime canon.</p>
-                  <div class="content-quality-scores" aria-label="Editorial analysis scores">
-                    <span>Keyword Coverage <strong data-quality-score="keywordCoverage">0</strong><small>/100</small></span>
-                    <span>Search Intent <strong data-quality-score="searchIntent">0</strong><small>/100</small></span>
-                    <span>Content Relevance <strong data-quality-score="contentRelevance">0</strong><small>/100</small></span>
-                    <span>AEO Coverage <strong data-quality-score="aeoCoverage">0</strong><small>/100</small></span>
-                    <span>Heading Quality <strong data-quality-score="headingQuality">0</strong><small>/100</small></span>
-                    <span>Character/Story Coverage <strong data-quality-score="characterStoryCoverage">0</strong><small>/100</small></span>
-                  </div>
-                  <details class="content-quality-methodology">
-                    <summary>How these scores are calculated</summary>
-                    <ul>
-                      <li>Keyword Coverage: share of entered focus, secondary, and grouped phrases found as complete phrases in visible text or headings.</li>
-                      <li>Search Intent: introduction/topic overlap (35%), text volume capped at 180 meaningful words (20%), selected-intent signals (25%), and SEO-title promise fulfillment (20%).</li>
-                      <li>Content Relevance: average keyword context score—paragraph explanation is weighted above title/heading mentions and partial lexical overlap.</li>
-                      <li>AEO Coverage: share of questions with an H2/H3 match, a relevant direct first sentence, and contextual supporting detail; it does not verify factual accuracy.</li>
-                      <li>Heading Quality: H2 presence (30%), descriptive H2/H3 share (50%), and H3 hierarchy under an H2 (20%).</li>
-                      <li>Character/Story Coverage: share of supplied story phrases present in paragraphs, with additional credit for explanatory context. It cannot verify identities, powers, or canon.</li>
-                    </ul>
-                    <p class="article-keyword-description">A score of 0 can mean no phrases/questions were supplied, not necessarily poor article quality. Phrase overlap, word counts, and structure are limited editorial signals; review the article and sources yourself.</p>
-                  </details>
-                  <div class="content-quality-recommendations">
-                    <strong>Editorial recommendations</strong>
-                    <ul id="contentQualityRecommendations"></ul>
-                  </div>
-                </section>
-                <details class="article-keyword-group" data-keyword-group="additionalSeoKeywords">
-                  <summary class="article-keyword-group-summary"><span>Additional SEO Keywords</span><span class="article-keyword-count"><b data-keyword-count>0</b> phrases</span></summary>
-                  <p class="article-keyword-description">Supporting topic phrases that add useful context the article genuinely covers.</p>
-                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Additional SEO keywords"></div>
-                  <label for="additionalSeoKeywordsInput" class="sr-only">Add an additional SEO keyword</label>
-                  <input id="additionalSeoKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Black Torch manga adaptation" />
-                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
-                </details>
-                <details class="article-keyword-group" data-keyword-group="storyCharacterKeywords">
-                  <summary class="article-keyword-group-summary"><span>Story and Character Keywords</span><span class="article-keyword-count"><b data-keyword-count>0</b> phrases</span></summary>
-                  <p class="article-keyword-description">Relevant story arcs, characters, relationships, powers, and themes discussed in the article.</p>
-                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Story and character keywords"></div>
-                  <label for="storyCharacterKeywordsInput" class="sr-only">Add a story or character keyword</label>
-                  <input id="storyCharacterKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Jiro Azuma character analysis" />
-                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
-                </details>
-                <details class="article-keyword-group" data-keyword-group="longTailKeywords">
-                  <summary class="article-keyword-group-summary"><span>Long-tail SEO Keywords</span><span class="article-keyword-count"><b data-keyword-count>0</b> phrases</span></summary>
-                  <p class="article-keyword-description">Specific search phrases that match the article’s scope and likely reader intent.</p>
-                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Long-tail SEO keywords"></div>
-                  <label for="longTailKeywordsInput" class="sr-only">Add a long-tail SEO keyword</label>
-                  <input id="longTailKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. how Black Torch connects ninjas and supernatural lore" />
-                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
-                </details>
-                <details class="article-keyword-group" data-keyword-group="questionBasedKeywords">
-                  <summary class="article-keyword-group-summary"><span>Question-Based Keywords (AEO)</span><span class="article-keyword-count"><b data-keyword-count>0</b> questions</span></summary>
-                  <p class="article-keyword-description">Questions the article answers well. The analyzer checks matching H2/H3 headings and the following text; answers are never generated.</p>
-                  <div class="article-keyword-tags" data-keyword-tags role="list" aria-label="Question-based keywords"></div>
-                  <label for="questionBasedKeywordsInput" class="sr-only">Add a question-based keyword</label>
-                  <input id="questionBasedKeywordsInput" class="form-input article-keyword-input" data-keyword-input type="text" maxlength="300" autocomplete="off" placeholder="e.g. Who is Jiro Azuma in Black Torch?" />
-                  <small class="editor-field-hint" data-keyword-status role="status" aria-live="polite"></small>
-                </details>
-                <div id="articleKeywordCoverage" class="article-keyword-coverage" role="status" aria-live="polite"></div>
-                <div id="articleQuestionSuggestions" class="article-question-suggestions" hidden>
-                  <strong>FAQ candidates to review</strong>
-                  <ul id="articleQuestionSuggestionsList"></ul>
+                  <p id="seoCopilotOpportunityNotice" class="seo-copilot-notice" role="status" aria-live="polite" hidden></p>
+                  <small id="seoCopilotProvenance" class="seo-copilot-provenance"></small>
+                  <section class="seo-copilot-section">
+                    <h4>Article overview</h4>
+                    <div id="seoCopilotSummary">Analysis will appear here after enough article text is available.</div>
+                  </section>
+                  <section class="seo-copilot-section">
+                    <h4>Keyword and topic opportunities</h4>
+                    <div id="seoCopilotRecommendations" class="seo-copilot-recommendations"></div>
+                  </section>
+                  <section class="seo-copilot-section">
+                    <h4>Suggested headings</h4>
+                    <div id="seoCopilotHeadings"></div>
+                  </section>
+                  <section class="seo-copilot-section">
+                    <h4>FAQ ideas</h4>
+                    <div id="seoCopilotFaqs"></div>
+                  </section>
+                  <section class="seo-copilot-section">
+                    <h4>Internal links</h4>
+                    <div id="seoCopilotInternalLinks"></div>
+                  </section>
+                  <section class="seo-copilot-section">
+                    <h4>Content Quality</h4>
+                    <div id="seoCopilotQuality"></div>
+                    <p class="seo-copilot-disclaimer">Naturalness and AI authorship are separate; arbitrary text cannot be reliably classified as AI- or human-written.</p>
+                  </section>
+                  <section class="seo-copilot-section">
+                    <h4>Search Console</h4>
+                    <p id="seoCopilotSearchConsole">Search Console is not connected. No impressions or rankings are inferred.</p>
+                    <div id="seoCopilotSearchConsoleRows"></div>
+                  </section>
                 </div>
-              </section>
+              </details>
 
               <div class="form-group">
                 <label for="postSearchIntent" class="form-label">Search Intent</label>

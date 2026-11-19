@@ -251,5 +251,22 @@ service cloud.firestore {
         allow read, write: if false;
       }
     }
+
+    // SEO Copilot records are accessed only through admin-authenticated server APIs.
+    match /seo_analyses/{analysisId} {
+      allow read, write: if false;
+    }
+
+    match /seo_recommendations/{recommendationId} {
+      allow read, write: if false;
+    }
+
+    match /seo_copilot_cache/{cacheId} {
+      allow read, write: if false;
+    }
+
+    match /seo_copilot_rate_limits/{limitId} {
+      allow read, write: if false;
+    }
   }
 }

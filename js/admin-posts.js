@@ -24,9 +24,6 @@ import {
   isValidArticleCategory,
   isValidFeaturedOrder,
   isValidSearchIntent,
-  getArticleKeywordFields,
-  getArticleSecondaryKeywords,
-  normalizeArticleKeywords,
   normalizeArticleTags,
 } from './article-editor-fields.js';
 import { setupAdminBulkEdit } from './admin-bulk-edit.js';
@@ -49,16 +46,6 @@ const POST_BULK_EDIT_FIELDS = [
   { key: 'animeSlug', label: 'Anime Page Slug' },
   { key: 'seoTitle', label: 'SEO Title', maxLength: 200 },
   { key: 'seoDescription', label: 'SEO Description', type: 'textarea', maxLength: 1000 },
-  { key: 'primaryKeyword', label: 'Primary Focus Keyword', fallbackKey: 'title', maxLength: 120 },
-  {
-    key: 'secondaryKeywords',
-    label: 'Secondary Keywords (one per line)',
-    type: 'textarea',
-    getValue: post => getArticleSecondaryKeywords(post).join('\n'),
-    hint: 'Enter one phrase per line. Existing comma-separated keywords are supported.',
-    rows: 5,
-    maxLength: 3000,
-  },
   { key: 'searchIntent', label: 'Search Intent', type: 'select', defaultValue: 'informational', options: [
     { value: 'informational', label: 'Informational' },
     { value: 'commercial', label: 'Commercial investigation' },
@@ -280,13 +267,6 @@ async function savePostBulkRecord(post, draft) {
   }
   if (!['published', 'draft'].includes(draft.status)) throw new Error('Choose Published or Draft status.');
   if (draft.authorName.trim().length > 100) throw new Error('Author name must be 100 characters or fewer.');
-  const primaryKeyword = draft.primaryKeyword.trim().replace(/\s+/g, ' ') || title;
-  const secondaryKeywords = normalizeArticleKeywords(draft.secondaryKeywords);
-  const keywordFields = getArticleKeywordFields(primaryKeyword, secondaryKeywords);
-  if (primaryKeyword.length > 120) throw new Error('Primary focus keyword must be 120 characters or fewer.');
-  if (secondaryKeywords.length > 30 || secondaryKeywords.some(keyword => keyword.length > 120)) {
-    throw new Error('Enter up to 30 secondary keywords, each 120 characters or fewer.');
-  }
   if (!isValidSearchIntent(draft.searchIntent)) throw new Error('Choose a supported search intent.');
   if (draft.featured && !isValidFeaturedOrder(draft.featuredOrder)) {
     throw new Error('Slider display order must be a non-negative whole number.');
@@ -315,7 +295,6 @@ async function savePostBulkRecord(post, draft) {
     animeSlug: draft.animeSlug.trim() ? normalizeAnimeSlug(draft.animeSlug.trim()) : '',
     seoTitle: draft.seoTitle.trim(),
     seoDescription: draft.seoDescription.trim(),
-    ...keywordFields,
     searchIntent: draft.searchIntent,
     authorName: draft.authorName.trim() || post.authorName || 'Animoro Editor',
     status: draft.status,
