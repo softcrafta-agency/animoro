@@ -671,6 +671,42 @@ function renderArticlePreview() {
   preview.innerHTML = `<h1 class="article-preview-title">${escapeEditorHtml(title)}</h1>${excerpt ? `<p class="article-excerpt-lead">${escapeEditorHtml(excerpt)}</p>` : ''}${sanitizeArticleEditorHtml(getRichEditor()?.innerHTML || '', { allowLegacyDataImages: true })}`;
 }
 
+function applyParagraphFormatting() {
+  const editor = getRichEditor();
+  const range = restoreEditorSelection();
+  if (!editor || !range) return;
+
+  const blockSelector = 'h1, h2, h3, h4, h5, h6, p, div, blockquote';
+  const nestedBlockSelector = `${blockSelector}, ul, ol, li, table, figure, pre, hr`;
+  const blocks = Array.from(editor.querySelectorAll(blockSelector))
+    .filter((block) => range.intersectsNode(block) && !block.querySelector(nestedBlockSelector));
+
+  if (!blocks.length) {
+    document.execCommand('formatBlock', false, 'P');
+    return;
+  }
+
+  const paragraphs = blocks.map((block) => {
+    const paragraph = document.createElement('p');
+    if (block.hasAttribute('style')) paragraph.setAttribute('style', block.getAttribute('style'));
+    paragraph.append(...Array.from(block.childNodes));
+    block.replaceWith(paragraph);
+    return paragraph;
+  });
+
+  const selection = window.getSelection();
+  if (selection?.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)) {
+    rememberEditorSelection();
+  } else {
+    const fallbackRange = document.createRange();
+    fallbackRange.selectNodeContents(paragraphs[paragraphs.length - 1]);
+    fallbackRange.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(fallbackRange);
+    rememberEditorSelection();
+  }
+}
+
 function setEditorMode(previewMode) {
   const editor = getRichEditor();
   const preview = document.getElementById('articlePreview');
@@ -699,6 +735,8 @@ function runEditorToolbarAction(action, button) {
       Math.abs(size - current) < Math.abs(ARTICLE_FONT_SIZES[best] - current) ? index : best, 0);
     const next = Math.max(0, Math.min(ARTICLE_FONT_SIZES.length - 1, closestIndex + Number(button.dataset.step)));
     applyEditorFontSize(ARTICLE_FONT_SIZES[next]);
+  } else if (action === 'paragraph') {
+    applyParagraphFormatting();
   } else if (action === 'block') {
     restoreEditorSelection();
     document.execCommand('formatBlock', false, value);

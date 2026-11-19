@@ -28,6 +28,7 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /<a href="\/blogs\.html">Articles<\/a>/);
   assert.doesNotMatch(html, /href="blogs\.html"/);
   assert.match(html, /Real article <strong>body<\/strong>\./);
+  assert.match(html, /<p>Real article <strong>body<\/strong>\.<\/p>/);
   assert.match(html, /Editor One/);
   assert.match(html, /https:\/\/images\.example\.test\/cover\.webp/);
   assert.match(html, /class="article-cover-img"[^>]+loading="eager" fetchpriority="high"/);
