@@ -13,25 +13,9 @@ export const FESTIVAL_SOURCES = [
   },
 ];
 
-export const DIWALI_REFERENCE_SOURCE = {
-  id: 'drik-panchang',
-  name: 'Drik Panchang — Shrirangapattana, Karnataka',
-  url: 'https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?year=2026&geoname-id=1256421',
-};
-
-export const DIWALI_2027_REFERENCE_SOURCE = {
-  ...DIWALI_REFERENCE_SOURCE,
-  url: 'https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?year=2027&geoname-id=1256421',
-};
-
-export const FESTIVAL_REFERENCE_SOURCES = [
-  ...FESTIVAL_SOURCES,
-  DIWALI_REFERENCE_SOURCE,
-  DIWALI_2027_REFERENCE_SOURCE,
-];
+export const FESTIVAL_REFERENCE_SOURCES = [...FESTIVAL_SOURCES];
 
 const palettes = {
-  diwali: ['#fbbf24', '#fb923c', 'sparkles', ['diyas', 'golden glow']],
   dhanteras: ['#f59e0b', '#fcd34d', 'sparkles', ['gold ornaments', 'warm light']],
   govardhan: ['#65a30d', '#a3e635', 'pattern', ['floral rangoli', 'leaf motifs']],
   bhaidooj: ['#e879f9', '#fb7185', 'sparkles', ['sibling lights', 'petal motifs']],
@@ -79,7 +63,6 @@ const palettes = {
 };
 
 const VERIFIED_SEED_DATES = {
-  'diwali': { 2026: '2026-11-08', 2027: '2027-10-29' },
   'new-year': { 2026: '2026-01-01', 2027: '2027-01-01' },
   'vasant-panchami': { 2026: '2026-01-23', 2027: '2027-02-11' },
   'republic-day': { 2026: '2026-01-26', 2027: '2027-01-26' },
@@ -117,15 +100,6 @@ function theme(id, priority = 10, extra = {}) {
 }
 
 export const FESTIVAL_CATALOG = [
-  {
-    id: 'diwali',
-    name: 'Diwali',
-    aliases: ['Diwali', 'Deepavali', 'Diwali/Deepavali'],
-    theme: theme('diwali', 100, { startOffsetDays: -1, endOffsetDays: 4 }),
-    windowOverrides: {
-      2026: { startDate: '2026-11-07', endDate: '2026-11-12', configuredBy: 'user' },
-    },
-  },
   { id: 'dhanteras', name: 'Dhanteras', aliases: ['Dhanteras', 'Dhantrayodashi'], theme: theme('dhanteras', 55) },
   { id: 'govardhan-puja', name: 'Govardhan Puja', aliases: ['Govardhan Puja', 'Annakut'], theme: theme('govardhan', 60) },
   { id: 'bhai-dooj', name: 'Bhai Dooj', aliases: ['Bhai Dooj', 'Bhai Duj', 'Bhaiya Dooj', 'Bhai Bij'], theme: theme('bhaidooj', 55) },
@@ -194,20 +168,13 @@ export function createEmptyCalendar() {
         addCalendarDays(date, definition.theme.startOffsetDays || 0);
       const endDate = override?.endDate ||
         addCalendarDays(date, definition.theme.endOffsetDays || 0);
-      const sourceDefinitions = festival.id === 'diwali'
-        ? [FESTIVAL_SOURCES[0]]
-        : FESTIVAL_SOURCES;
-      const sources = sourceDefinitions.map(source => ({
+      const sources = FESTIVAL_SOURCES.map(source => ({
           id: source.id,
           name: source.name,
           url: source.url,
           observedDate: date,
           checkedAt: verifiedAt,
         }));
-      if (festival.id === 'diwali') {
-        const source = year === '2026' ? DIWALI_REFERENCE_SOURCE : DIWALI_2027_REFERENCE_SOURCE;
-        sources.push({ ...source, observedDate: date, checkedAt: verifiedAt });
-      }
       festival.dates[year] = {
         festivalDate: date,
         startDate,

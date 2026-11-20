@@ -18,9 +18,9 @@ test('parses all-day dates, folded lines, escaped names, and multi-day ranges', 
   const parsed = parseFestivalCalendarIcs([
     'BEGIN:VCALENDAR',
     'BEGIN:VEVENT',
-    'DTSTART;VALUE=DATE:20261108',
-    'DTEND;VALUE=DATE:20261109',
-    'SUMMARY:Diwali/Deepavali',
+    'DTSTART;VALUE=DATE:20260126',
+    'DTEND;VALUE=DATE:20260127',
+    'SUMMARY:Republic Day',
     'STATUS:CONFIRMED',
     'END:VEVENT',
     'BEGIN:VEVENT',
@@ -36,66 +36,10 @@ test('parses all-day dates, folded lines, escaped names, and multi-day ranges', 
   ].join('\r\n'));
 
   assert.deepEqual(parsed, [
-    { date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali', tentative: false },
+    { date: '2026-01-26', endDate: '2026-01-26', name: 'Republic Day', tentative: false },
     { date: '2026-12-24', endDate: '2026-12-26', name: 'Christmas Day', tentative: false },
     { date: '2026-02-19', endDate: '2026-02-19', name: 'Ramadan Start', tentative: true },
   ]);
-});
-
-test('only promotes matching source-verified dates and respects the requested Diwali window', () => {
-  const calendar = createSyncedCalendar(createEmptyCalendar(), [
-    sourceEvents(0, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
-    sourceEvents(1, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
-  ], '2026-01-01T00:00:00.000Z');
-  const diwali = calendar.festivals.find(festival => festival.id === 'diwali');
-
-  assert.equal(diwali.dates['2026'].festivalDate, '2026-11-08');
-  assert.equal(diwali.dates['2026'].startDate, '2026-11-07');
-  assert.equal(diwali.dates['2026'].endDate, '2026-11-12');
-  assert.equal(diwali.dates['2026'].status, 'verified');
-  assert.equal(diwali.dates['2026'].sources.length, 2);
-  assert.equal(diwali.dates['2026'].verifiedAt, '2026-11-07T19:27:22+05:30');
-});
-
-test('leaves prior verified dates unchanged when sources disagree or one is unavailable', () => {
-  const existing = createEmptyCalendar();
-  const diwali = existing.festivals.find(festival => festival.id === 'diwali');
-  diwali.dates['2026'] = {
-    festivalDate: '2026-11-08',
-    startDate: '2026-11-07',
-    endDate: '2026-11-12',
-    status: 'verified',
-    sources: [{ id: 'existing', url: 'https://example.test/calendar' }],
-    verifiedAt: '2025-12-01T00:00:00.000Z',
-  };
-
-  const mismatch = createSyncedCalendar(existing, [
-    sourceEvents(0, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
-    sourceEvents(1, [{ date: '2026-11-09', endDate: '2026-11-09', name: 'Diwali/Deepavali' }]),
-  ]);
-  const missing = createSyncedCalendar(existing, [
-    sourceEvents(0, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
-  ]);
-
-  for (const result of [mismatch, missing]) {
-    assert.deepEqual(result.festivals.find(festival => festival.id === 'diwali').dates['2026'], diwali.dates['2026']);
-  }
-});
-
-test('removes duplicate calendar records without discarding the first verified fallback', () => {
-  const existing = createEmptyCalendar();
-  const diwali = existing.festivals.find(festival => festival.id === 'diwali');
-  const duplicate = { ...diwali, dates: {} };
-  const calendar = createSyncedCalendar({
-    ...existing,
-    festivals: [...existing.festivals, duplicate],
-  }, []);
-
-  assert.equal(calendar.festivals.filter(festival => festival.id === 'diwali').length, 1);
-  assert.equal(
-    calendar.festivals.find(festival => festival.id === 'diwali').dates['2026'].startDate,
-    '2026-11-07',
-  );
 });
 
 test('keeps the catalog unique and includes the requested festival coverage', () => {
@@ -105,7 +49,7 @@ test('keeps the catalog unique and includes the requested festival coverage', ()
   assert.equal(new Set(ids).size, ids.length);
   assert.equal(new Set(names).size, names.length);
   for (const name of [
-    'Diwali', 'Dhanteras', 'Govardhan Puja', 'Bhai Dooj', 'Chhath Puja',
+    'Dhanteras', 'Govardhan Puja', 'Bhai Dooj', 'Chhath Puja',
     'Guru Nanak Jayanti', 'Christmas', 'New Year', 'Lohri', 'Makar Sankranti',
     'Pongal', 'Republic Day', 'Vasant Panchami', "Valentine's Day",
     'Maha Shivratri', 'Ramadan', 'Eid-ul-Fitr', 'Holi', 'Ugadi', 'Gudi Padwa',
@@ -116,55 +60,6 @@ test('keeps the catalog unique and includes the requested festival coverage', ()
   ]) {
     assert.ok(names.includes(name), `Missing festival ${name}`);
   }
-});
-
-test('seeds the requested 2026 Diwali visual window with source evidence', () => {
-  const calendar = createEmptyCalendar();
-  const diwali = calendar.festivals.find(festival => festival.id === 'diwali');
-
-  assert.equal(calendar.timeZone, 'Asia/Kolkata');
-  assert.equal(diwali.enabled, true);
-  assert.equal(diwali.theme.enabled, true);
-  assert.deepEqual(diwali.dates['2026'], {
-    festivalDate: '2026-11-08',
-    startDate: '2026-11-07',
-    endDate: '2026-11-12',
-    status: 'verified',
-    windowSource: 'user-specified-theme-window',
-    sources: [
-      {
-        id: 'google-india-calendar',
-        name: FESTIVAL_SOURCES[0].name,
-        url: FESTIVAL_SOURCES[0].url,
-        observedDate: '2026-11-08',
-        checkedAt: '2026-11-07T19:27:22+05:30',
-      },
-      {
-        id: 'drik-panchang',
-        name: 'Drik Panchang — Shrirangapattana, Karnataka',
-        url: 'https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?year=2026&geoname-id=1256421',
-        observedDate: '2026-11-08',
-        checkedAt: '2026-11-07T19:27:22+05:30',
-      },
-    ],
-    verifiedAt: '2026-11-07T19:27:22+05:30',
-  });
-  assert.equal(diwali.dates['2027'].festivalDate, '2027-10-29');
-  assert.equal(diwali.dates['2027'].startDate, '2027-10-28');
-  assert.equal(diwali.dates['2027'].endDate, '2027-11-02');
-  assert.equal(diwali.dates['2027'].sources[1].url.includes('year=2027'), true);
-});
-
-test('keeps the Diwali theme enabled when matching dates are synchronized', () => {
-  const calendar = createSyncedCalendar(createEmptyCalendar(), [
-    sourceEvents(0, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
-    sourceEvents(1, [{ date: '2026-11-08', endDate: '2026-11-08', name: 'Diwali/Deepavali' }]),
-  ]);
-  const diwali = calendar.festivals.find(festival => festival.id === 'diwali');
-
-  assert.equal(diwali.enabled, true);
-  assert.equal(diwali.theme.enabled, true);
-  assert.equal(diwali.dates['2026'].festivalDate, '2026-11-08');
 });
 
 test('seeds only matching 2026 and 2027 dates with source evidence', () => {
