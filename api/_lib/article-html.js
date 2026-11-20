@@ -208,6 +208,9 @@ export function sanitizeArticleContent(value) {
   return sanitizeHtml(typeof value === 'string' ? value : '', {
     allowedTags: ARTICLE_CONTENT_TAGS,
     allowedAttributes: ARTICLE_CONTENT_ATTRIBUTES,
+    transformTags: {
+      h1: 'h2',
+    },
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedSchemesByTag: { img: ['http', 'https'] },
     allowedIframeHostnames: ['www.youtube-nocookie.com', 'www.youtube.com'],
@@ -330,7 +333,7 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
       <div class="article-reading-progress-track"><span></span></div>
     </div>
     <div class="article-reading-layout" id="articleReadingLayout">
-      <main class="article-content-container" id="articleBody">
+      <div class="article-content-container" id="articleBody">
         ${articleContent}
         ${tags ? `<div class="article-tags-wrap"><span style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">TAGS:</span> ${tags}</div>` : ''}
         <div class="article-share-bar">
@@ -342,7 +345,7 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
         <a class="share-btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&amp;url=${encodeURIComponent(canonicalUrl)}" target="_blank" rel="noopener noreferrer">Twitter / X</a>
         <a class="share-btn" href="https://reddit.com/submit?url=${encodeURIComponent(canonicalUrl)}&amp;title=${encodeURIComponent(title)}" target="_blank" rel="noopener noreferrer">Reddit</a>
         </div>
-      </main>
+      </div>
     </div>
     ${relatedHtml}`;
 }

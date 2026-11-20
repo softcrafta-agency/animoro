@@ -114,3 +114,15 @@ The architecture is substantial and already includes route rewrites, article/ser
 ## Remaining work
 
 The remaining implementation phases must be based on actual browser and deployed-runtime evidence. Critical route and SEO fixes should precede broad visual changes. Any cleanup must preserve dynamically loaded, externally referenced and production-deployed assets.
+
+## Implementation checkpoint
+
+Verified changes made after the initial audit:
+
+- Replaced the article template’s outer `<article>` with `<main>` and removed the nested article `<main>`.
+- Added a sanitizer transform that demotes authored `<h1>` content to `<h2>`.
+- Added a homepage skip link and stable `main-content` target.
+- Standardized key homepage navigation links to absolute canonical paths.
+- Added a 14-test focused article suite entry and rebuilt production output.
+
+No articles, Firestore records, assets or database rules were deleted or modified.

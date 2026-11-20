@@ -171,6 +171,13 @@ test('renders secondary phrases only as authored article content, not meta keywo
   assert.doesNotMatch(head, /<meta[^>]+(?:Jiro Azuma|supernatural conflict)[^>]+keywords/i);
 });
 
+test('demotes authored H1 content so articles keep one page H1', () => {
+  const content = sanitizeArticleContent('<h1>Authored heading</h1><h2>Section heading</h2>');
+  assert.doesNotMatch(content, /<h1\b/i);
+  assert.match(content, /<h2>Authored heading<\/h2>/);
+  assert.match(content, /<h2>Section heading<\/h2>/);
+});
+
 test('sanitizes executable article markup and safely serializes attacker-controlled metadata', () => {
   const html = renderArticleDocument(template, {
     id: 'article-2',

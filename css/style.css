@@ -38,6 +38,27 @@
   --container-max: 1240px;
 }
 
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 5000;
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-crimson);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform var(--transition-fast);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
 html[data-theme='light'] {
   --bg-primary: #f4f7fb;
   --bg-secondary: #edf3fb;
