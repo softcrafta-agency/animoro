@@ -141,6 +141,13 @@ html[data-theme='light'] .article-image-library-card {
   min-height: 100vh;
 }
 
+.admin-site-credit {
+  padding: 12px 24px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
 .admin-topbar {
   height: 68px;
   background: #0d1017;
