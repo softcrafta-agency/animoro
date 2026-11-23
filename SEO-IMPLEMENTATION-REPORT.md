@@ -97,3 +97,67 @@ No access policy, authentication, Firebase integration, or Firestore rules were 
 2. No mobile browser, Lighthouse, PageSpeed Insights, or field Core Web Vitals run was available. Mobile performance measurements remain unverified. The large auth chunk should be investigated with route-level loading data before deciding whether to split it.
 3. Anime detail SEO metadata and page content are populated client-side. No published records were available to inspect a live detail page. Verify after a profile is published; no Google-rendered HTML inspection was performed.
 4. The upcoming-anime surface is intentionally excluded under its current authentication and noindex behavior. Confirm whether that content should become publicly accessible/indexable before changing the access model, robots directives, canonical policy, or sitemap.
+
+## Advanced Organic SEO Audit (2026-11-24)
+
+This section supersedes earlier route observations where they conflict with the current live crawl. In particular, `/upcoming-anime` is currently public, indexable, and present in the sitemap; the prior statement that it is authenticated/noindex is historical and not current production behavior.
+
+### Executive summary
+
+- The live sitemap contains 35 URLs: 10 static/collection routes, 7 category archives, and 18 published articles. All 35 returned HTTP 200.
+- `/anime.html` already redirects permanently to `/anime-list`. `/anime-list` and `/anime-calendar.html` serve distinct catalog vs schedule intents. The homepage has no airing section, consistent with the earlier request.
+- Category metadata and Manhwa detail metadata become unique after browser JavaScript runs, but their initial HTML remains generic. The direct category SEO API returned 503; the public category route itself returned 200 and rendered correctly. Verify deployed SSR/routing/index behavior.
+- Anime List, calendar, and Upcoming Anime expose Tenrai detail links, but the live sitemap snapshot contains no `/anime/{slug}` detail entries. The source sitemap uses published Firestore records and does not enumerate Tenrai records.
+- Two focused source fixes were made: preserve ID-qualified anime slugs when building canonical paths, and identify Animoro article bylines as the existing Organization entity instead of `Person`.
+- No Search Console export or reliable Google indexing evidence was available. No search volume, keyword difficulty, clicks, impressions, CTR, or position figures were invented.
+
+### Implementation changes
+
+| File/location | Original issue | Implemented change | Verification |
+|---|---|---|---|
+| [js/anime-url.js](./js/anime-url.js), `getAnimeSlug` | A valid `slug--MALID` value failed the base-slug-only validator. When the detail page initialized, canonical-path generation normalized the identifier into the title and appended the ID a second time. | Accept valid detail slugs as well as base slugs, preserving their canonical URL. | **FIXED in source.** Focused regression test added; Node/npm are unavailable, so execution is **PENDING**. Production remains unchanged until deployment. |
+| [js/anime-page-seo.test.js](./js/anime-page-seo.test.js) | No regression test covered a detail slug already containing its stable ID. | Added a test for `/anime/oha-suta-dai-go-gakuen--65485` canonical preservation. | Test source reviewed; execution **PENDING** because Node is unavailable. |
+| [api/_lib/article-html.js](./api/_lib/article-html.js), BlogPosting author | Live article data uses `Animoro`/`animoro` bylines, but the renderer typed every non-empty byline as `Person`. | Map the Animoro brand byline to the existing `https://www.animoro.in/#organization` entity. Keep other named bylines as `Person`; no author names were changed. | **FIXED in source.** Focused test added; execution **PENDING** because Node/npm are unavailable. |
+| [api/_lib/article-html.test.js](./api/_lib/article-html.test.js) | No assertion covered organization vs person authors. | Assert that Animoro links to the Organization entity and an individual remains a Person. | Test source reviewed; execution **PENDING**. |
+| [SEO-URL-INVENTORY.md](./SEO-URL-INVENTORY.md) | No current, route-level inventory tied to the latest live sitemap/browser evidence. | Added 35-page inventory, inferred intent, metadata, canonicals, H1s, indexability, internal-link counts, dynamic-route notes, and cannibalization assessment. | **VERIFIED** against live responses/source; GSC/indexing evidence remains **PENDING**. |
+| [SEO-METADATA-REPORT.md](./SEO-METADATA-REPORT.md) | No consolidated current metadata comparison and fact-check queue. | Added before/after candidates for stale/weak metadata while keeping Firestore-owned copy unchanged. | **VERIFIED** from live metadata. CMS edits are **PENDING** editorial approval/source checks. |
+| [CONTENT-GROWTH-STRATEGY.md](./CONTENT-GROWTH-STRATEGY.md) | No de-duplicated content opportunity set grounded in existing pages. | Added nine intent-specific proposals with audience, phrases, length ranges, internal links, and fact-check/differentiation criteria. | **VERIFIED** as a strategy artifact; no content was auto-published. |
+| [INTERNAL-LINKING-REPORT.md](./INTERNAL-LINKING-REPORT.md) | No current map of directory/article/category/detail linking. | Documented link paths, counts, sitemap gap, and prioritized link improvements. | **VERIFIED** for sampled live pages; exhaustive generated-link status crawl is **PENDING**. |
+| [ANIMORO-30-DAY-SEO-ROADMAP.md](./ANIMORO-30-DAY-SEO-ROADMAP.md) | No staged, measurable implementation order. | Added a four-week roadmap with verification gates and no fabricated performance targets. | **VERIFIED** as a planning artifact. |
+| [GSC-IMPORT-TEMPLATE.csv](./GSC-IMPORT-TEMPLATE.csv) | No Search Console CSV export was available. | Added a header-only import template; no sample metrics are populated. | **VERIFIED**; import awaits owner-provided exports. |
+
+### Cannibalization, metadata and technical findings
+
+- `/anime.html` → `/anime-list` is an existing 301; `/anime` → `/anime-list` is 308. No additional redirect is recommended.
+- `/anime-calendar.html` is a schedule surface, while `/anime-list` is a searchable/filterable catalog. Keep both; the homepage does not contain an airing block.
+- The “strongest villains” and “most powerful characters” articles have related but distinct scope and lists. Keep separate and make the scope explicit in H1/introduction.
+- Category browser rendering updates title, description, H1, canonical, social metadata, and article links. Initial HTML is generic. A direct `/api/seo-page?type=category...` request returned 503; deployed Firestore indexes and function logs need review. The local index file includes category-related indexes, but production index state was not verified.
+- Manhwa details are included in the sitemap and receive title-specific metadata after client data loads. Initial HTML uses the collection canonical/metadata. Reliable server/prerender metadata is a **PENDING** deployment/architecture improvement.
+- The article set has 18 distinct titles and descriptions; descriptions are 113–160 characters. Editorial fixes are pending for the expired October 2026 list, keyword-list Itachi snippet, grammar errors in two H1s, and title/description alignment on Kagurabachi.
+- `robots.txt` is accessible and disallows admin/API paths. Search and My List return `noindex, nofollow` and are excluded from the sitemap. Search Console access was not verified.
+- Public aliases tested were single-hop. The 35 sitemap URLs all returned 200. This does not constitute a complete status check of every client-rendered external image or generated detail link.
+
+### Structured data, analytics and performance
+
+- Article pages expose `BlogPosting` and `BreadcrumbList`; homepage Organization/WebSite/SearchAction data and visible FAQ schemas were reviewed. The Animoro author-entity correction is described above.
+- Category BreadcrumbList is created client-side and exists in the source SSR path; verify the deployed SSR response after the 503 is resolved.
+- Existing first-party analytics is consent-based. No GA4/GTM Measurement ID was found or supplied; no duplicate analytics script was added. If GA4 is desired, the owner must supply the actual `G-...` ID and consent requirements.
+- The existing performance report records ~891 kB Auth and ~155 kB Admin bundles. No current LCP/INP/CLS, Lighthouse, or PageSpeed measurements were available. Performance changes beyond prior measured logo payload reductions are not claimed.
+
+### Validation and limitations
+
+- **Live:** sitemap endpoint 200; 35 sitemap destinations returned 200; known redirects were single-hop; representative category, anime detail, calendar, upcoming list, article, and Manhwa detail rendered in the browser.
+- **Observed production issue:** direct category SEO API response 503; category page route still rendered after client JavaScript. Investigate deployment logs/index state; no backend or Firestore query was changed.
+- **Observed production issue:** before the local fix, a Tenrai detail link changed from `/anime/oha-suta-dai-go-gakuen--65485` to a duplicated-ID path during client startup. Source fix and regression test are not deployed.
+- **Source checks:** `git diff --check` passed. Node/npm are unavailable in this environment, so automated tests, TypeScript lint, and build were not run for this change.
+- **Not verified:** Google indexing/canonical selection, Search Console metrics, all generated links/images, browser console errors, deployed post-change routes, or current Core Web Vitals.
+
+### Required follow-up
+
+1. Run the focused and full tests, lint, and build in an environment with the project’s Node 22 toolchain; deploy after passing.
+2. Verify production anime URL preservation and Article structured-data author type after deployment.
+3. Resolve the category SSR 503 and compare raw/rendered category metadata; check the deployed Firestore indexes.
+4. Decide whether and how to include valid Tenrai-linked anime details in the sitemap.
+5. Refresh the October article and apply the editorial metadata fixes in the publishing workflow after sourcing.
+6. Supply Search Console Pages/Queries exports and use URL Inspection for indexing/canonical evidence.
+7. Measure current mobile/desktop LCP, INP, CLS and image requests before further performance changes.

@@ -21,7 +21,7 @@ export function isValidAnimeDetailSlug(value) {
 }
 
 export function getAnimeSlug(anime) {
-  return isValidAnimeSlug(anime?.slug)
+  return isValidAnimeDetailSlug(anime?.slug)
     ? anime.slug
     : normalizeAnimeSlug(anime?.title);
 }

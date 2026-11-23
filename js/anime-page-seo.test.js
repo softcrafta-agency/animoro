@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createAnimeListStructuredData } from './anime-page-seo.js';
+import { getAnimeCanonicalUrl } from './anime-url.js';
 import { TENRAI_GENRES } from './tenrai-genres.js';
 
 const root = new URL('../', import.meta.url);
@@ -47,6 +48,15 @@ test('anime ItemList mirrors actual directory entries and links to their detail 
       url: 'https://www.animoro.in/anime/editor-managed-anime',
     },
   ]);
+});
+
+test('anime detail canonical URLs preserve an existing ID-qualified slug', () => {
+  const slug = 'oha-suta-dai-go-gakuen--65485';
+
+  assert.equal(
+    getAnimeCanonicalUrl({ title: slug, slug, malId: 65485 }),
+    `https://www.animoro.in/anime/${slug}`
+  );
 });
 
 test('homepage metadata and structured data declare the Animoro identity and functional search', () => {

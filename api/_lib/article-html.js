@@ -143,7 +143,11 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
         url: publisherLogoUrl,
       },
     },
-    ...(authorName ? { author: { '@type': 'Person', name: authorName } } : {}),
+    ...(authorName ? {
+      author: authorName.toLowerCase() === 'animoro'
+        ? { '@id': `${SITE_ORIGIN}/#organization` }
+        : { '@type': 'Person', name: authorName },
+    } : {}),
     ...(image ? { image: [image] } : {}),
     ...(datePublished ? { datePublished } : {}),
     ...(dateModified ? { dateModified } : {}),

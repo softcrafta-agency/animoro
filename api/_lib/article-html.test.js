@@ -38,11 +38,25 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /<meta property="og:title" content="A &lt;Great&gt; Anime Story"/);
   assert.match(html, /"@type":"BlogPosting"/);
   assert.match(html, /"@type":"BreadcrumbList"/);
+  assert.match(html, /"author":\{"@type":"Person","name":"Editor One"\}/);
   assert.match(html, /"datePublished":"2026-10-01T10:00:00\.000Z"/);
   assert.match(html, /"dateModified":"2026-10-03T10:00:00\.000Z"/);
   assert.match(html, /Published <time datetime="2026-10-01T10:00:00\.000Z">Oct 1, 2026<\/time>/);
   assert.match(html, /Updated <time datetime="2026-10-03T10:00:00\.000Z">Oct 3, 2026<\/time>/);
   assert.match(html, /Published by <a href="\/about\.html" class="article-author-name">Animoro<\/a>/);
+});
+
+test('links Animoro article bylines to the Organization entity', () => {
+  const html = renderArticleDocument(template, {
+    id: 'animoro-authored-article',
+    title: 'Animoro Article',
+    slug: 'animoro-article',
+    authorName: 'animoro',
+    content: '<p>Article body.</p>',
+  });
+
+  assert.match(html, /"author":\{"@id":"https:\/\/www\.animoro\.in\/#organization"\}/);
+  assert.doesNotMatch(html, /"author":\{"@type":"Person","name":"animoro"\}/);
 });
 
 test('does not display missing author, category, or publication metadata', () => {
