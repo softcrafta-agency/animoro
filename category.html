@@ -10,7 +10,7 @@
   <meta property="og:description" content="Explore anime articles by category on Animoro, from news and reviews to rankings, guides, and recommendations." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.animoro.in/category.html" />
-  <meta property="og:image" content="https://www.animoro.in/logo.png" />
+  <meta property="og:image" content="https://www.animoro.in/animoro-logo.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Anime Category — Animoro" />
   <meta name="twitter:description" content="Explore anime articles by category on Animoro, from news and reviews to rankings, guides, and recommendations." />
@@ -30,18 +30,18 @@
   <header class="site-header">
     <div class="container header-inner">
       <a href="/" class="brand-logo">
-        <img class="brand-logo-image" src="/logo-small.webp" alt="Animoro logo" width="176" height="118" />
-        
+        <img class="brand-logo-image" src="/animoro-logo.png" alt="Animoro" width="1152" height="768" />
       </a>
 
       <nav class="main-nav">
         <a href="/" class="nav-link">Home</a>
-        <a href="blogs.html" class="nav-link">Articles</a>
-        <a href="category.html?category=Anime%20News" class="nav-link">News</a>
-        <a href="category.html?category=Reviews" class="nav-link">Reviews</a>
-        <a href="category.html?category=Rankings" class="nav-link">Rankings</a>
-        <a href="about.html" class="nav-link">About</a>
-        <a href="contact.html" class="nav-link">Contact</a>
+        <a href="/anime-list" class="nav-link">Anime List</a>
+        <a href="/manhwa" class="nav-link">Comics &amp; Webcomics</a>
+        <a href="/upcoming-anime" class="nav-link">Upcoming Anime</a>
+        <a href="/category.html?category=Anime%20News" class="nav-link active" aria-current="page">Anime News</a>
+        <a href="/blogs.html" class="nav-link">Articles</a>
+        <a href="/my-list.html" class="nav-link">My List</a>
+        <a href="/anime-calendar.html" class="nav-link">Anime Airing Today</a>
       </nav>
 
       <div class="header-actions">
@@ -59,32 +59,30 @@
 
   <!-- Mobile Drawer -->
   <div class="mobile-drawer-backdrop" id="mobileBackdrop"></div>
-  <aside class="mobile-drawer" id="mobileNavDrawer">
+  <aside class="mobile-drawer" id="mobileNavDrawer" aria-label="Mobile Navigation">
     <div class="drawer-header">
-      <span class="brand-logo-text" style="font-size: 1.4rem;">ANIMORO</span>
+      <img class="brand-logo-image" src="/animoro-logo.png" alt="Animoro" width="1152" height="768" />
       <button class="drawer-close-btn" id="drawerCloseBtn">&times;</button>
     </div>
     <nav class="mobile-nav-links">
       <a href="/">Home</a>
-      <a href="blogs.html">All Articles</a>
-      <a href="category.html?category=Anime%20News">Anime News</a>
-      <a href="category.html?category=Reviews">Reviews</a>
-      <a href="category.html?category=Rankings">Rankings</a>
-      <a href="category.html?category=Guides">Guides</a>
-      <a href="category.html?category=Recommendations">Recommendations</a>
-      <a href="category.html?category=Manga">Manga</a>
-      <a href="category.html?category=Seasonal%20Anime">Seasonal Anime</a>
-      <a href="search.html">Search</a>
-      <a href="about.html">About Animoro</a>
-      <a href="contact.html">Contact Us</a>
+      <a href="/anime-list">Anime List</a>
+      <a href="/manhwa">Comics &amp; Webcomics</a>
+      <a href="/upcoming-anime">Upcoming Anime</a>
+      <a href="/category.html?category=Anime%20News" class="active" aria-current="page">Anime News</a>
+      <a href="/blogs.html">Articles</a>
+      <a href="/my-list.html">My List</a>
+      <a href="/search.html">Search</a>
+      <a href="/anime-calendar.html">Anime Airing Today</a>
     </nav>
   </aside>
 
   <main class="section-padded">
     <div class="container">
-      <div style="margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle);">
+      <nav class="site-breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><span>Articles</span><span aria-hidden="true">/</span><span id="categoryBreadcrumbCurrent">Anime News</span></nav>
+      <div class="page-heading category-page-heading">
         <span class="badge-category" style="margin-left: 0; margin-bottom: 12px; display: inline-block;">Category Archive</span>
-        <h1 class="section-title" id="categoryTitle" style="font-size: 2.5rem;">Anime News</h1>
+        <h1 class="section-title" id="categoryTitle">Anime News</h1>
         <p class="section-subtitle" id="categoryDescription">Loading category overview...</p>
       </div>
 

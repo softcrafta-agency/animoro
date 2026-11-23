@@ -50,6 +50,7 @@ async function initCategoryPage() {
 
   const titleEl = document.getElementById('categoryTitle');
   const descEl = document.getElementById('categoryDescription');
+  const breadcrumbEl = document.getElementById('categoryBreadcrumbCurrent');
   const container = document.getElementById('categoryArticlesContainer');
   const categoryDescription = getCategoryDescription(categoryName);
   const metadata = getCategoryMetadata(categoryName);
@@ -58,6 +59,7 @@ async function initCategoryPage() {
 
   if (titleEl) titleEl.textContent = categoryName;
   if (descEl) descEl.textContent = categoryDescription;
+  if (breadcrumbEl) breadcrumbEl.textContent = categoryName;
 
   document.title = metadata.title;
   const metaDescription = document.querySelector('meta[name="description"]');
@@ -65,7 +67,7 @@ async function initCategoryPage() {
   ensureMetaTag('property', 'og:title', metadata.title);
   ensureMetaTag('property', 'og:description', metadata.description);
   ensureMetaTag('property', 'og:url', canonicalUrl);
-  ensureMetaTag('property', 'og:image', 'https://www.animoro.in/logo.png');
+  ensureMetaTag('property', 'og:image', 'https://www.animoro.in/animoro-logo.png');
   ensureMetaTag('name', 'twitter:card', 'summary_large_image');
   ensureMetaTag('name', 'twitter:title', metadata.title);
   ensureMetaTag('name', 'twitter:description', metadata.description);

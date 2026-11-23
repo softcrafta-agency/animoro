@@ -280,7 +280,7 @@ export function createSeoPageHandler({
           ? getAnimeCanonicalUrl(record)
           : getUpcomingAnimeCanonicalUrl(record);
         html = setSeoMetadata(template, { ...metadata, canonical });
-        html = setMeta(html, 'property=["\']og:image["\']', record.coverImage || record.poster || 'https://www.animoro.in/logo.png');
+        html = setMeta(html, 'property=["\']og:image["\']', record.coverImage || record.poster || 'https://www.animoro.in/animoro-logo.png');
         if (type === 'anime') {
           html = replaceElementContents(html, 'animePageTitle', escapeHtml(record.title || 'Anime'));
           html = replaceElementContents(html, 'animePageDescription', escapeHtml(record.synopsis || metadata.description));
@@ -324,7 +324,7 @@ async function renderCategoryWithServices(template, category, page, getServices)
   const metadata = getCategoryMetadata(category);
   const canonical = `https://www.animoro.in${categoryPageUrl(category, page)}`;
   let html = setSeoMetadata(template, { ...metadata, canonical });
-  html = setMeta(html, 'property=["\']og:image["\']', 'https://www.animoro.in/logo.png');
+  html = setMeta(html, 'property=["\']og:image["\']', 'https://www.animoro.in/animoro-logo.png');
   html = replaceElementContents(html, 'categoryTitle', escapeHtml(metadata.heading));
   html = replaceElementContents(html, 'categoryDescription', escapeHtml(metadata.description));
   html = replaceElementContents(html, 'categoryArticlesContainer', renderArticleList(posts));

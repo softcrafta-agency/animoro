@@ -57,6 +57,21 @@
     ],
     "redirects": [
       {
+        "source": "/anime-news",
+        "destination": "/category.html?category=Anime%20News",
+        "type": 301
+      },
+      {
+        "source": "/articles",
+        "destination": "/blogs.html",
+        "type": 301
+      },
+      {
+        "source": "/anime-airing-today",
+        "destination": "/anime-calendar.html",
+        "type": 301
+      },
+      {
         "source": "/blog.html/:slug",
         "destination": "/blog/:slug",
         "type": 301

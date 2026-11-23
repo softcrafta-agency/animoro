@@ -809,9 +809,6 @@ function initHomepage() {
       secondaryContentStarted = true;
       requestAnimationFrame(() => {
         initLatestArticles();
-        initTrendingArticles();
-        initPopularAnime();
-        initUpcomingAnime();
       });
     };
     const heroImage = document.querySelector('#heroSliderContainer .slider-slide.active .slide-bg');
