@@ -17,6 +17,7 @@ Standardized the public-site header, tightened homepage section spacing, separat
 
 - Replaced the cropped image/badge header variants with the same `ANIMORO` wordmark across public headers. Standardized the primary desktop links, mobile-drawer links, active state, and accessible current-page marker.
 - Replaced visible brand marks on all public, auth, admin, error, drawer, and footer pages with the supplied logo image at `/animoro-logo.png`; applied a consistent circular crop and layout-specific sizing, and aligned social/publisher metadata with the same asset.
+- The homepage now retains only the featured-stories hero and Latest Articles feed; other homepage sections were removed without changing their separate routes or underlying data functionality.
 - Kept desktop navigation on one line with consistent gaps and a single 72px inner height; switched to the existing hamburger/drawer navigation at 1100px and below.
 - Reduced homepage vertical spacing, aligned section headers, and centered the “Load More Stories” control.
 - Added a responsive `.anime-card-grid` for anime and upcoming-anime cards, with a 2:3 poster frame, `object-fit: cover`, stable card sizing, and text overflow handling. Editorial cards retain their existing two-column desktop layout.
