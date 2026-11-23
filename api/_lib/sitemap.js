@@ -34,8 +34,10 @@ function isPublicRecord(record) {
     record.isPublic !== false &&
     record.public !== false &&
     record.deletedAt == null &&
+    record.visibility !== 'draft' &&
     record.visibility !== 'private' &&
     record.visibility !== 'deleted' &&
+    record.status !== 'draft' &&
     record.status !== 'private' &&
     record.status !== 'deleted' &&
     record.status !== 'archived';

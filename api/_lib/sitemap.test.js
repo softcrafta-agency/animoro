@@ -134,6 +134,16 @@ test('sitemap excludes published records without a stored public slug', () => {
   assert.doesNotMatch(xml, /secret-document-id|\?id=/);
 });
 
+test('sitemap excludes published posts marked as draft visibility', () => {
+  const xml = buildSitemap([
+    { id: 'hidden-draft', slug: 'hidden-draft', status: 'published', visibility: 'draft' },
+    { id: 'public-post', slug: 'public-post', status: 'published' },
+  ], []);
+
+  assert.match(xml, /\/blog\/public-post/);
+  assert.doesNotMatch(xml, /hidden-draft/);
+});
+
 test('excludes invalid stored slugs instead of emitting synthetic sitemap URLs', () => {
   const xml = buildSitemap([
     { id: 'invalid-article', title: 'Article without a valid slug', slug: '../invalid', status: 'published' },

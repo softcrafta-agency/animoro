@@ -66,12 +66,12 @@ function setPageMeta({ title, description, canonical, image = '' }) {
   setMeta('property', 'og:description', description);
   setMeta('property', 'og:url', canonical);
   setMeta('property', 'og:type', 'website');
-  setMeta('property', 'og:image', image || 'https://www.animoro.in/animoro-logo.png');
+  setMeta('property', 'og:image', image || 'https://www.animoro.in/animoro-logo-social.jpg');
   setMeta('property', 'og:image:alt', image ? `${document.title} cover art` : 'Animoro');
   setMeta('name', 'twitter:card', 'summary_large_image');
   setMeta('name', 'twitter:title', title);
   setMeta('name', 'twitter:description', description);
-  setMeta('name', 'twitter:image', image || 'https://www.animoro.in/animoro-logo.png');
+  setMeta('name', 'twitter:image', image || 'https://www.animoro.in/animoro-logo-social.jpg');
   setCanonical(canonical);
 }
 

@@ -53,6 +53,8 @@ test('search button styling remains consistent and visible on mobile', () => {
 test('the Search page keeps its working form without adding a duplicate header icon', () => {
   assert.match(searchPage, /<form id="searchForm" action="\/search\.html"/);
   assert.equal((searchPage.match(/class="nav-search-btn"/g) || []).length, 0);
+  assert.equal((searchPage.match(/href="\/upcoming-anime"/g) || []).length, 2);
+  assert.doesNotMatch(searchPage, /href="upcoming-anime\.html"/);
 });
 
 test('mobile bottom navigation keeps its other links without duplicating header search', () => {

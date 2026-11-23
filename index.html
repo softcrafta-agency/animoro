@@ -3,56 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Animoro – Anime News, Reviews, Guides & Upcoming Anime</title>
-  <meta name="description" content="Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, anime listings, upcoming titles, and airing schedules." />
+  <title>Animoro | Anime News, Reviews &amp; Guides</title>
+  <meta name="description" content="Animoro brings anime news, reviews, guides, rankings and discovery together, with seasonal picks and upcoming release updates for fans." />
   <meta name="robots" content="index, follow" />
-  <meta property="og:title" content="Animoro – Anime News, Reviews & Anime Discovery" />
-  <meta property="og:description" content="Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, anime listings, upcoming titles, and airing schedules." />
+  <meta property="og:title" content="Animoro | Anime News, Reviews &amp; Guides" />
+  <meta property="og:description" content="Animoro brings anime news, reviews, guides, rankings and discovery together, with seasonal picks and upcoming release updates for fans." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.animoro.in/" />
-  <meta property="og:image" content="https://www.animoro.in/animoro-logo.png" />
+  <meta property="og:image" content="https://www.animoro.in/animoro-logo-social.jpg" />
   <meta property="og:image:alt" content="Animoro" />
   <meta property="og:site_name" content="Animoro" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Animoro – Anime News, Reviews & Anime Discovery" />
-  <meta name="twitter:description" content="Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, anime listings, upcoming titles, and airing schedules." />
-  <meta name="twitter:image" content="https://www.animoro.in/animoro-logo.png" />
+  <meta name="twitter:title" content="Animoro | Anime News, Reviews &amp; Guides" />
+  <meta name="twitter:description" content="Animoro brings anime news, reviews, guides, rankings and discovery together, with seasonal picks and upcoming release updates for fans." />
+  <meta name="twitter:image" content="https://www.animoro.in/animoro-logo-social.jpg" />
   <meta name="twitter:image:alt" content="Animoro" />
   <meta name="theme-color" content="#080a0f" />
   <link rel="canonical" href="https://www.animoro.in/" />
   <link rel="icon" type="image/png" href="/favicon-small.png" />
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "What can I find on Animoro?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Animoro brings together anime news, reviews, rankings, watch guides, recommendations, seasonal coverage, a searchable anime catalogue, upcoming-anime information, and an airing schedule."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How can I browse anime on Animoro?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Open the Anime List to search by title, filter by available genre, type, or status, sort catalogue results, and open anime detail pages. Upcoming Anime and Anime Airing Today provide separate release and schedule views."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Who publishes Animoro?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Animoro is the publisher identity used across this website. Visit the About page for information about Animoro's coverage and the Contact page to send an inquiry or correction."
-          }
-        }
-      ]
-    }
-  </script>
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -64,7 +32,7 @@
           "url": "https://www.animoro.in/",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://www.animoro.in/animoro-logo.png"
+            "url": "https://www.animoro.in/animoro-logo-circle.webp"
           }
         },
         {
@@ -99,7 +67,7 @@
   <header class="site-header">
     <div class="container header-inner">
       <a href="/" class="brand-logo" aria-label="Animoro Home">
-        <img class="brand-logo-image" src="/animoro-logo.png" alt="Animoro" width="1152" height="768" />
+        <img class="brand-logo-image" src="/animoro-logo-circle.webp" alt="Animoro" width="384" height="384" />
       </a>
 
       <nav class="main-nav" aria-label="Main Navigation">
@@ -130,7 +98,7 @@
   <div class="mobile-drawer-backdrop" id="mobileBackdrop"></div>
   <aside class="mobile-drawer" id="mobileNavDrawer" aria-label="Mobile Navigation">
     <div class="drawer-header">
-      <img class="brand-logo-image" src="/animoro-logo.png" alt="Animoro" width="1152" height="768" />
+      <img class="brand-logo-image" src="/animoro-logo-circle.webp" alt="Animoro" width="384" height="384" />
       <button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">&times;</button>
     </div>
     <nav class="mobile-nav-links">
@@ -149,8 +117,10 @@
   <!-- Main Content -->
   <main id="main-content" class="home-page">
     <!-- Hero Slider Section -->
-    <section class="hero-section" aria-label="Featured Stories">
+    <section class="hero-section" aria-labelledby="featuredStoriesHeading">
       <div class="container">
+        <h1 class="section-title home-page-title">Anime News, Reviews &amp; Guides</h1>
+        <h2 class="sr-only" id="featuredStoriesHeading">Featured Stories</h2>
         <div class="hero-slider-container" id="heroSliderContainer">
           <!-- Populated by js/home.js from Firestore -->
           <div class="slider-skeleton home-loading-state" role="status" aria-label="Loading featured stories">
@@ -168,8 +138,8 @@
         <div class="latest-articles-column">
           <div class="section-header">
             <div>
-              <h1 class="section-title">Latest Articles</h1>
-              <p class="section-subtitle">Freshly written anime guides, news updates, and deep dives</p>
+              <h2 class="section-title">Latest Articles</h2>
+              <p class="section-subtitle">Fresh stories, watch guides, reviews, and analysis.</p>
             </div>
             <a href="blogs.html" class="btn-outline">Browse All &rarr;</a>
           </div>
@@ -197,7 +167,7 @@
   <footer class="site-footer">
     <div class="container footer-grid">
       <div>
-        <img class="footer-logo-image" src="/animoro-logo.png" alt="Animoro" width="1152" height="768" />
+        <img class="footer-logo-image" src="/animoro-logo-circle.webp" alt="Animoro" width="384" height="384" />
         <p class="footer-tagline">Your Daily Dose of Anime.</p>
         <p class="footer-desc">
           Animoro brings together anime news, reviews, rankings, guides, recommendations, seasonal coverage, and anime catalogue information.

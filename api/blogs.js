@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { getAdminServices } from './_lib/firebase-admin.js';
 import { isValidArticleSlug } from '../js/article-url.js';
 import { getArticleCategories } from '../js/article-editor-fields.js';
+import { getCategoryMetadata } from '../js/category-seo.js';
 import { escapeHtml } from '../js/html-utils.js';
 import { renderArticleList } from './_lib/article-list-html.js';
 
@@ -90,12 +91,59 @@ function renderPagination(page, hasNext, category) {
 }
 
 function setArchiveCanonical(html, page, category) {
-  const canonical = category !== 'all'
-    ? `https://www.animoro.in/category.html?category=${encodeURIComponent(category)}`
+  const categoryMetadata = category === 'all' ? null : getCategoryMetadata(category);
+  const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/i);
+  const baseTitle = titleMatch?.[1]?.replace(/&amp;/g, '&') || 'Anime News, Reviews & Guides | Animoro';
+  const title = categoryMetadata
+    ? `${categoryMetadata.title}${page > 1 ? ` — Page ${page}` : ''}`
+    : page > 1
+      ? `${baseTitle.replace(/\s*\|\s*Animoro$/, '')} — Page ${page} | Animoro`
+      : baseTitle;
+  const description = categoryMetadata
+    ? `${categoryMetadata.description}${page > 1 ? ` Page ${page}.` : ''}`
+    : page > 1
+      ? `Page ${page} of Animoro's latest anime news, reviews, features, and guides. Discover seasonal picks, rankings, and recommendations.`
+      : null;
+  const categoryQuery = categoryMetadata
+    ? `?category=${encodeURIComponent(category)}${page > 1 ? `&page=${page}` : ''}`
+    : '';
+  const canonical = categoryMetadata
+    ? `https://www.animoro.in/category.html${categoryQuery}`
     : `https://www.animoro.in/blogs.html${page > 1 ? `?page=${page}` : ''}`;
-  return html
-    .replace(/<link\s+rel=["']canonical["'][^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}" />`)
-    .replace(/<meta\s+property=["']og:url["'][^>]*>/i, `<meta property="og:url" content="${escapeHtml(canonical)}" />`);
+
+  html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
+  if (description) {
+    html = setArchiveMeta(html, 'name', 'description', description);
+    html = setArchiveMeta(html, 'property', 'og:description', description);
+    html = setArchiveMeta(html, 'name', 'twitter:description', description);
+  }
+  if (categoryMetadata) {
+    const headingPattern = /(<h1\b[^>]*\bid="blogArchiveTitle"[^>]*>)[\s\S]*?(<\/h1>)/i;
+    if (!headingPattern.test(html)) {
+      throw new TypeError('The article archive template is missing its category heading.');
+    }
+    html = html.replace(headingPattern,
+      (_match, opening, closing) => `${opening}${escapeHtml(categoryMetadata.heading)}${closing}`);
+  }
+  html = setArchiveMeta(html, 'property', 'og:title', title);
+  html = setArchiveMeta(html, 'property', 'og:url', canonical);
+  html = setArchiveMeta(html, 'name', 'twitter:title', title);
+  return html.replace(
+    /<link\s+rel=["']canonical["'][^>]*>/i,
+    `<link rel="canonical" href="${escapeHtml(canonical)}" />`
+  );
+}
+
+function setArchiveMeta(html, attribute, name, content) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const expression = new RegExp(`<meta\\s+([^>]*\\b${attribute}\\s*=\\s*(["'])${escapedName}\\2[^>]*)>`, 'i');
+  const match = html.match(expression);
+  if (!match || !/\bcontent\s*=/i.test(match[1])) {
+    throw new TypeError(`The article archive template is missing ${attribute}="${name}".`);
+  }
+  return html.replace(expression, (_tag, attributes) => {
+    return `<meta ${attributes.replace(/\bcontent\s*=\s*(["']).*?\1/i, `content="${escapeHtml(content)}"`)}>`;
+  });
 }
 
 function sendHtml(response, statusCode, html, cacheControl = 'no-store') {

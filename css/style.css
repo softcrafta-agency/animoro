@@ -994,6 +994,10 @@ input, textarea, select {
   margin-bottom: 0;
 }
 
+.home-page-title {
+  margin: 0 0 20px;
+}
+
 .home-page .home-layout-grid {
   grid-template-columns: minmax(0, 1fr);
   gap: 32px;

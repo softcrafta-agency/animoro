@@ -83,6 +83,7 @@ test('renders published article cards in the canonical listing HTML', async () =
   assert.match(response.headers['content-type'], /text\/html/);
   assert.match(response.headers['cache-control'], /s-maxage=60/);
   assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blogs\.html"/);
+  assert.match(response.body, /<title>Anime News, Reviews &amp; Guides \| Animoro<\/title>/);
   assert.match(response.body, /href="\/blog\/published-useful"/);
   assert.match(response.body, /Published &amp; Useful/);
   assert.match(response.body, /&lt;script&gt;alert\(1\)&lt;\/script&gt;Useful excerpt\./);
@@ -111,6 +112,9 @@ test('renders crawlable pagination links with distinct page canonicals', async (
   assert.match(response.body, /href="\/blogs\.html" rel="prev"/);
   assert.match(response.body, /href="\/blogs\.html\?page=3" rel="next"/);
   assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blogs\.html\?page=2"/);
+  assert.match(response.body, /<title>Anime News, Reviews &amp; Guides — Page 2 \| Animoro<\/title>/);
+  assert.match(response.body, /<meta name="twitter:title" content="Anime News, Reviews &amp; Guides — Page 2 \| Animoro"/);
+  assert.match(response.body, /<meta name="twitter:description" content="Page 2 of Animoro's latest anime news/);
   assert.match(response.body, /Article 10/);
   assert.doesNotMatch(response.body, /Article 1</);
 });
@@ -145,6 +149,10 @@ test('renders category-filtered results from current and legacy category fields'
   assert.match(response.body, /Array Category/);
   assert.match(response.body, /Legacy Category/);
   assert.doesNotMatch(response.body, /Other Category/);
+  assert.match(response.body, /<title>Reviews — Animoro<\/title>/);
+  assert.match(response.body, /<h1 class="section-title" id="blogArchiveTitle">Reviews<\/h1>/);
+  assert.match(response.body, /href="https:\/\/www\.animoro\.in\/category\.html\?category=Reviews"/);
+  assert.match(response.body, /<meta name="twitter:title" content="Reviews — Animoro"/);
 });
 
 test('returns an explicit 503 response when published articles cannot be read', async () => {

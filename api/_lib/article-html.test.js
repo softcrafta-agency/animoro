@@ -34,7 +34,7 @@ test('renders published article content, metadata, canonical URL, and structured
   assert.match(html, /class="article-cover-img"[^>]+loading="eager" fetchpriority="high"/);
   assert.match(html, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/blog\/great-anime-story"/);
   assert.equal((html.match(/rel="canonical"/g) || []).length, 1);
-  assert.match(html, /"url":"https:\/\/www\.animoro\.in\/logo\.png"/);
+  assert.match(html, /"url":"https:\/\/www\.animoro\.in\/animoro-logo-circle\.webp"/);
   assert.match(html, /<meta property="og:title" content="A &lt;Great&gt; Anime Story"/);
   assert.match(html, /"@type":"BlogPosting"/);
   assert.match(html, /"@type":"BreadcrumbList"/);
@@ -291,4 +291,15 @@ test('preserves HTTPS image CDN URLs without extensions, dimensions, alt text, a
   assert.match(content, /alt="Anime cover" width="1200" height="675"/);
   assert.match(content, /<figcaption>Cover artwork<\/figcaption>/);
   assert.doesNotMatch(content, /javascript:|data:image\/svg\+xml/);
+});
+
+test('uses the article title for missing image alt text and preserves explicitly decorative images', () => {
+  const content = sanitizeArticleContent(
+    '<img src="https://cdn.example.test/content.webp">' +
+    '<img src="https://cdn.example.test/decoration.webp" alt="">',
+    'A published anime guide'
+  );
+
+  assert.match(content, /src="https:\/\/cdn\.example\.test\/content\.webp" alt="A published anime guide"/);
+  assert.match(content, /src="https:\/\/cdn\.example\.test\/decoration\.webp" alt=""/);
 });

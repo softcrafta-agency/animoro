@@ -19,6 +19,7 @@ const ANIME_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*--([1-9]\d*)$/i;
 const TENRAI_TIMEOUT_MS = 10000;
 const CATEGORY_PAGE_SIZE = 9;
 const MAX_CATEGORY_PAGE = 100;
+const DEFAULT_SOCIAL_IMAGE = 'https://www.animoro.in/animoro-logo-social.jpg';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -48,23 +49,60 @@ function errorDocument(statusCode) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>${title} | Animoro</title></head><body><main><h1>${title}</h1><a href="/">Return to Animoro</a></main></body></html>`;
 }
 
-function setMeta(html, selector, content) {
-  const escaped = escapeHtml(content);
-  const expression = new RegExp(`<meta\\s+([^>]*${selector}[^>]*)>`, 'i');
-  return html.replace(expression, (tag, attributes) => {
+function setMeta(html, attribute, name, content) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const expression = new RegExp(`<meta\\s+([^>]*\\b${attribute}\\s*=\\s*(["'])${escapedName}\\2[^>]*)>`, 'i');
+  const match = html.match(expression);
+  if (!match) {
+    const tag = `<meta ${attribute}="${escapeHtml(name)}" content="${escapeHtml(content)}" />`;
+    return html.replace(/<\/head>/i, `${tag}\n</head>`);
+  }
+  return html.replace(expression, (_tag, attributes) => {
     if (/\bcontent\s*=/i.test(attributes)) {
-      return `<meta ${attributes.replace(/\bcontent\s*=\s*(["']).*?\1/i, `content="${escaped}"`)}>`;
+      return `<meta ${attributes.replace(/\bcontent\s*=\s*(["']).*?\1/i, `content="${escapeHtml(content)}"`)}>`;
     }
-    return `<meta ${attributes} content="${escaped}">`;
+    return `<meta ${attributes} content="${escapeHtml(content)}">`;
   });
+}
+
+function getSeoImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+  } catch (error) {
+    if (error instanceof TypeError) return '';
+    throw error;
+  }
+}
+
+function addStructuredData(html, id, value) {
+  const json = JSON.stringify(value).replace(/</g, '\\u003c');
+  const script = `<script id="${id}" type="application/ld+json">${json}</script>`;
+  return html.replace(/<\/head>/i, `${script}\n</head>`);
+}
+
+function createCategoryBreadcrumbSchema(category, canonical) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
+      { '@type': 'ListItem', position: 2, name: 'Articles', item: 'https://www.animoro.in/blogs.html' },
+      { '@type': 'ListItem', position: 3, name: category, item: canonical },
+    ],
+  };
 }
 
 function setSeoMetadata(template, { title, description, canonical }) {
   let html = template.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
-  html = setMeta(html, 'name=["\']description["\']', description);
-  html = setMeta(html, 'property=["\']og:title["\']', title);
-  html = setMeta(html, 'property=["\']og:description["\']', description);
-  html = setMeta(html, 'property=["\']og:url["\']', canonical);
+  html = setMeta(html, 'name', 'description', description);
+  html = setMeta(html, 'property', 'og:title', title);
+  html = setMeta(html, 'property', 'og:description', description);
+  html = setMeta(html, 'property', 'og:url', canonical);
+  html = setMeta(html, 'name', 'twitter:card', 'summary_large_image');
+  html = setMeta(html, 'name', 'twitter:title', title);
+  html = setMeta(html, 'name', 'twitter:description', description);
   html = html.replace(/<link\s+rel=["']canonical["'][^>]*>/i, `<link rel="canonical" href="${escapeHtml(canonical)}" />`);
   return html;
 }
@@ -280,7 +318,13 @@ export function createSeoPageHandler({
           ? getAnimeCanonicalUrl(record)
           : getUpcomingAnimeCanonicalUrl(record);
         html = setSeoMetadata(template, { ...metadata, canonical });
-        html = setMeta(html, 'property=["\']og:image["\']', record.coverImage || record.poster || 'https://www.animoro.in/animoro-logo.png');
+        const image = getSeoImageUrl(record.coverImage || record.poster);
+        const shareImage = image || DEFAULT_SOCIAL_IMAGE;
+        const imageAlt = image ? `${record.title || 'Anime'} poster` : 'Animoro logo';
+        html = setMeta(html, 'property', 'og:image', shareImage);
+        html = setMeta(html, 'property', 'og:image:alt', imageAlt);
+        html = setMeta(html, 'name', 'twitter:image', shareImage);
+        html = setMeta(html, 'name', 'twitter:image:alt', imageAlt);
         if (type === 'anime') {
           html = replaceElementContents(html, 'animePageTitle', escapeHtml(record.title || 'Anime'));
           html = replaceElementContents(html, 'animePageDescription', escapeHtml(record.synopsis || metadata.description));
@@ -324,7 +368,11 @@ async function renderCategoryWithServices(template, category, page, getServices)
   const metadata = getCategoryMetadata(category);
   const canonical = `https://www.animoro.in${categoryPageUrl(category, page)}`;
   let html = setSeoMetadata(template, { ...metadata, canonical });
-  html = setMeta(html, 'property=["\']og:image["\']', 'https://www.animoro.in/animoro-logo.png');
+  html = setMeta(html, 'property', 'og:image', DEFAULT_SOCIAL_IMAGE);
+  html = setMeta(html, 'property', 'og:image:alt', 'Animoro logo');
+  html = setMeta(html, 'name', 'twitter:image', DEFAULT_SOCIAL_IMAGE);
+  html = setMeta(html, 'name', 'twitter:image:alt', 'Animoro logo');
+  html = addStructuredData(html, 'categoryBreadcrumbJsonLd', createCategoryBreadcrumbSchema(metadata.heading, canonical));
   html = replaceElementContents(html, 'categoryTitle', escapeHtml(metadata.heading));
   html = replaceElementContents(html, 'categoryDescription', escapeHtml(metadata.description));
   html = replaceElementContents(html, 'categoryArticlesContainer', renderArticleList(posts));

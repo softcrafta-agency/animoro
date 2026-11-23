@@ -41,6 +41,25 @@ function ensureCanonical(url) {
   canonical.href = url;
 }
 
+function setBreadcrumbStructuredData(category, canonical) {
+  let script = document.getElementById('categoryBreadcrumbJsonLd');
+  if (!script) {
+    script = document.createElement('script');
+    script.id = 'categoryBreadcrumbJsonLd';
+    script.type = 'application/ld+json';
+    document.head.appendChild(script);
+  }
+  script.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.animoro.in/' },
+      { '@type': 'ListItem', position: 2, name: 'Articles', item: 'https://www.animoro.in/blogs.html' },
+      { '@type': 'ListItem', position: 3, name: category, item: canonical },
+    ],
+  }).replace(/</g, '\\u003c');
+}
+
 async function initCategoryPage() {
   setupMobileNav();
 
@@ -67,10 +86,13 @@ async function initCategoryPage() {
   ensureMetaTag('property', 'og:title', metadata.title);
   ensureMetaTag('property', 'og:description', metadata.description);
   ensureMetaTag('property', 'og:url', canonicalUrl);
-  ensureMetaTag('property', 'og:image', 'https://www.animoro.in/animoro-logo.png');
+  ensureMetaTag('property', 'og:image', 'https://www.animoro.in/animoro-logo-social.jpg');
+  ensureMetaTag('property', 'og:image:alt', 'Animoro logo');
   ensureMetaTag('name', 'twitter:card', 'summary_large_image');
   ensureMetaTag('name', 'twitter:title', metadata.title);
   ensureMetaTag('name', 'twitter:description', metadata.description);
+  ensureMetaTag('name', 'twitter:image', 'https://www.animoro.in/animoro-logo-social.jpg');
+  ensureMetaTag('name', 'twitter:image:alt', 'Animoro logo');
   ensureCanonical(canonicalUrl);
 
   if (!container) return;
@@ -93,6 +115,9 @@ async function initCategoryPage() {
   await loadCategoryArticles();
   for (let page = 2; page <= requestedPage && hasMoreCategoryPosts; page += 1) {
     await loadCategoryArticles(lastCategoryDoc);
+  }
+  if (container.querySelector('a[href^="/blog/"]')) {
+    setBreadcrumbStructuredData(metadata.heading, canonicalUrl);
   }
 }
 

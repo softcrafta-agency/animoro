@@ -197,9 +197,9 @@ function renderSlides(container, slides) {
       <div class="slide-content">
         <span class="badge-featured">Featured Story</span>
         ${category}
-        <h2 class="slide-title">
+        <h3 class="slide-title">
           <a href="${articlePath}">${title}</a>
-        </h2>
+        </h3>
         ${excerpt ? `<p class="slide-excerpt">${excerpt}</p>` : ''}
         <div class="slide-meta">
           ${authorName ? `<div class="slide-meta-item">

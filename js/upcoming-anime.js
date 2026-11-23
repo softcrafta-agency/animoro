@@ -280,18 +280,31 @@ function renderUpcomingDetail(anime) {
   if (!detail) return;
   const title = anime.title || 'Upcoming Anime';
   const canonicalUrl = getUpcomingAnimeCanonicalUrl(anime);
-  document.title = `${title} — Release Information | Animoro`;
-  setMeta('name', 'description', anime.shortDescription || `Release information for ${title}.`);
-  setMeta('property', 'og:title', `${title} — Release Information | Animoro`);
-  setMeta('property', 'og:description', anime.shortDescription || `Release information for ${title}.`);
+  const pageTitle = `${title} — Release Information | Animoro`;
+  const shareDescription = String(anime.shortDescription || `Release information for ${title}.`).slice(0, 180);
+  const poster = getSafeExternalUrl(anime.poster || anime.coverImage);
+  const shareImage = poster.startsWith('https:')
+    ? poster
+    : 'https://www.animoro.in/animoro-logo-social.jpg';
+  const imageAlt = poster.startsWith('https:') ? `${title} poster` : 'Animoro logo';
+  document.title = pageTitle;
+  setMeta('name', 'description', shareDescription);
+  setMeta('property', 'og:title', pageTitle);
+  setMeta('property', 'og:description', shareDescription);
   setMeta('property', 'og:url', canonicalUrl);
+  setMeta('property', 'og:image', shareImage);
+  setMeta('property', 'og:image:alt', imageAlt);
+  setMeta('name', 'twitter:card', 'summary_large_image');
+  setMeta('name', 'twitter:title', pageTitle);
+  setMeta('name', 'twitter:description', shareDescription);
+  setMeta('name', 'twitter:image', shareImage);
+  setMeta('name', 'twitter:image:alt', imageAlt);
   const canonical = document.querySelector('link[rel="canonical"]') || document.createElement('link');
   canonical.rel = 'canonical';
   canonical.href = canonicalUrl;
   if (!canonical.isConnected) document.head.appendChild(canonical);
 
   detail.replaceChildren();
-  const poster = getSafeExternalUrl(anime.poster || anime.coverImage);
   if (poster) {
     const image = document.createElement('img');
     image.className = 'anime-detail-cover';
@@ -302,7 +315,6 @@ function renderUpcomingDetail(anime) {
     image.loading = 'eager';
     image.addEventListener('error', () => { image.src = '/favicon.svg'; }, { once: true });
     detail.appendChild(image);
-    setMeta('property', 'og:image', poster);
   }
 
   const info = document.createElement('div');

@@ -302,17 +302,29 @@ function renderAnimeDetails(anime) {
   if (!detail || !title || !description) return;
   const canonicalUrl = getAnimeCanonicalUrl(anime);
   const imageUrl = safeImageUrl(anime.coverImage);
+  const titleText = `${anime.title || 'Anime'}${anime.releaseYear ? ` (${anime.releaseYear})` : ''} | Animoro`;
   title.textContent = anime.title || 'Anime';
   const summary = anime.synopsis || `Details for ${anime.title || 'this anime'} on Animoro.`;
+  const shareDescription = summary.slice(0, 200);
+  const shareImage = imageUrl?.startsWith('https:')
+    ? imageUrl
+    : 'https://www.animoro.in/animoro-logo-social.jpg';
+  const imageAlt = imageUrl?.startsWith('https:') ? `${anime.title || 'Anime'} poster` : 'Animoro logo';
   description.textContent = summary;
   if (breadcrumb) breadcrumb.textContent = anime.title || 'Anime';
-  document.title = `${anime.title || 'Anime'} ${anime.releaseYear ? `(${anime.releaseYear})` : ''} | Animoro`;
+  document.title = titleText;
   setMeta('name', 'description', summary.slice(0, 180));
-  setMeta('property', 'og:title', `${anime.title || 'Anime'}${anime.releaseYear ? ` (${anime.releaseYear})` : ''} | Animoro`);
-  setMeta('property', 'og:description', summary.slice(0, 200));
+  setMeta('property', 'og:title', titleText);
+  setMeta('property', 'og:description', shareDescription);
   setMeta('property', 'og:url', canonicalUrl);
   setMeta('property', 'og:type', 'website');
-  if (imageUrl) setMeta('property', 'og:image', imageUrl);
+  setMeta('property', 'og:image', shareImage);
+  setMeta('property', 'og:image:alt', imageAlt);
+  setMeta('name', 'twitter:card', 'summary_large_image');
+  setMeta('name', 'twitter:title', titleText);
+  setMeta('name', 'twitter:description', shareDescription);
+  setMeta('name', 'twitter:image', shareImage);
+  setMeta('name', 'twitter:image:alt', imageAlt);
   setCanonical(canonicalUrl);
   hideAnimeListContent();
   if (banner) banner.hidden = true;

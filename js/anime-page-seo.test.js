@@ -5,10 +5,11 @@ import { createAnimeListStructuredData } from './anime-page-seo.js';
 import { TENRAI_GENRES } from './tenrai-genres.js';
 
 const root = new URL('../', import.meta.url);
-const [animeHtml, animeJs, homeHtml, aboutHtml, llms] = await Promise.all([
+const [animeHtml, animeJs, homeHtml, homeJs, aboutHtml, llms] = await Promise.all([
   readFile(new URL('anime.html', root), 'utf8'),
   readFile(new URL('js/anime.js', root), 'utf8'),
   readFile(new URL('index.html', root), 'utf8'),
+  readFile(new URL('js/home.js', root), 'utf8'),
   readFile(new URL('about.html', root), 'utf8'),
   readFile(new URL('public/llms.txt', root), 'utf8'),
 ]);
@@ -58,9 +59,18 @@ test('homepage metadata and structured data declare the Animoro identity and fun
 
   assert.equal(organization['@id'], 'https://www.animoro.in/#organization');
   assert.equal(organization.name, 'Animoro');
+  assert.equal(organization.logo.url, 'https://www.animoro.in/animoro-logo-circle.webp');
   assert.equal(website.publisher['@id'], organization['@id']);
   assert.equal(website.potentialAction.target, 'https://www.animoro.in/search.html?q={search_term_string}');
-  assert.equal(faq.mainEntity.length, 3);
+  assert.equal(faq, undefined);
+  const description = homeHtml.match(/<meta name="description" content="([^"]+)"/)?.[1];
+  assert.equal(description.length, 135);
+  assert.equal(homeHtml.match(/<meta property="og:description" content="([^"]+)"/)?.[1], description);
+  assert.equal(homeHtml.match(/<meta name="twitter:description" content="([^"]+)"/)?.[1], description);
+  assert.match(homeHtml, /<h1 class="section-title home-page-title">Anime News, Reviews &amp; Guides<\/h1>/);
+  assert.match(homeHtml, /<h2 class="section-title">Latest Articles<\/h2>/);
+  assert.match(homeHtml, /<h2 class="sr-only" id="featuredStoriesHeading">Featured Stories<\/h2>/);
+  assert.match(homeJs, /<h3 class="slide-title">/);
   assert.equal((homeHtml.match(/<h1\b/g) || []).length, 1);
   assert.equal((homeHtml.match(/rel="canonical"/g) || []).length, 1);
   assert.match(homeHtml, /name="twitter:image"/);

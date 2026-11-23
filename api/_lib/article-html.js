@@ -204,7 +204,10 @@ function getArticleMetadata(post, canonicalUrl, publisherLogoUrl) {
   };
 }
 
-export function sanitizeArticleContent(value) {
+export function sanitizeArticleContent(value, fallbackAlt = 'Article image') {
+  const defaultAlt = typeof fallbackAlt === 'string' && fallbackAlt.trim()
+    ? fallbackAlt.trim()
+    : 'Article image';
   return sanitizeHtml(typeof value === 'string' ? value : '', {
     allowedTags: ARTICLE_CONTENT_TAGS,
     allowedAttributes: ARTICLE_CONTENT_ATTRIBUTES,
@@ -239,7 +242,9 @@ export function sanitizeArticleContent(value) {
         tagName,
         attribs: {
           ...attributes,
-          alt: attributes.alt?.trim() || 'Article image',
+          alt: Object.prototype.hasOwnProperty.call(attributes, 'alt')
+            ? attributes.alt.trim()
+            : defaultAlt,
           loading: 'lazy',
           decoding: 'async',
         },
@@ -291,7 +296,7 @@ function renderArticleBody(post, canonicalUrl, relatedPosts, currentId) {
     ? post.authorName.trim()
     : '';
   const coverImage = getSafeCoverSource(post.coverImage);
-  const articleContent = sanitizeArticleContent(post.content);
+  const articleContent = sanitizeArticleContent(post.content, title);
   const readingTime = getReadingTime(articleContent);
   const tags = Array.isArray(post.tags)
     ? post.tags
@@ -412,7 +417,7 @@ export function renderArticleDocument(template, article, relatedPosts = []) {
     throw new Error('Cannot render a public article without a valid stored slug.');
   }
   const canonicalUrl = new URL(getArticlePath(post), `${SITE_ORIGIN}/`).toString();
-  const publisherLogoUrl = new URL('/animoro-logo.png', `${SITE_ORIGIN}/`).toString();
+  const publisherLogoUrl = new URL('/animoro-logo-circle.webp', `${SITE_ORIGIN}/`).toString();
   const metadata = getArticleMetadata(post, canonicalUrl, publisherLogoUrl);
 
   let html = replaceMarker(template, '<!-- ARTICLE_SEO_METADATA -->', metadata.metadataHtml);

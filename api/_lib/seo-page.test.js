@@ -76,6 +76,9 @@ test('valid anime detail renders unique metadata and an www self-canonical in th
   assert.equal(response.statusCode, 200);
   assert.match(response.body, /<title>Naruto \| Animoro<\/title>/);
   assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/anime\/naruto--20"/);
+  assert.match(response.body, /<meta name="twitter:title" content="Naruto \| Animoro"/);
+  assert.match(response.body, /<meta name="twitter:description" content="Ninja story"/);
+  assert.match(response.body, /<meta name="twitter:image" content="https:\/\/www\.animoro\.in\/animoro-logo-social\.jpg"/);
   assert.match(response.body, /<h1 id="animePageTitle">Naruto<\/h1>/);
   assert.match(response.body, /Ninja story/);
   assert.match(response.body, /id="animeDetail">/);
@@ -149,6 +152,8 @@ test('upcoming detail is rendered only for published records with an www canonic
   assert.equal(response.statusCode, 200);
   assert.match(response.body, /<title>Future Series — Release Information \| Animoro<\/title>/);
   assert.match(response.body, /<link rel="canonical" href="https:\/\/www\.animoro\.in\/upcoming-anime\/future-series"/);
+  assert.match(response.body, /<meta name="twitter:title" content="Future Series — Release Information \| Animoro"/);
+  assert.match(response.body, /<meta name="twitter:description" content="Release details"/);
   assert.match(response.body, /<h1 class="section-title">Future Series<\/h1>/);
 });
 
@@ -196,6 +201,9 @@ test('category metadata and H1 are rendered before client JavaScript runs', asyn
   assert.match(response.body, /category\.html\?category=Reviews/);
   assert.match(response.body, /Critical analyses/);
   assert.match(response.body, /href="\/blog\/review"/);
+  const breadcrumb = response.body.match(/<script id="categoryBreadcrumbJsonLd" type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+  assert.deepEqual(JSON.parse(breadcrumb).itemListElement.map(item => item.name), ['Home', 'Articles', 'Reviews']);
+  assert.match(response.body, /<meta name="twitter:title" content="Reviews — Animoro"/);
 });
 
 test('category pages render crawlable article links, pagination and a page-specific canonical', async () => {
@@ -221,6 +229,7 @@ test('category pages render crawlable article links, pagination and a page-speci
   assert.match(response.body, /href="\/blog\/review-9"/);
   assert.match(response.body, /rel="prev"/);
   assert.doesNotMatch(response.body, /rel="next"/);
+  assert.match(response.body, /<script id="categoryBreadcrumbJsonLd" type="application\/ld\+json">/);
 });
 
 test('invalid category page numbers return HTTP 400', async () => {
