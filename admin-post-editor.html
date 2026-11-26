@@ -177,7 +177,16 @@
                       <button type="button" class="tool-btn" data-action="distraction-free" title="Distraction-free mode" aria-label="Toggle distraction-free mode">⛶ Focus</button>
                     </div>
                   </div>
+                  <details id="articleStructureInspector" class="article-structure-inspector" open>
+                    <summary>Article structure <span id="articleStructureSummary" class="article-structure-summary">0 headings · 0 paragraphs</span></summary>
+                    <div class="article-structure-content">
+                      <div id="articleStructureCounts" class="article-structure-counts" aria-live="polite"></div>
+                      <p id="articleStructureWarnings" class="article-structure-warnings" role="status" hidden></p>
+                      <ol id="articleStructureOutline" class="article-structure-outline" aria-label="Article heading outline"></ol>
+                    </div>
+                  </details>
                   <div id="richEditorArea" class="rich-editor-area" contenteditable="true" role="textbox" aria-label="Article body content" aria-multiline="true" spellcheck="true"></div>
+                  <div id="articleBlockLabels" class="article-block-labels" aria-hidden="true"></div>
                   <section id="articlePreview" class="article-preview article-content-container" aria-label="Article preview" hidden></section>
                   <div class="editor-statistics" aria-live="polite">
                     <span><strong id="editorWordCount">0</strong> words</span>

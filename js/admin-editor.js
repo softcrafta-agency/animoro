@@ -262,6 +262,7 @@ function markEditorChanged() {
     setEditorSaveStatus('All changes are saved.', 'saved');
   }
   updateEditorStatistics();
+  updateArticleStructure();
   if (document.getElementById('articlePreview')?.hidden === false) renderArticlePreview();
 }
 
@@ -273,6 +274,139 @@ function getEditorBlock(range) {
     node = node.parentElement;
   }
   return getRichEditor();
+}
+
+function getArticleContentBlocks(editor) {
+  const blocks = [];
+  const structuralTags = 'h1,h2,h3,h4,h5,h6,p,ul,ol,blockquote,pre,figure,table,iframe,img,hr';
+  const visit = (parent) => {
+    Array.from(parent.children).forEach((element) => {
+      if (element.tagName === 'DIV' && element.querySelector(structuralTags)) {
+        visit(element);
+        return;
+      }
+      if (element.tagName === 'LI') return;
+      blocks.push(element);
+    });
+  };
+  visit(editor);
+  return blocks;
+}
+
+function getArticleBlockLabel(element) {
+  const tag = element.tagName;
+  if (/^H[1-6]$/.test(tag)) return tag;
+  if (tag === 'P') return 'P';
+  if (tag === 'UL' || tag === 'OL') return tag;
+  if (tag === 'BLOCKQUOTE') return 'BLOCKQUOTE';
+  if (tag === 'IMG' || tag === 'FIGURE' || element.querySelector('img')) return 'IMAGE';
+  if (tag === 'IFRAME' || element.querySelector('iframe')) return 'VIDEO';
+  return tag;
+}
+
+function updateArticleStructure() {
+  const editor = getRichEditor();
+  const labelLayer = document.getElementById('articleBlockLabels');
+  const inspector = document.getElementById('articleStructureInspector');
+  if (!editor || !labelLayer || !inspector) return;
+
+  const workspace = document.getElementById('editorWorkspace');
+  const editorRect = editor.getBoundingClientRect();
+  const workspaceRect = workspace.getBoundingClientRect();
+  labelLayer.style.top = `${editorRect.top - workspaceRect.top}px`;
+  labelLayer.style.left = `${editorRect.left - workspaceRect.left}px`;
+  labelLayer.style.width = `${editor.clientWidth}px`;
+  labelLayer.style.height = `${editor.clientHeight}px`;
+
+  const blocks = getArticleContentBlocks(editor);
+  labelLayer.replaceChildren(...blocks.map((block) => {
+    const label = document.createElement('span');
+    const kind = getArticleBlockLabel(block);
+    label.className = 'article-block-label';
+    label.dataset.kind = kind;
+    label.textContent = kind;
+    const rect = block.getBoundingClientRect();
+    label.style.top = `${rect.top - editorRect.top - 13}px`;
+    label.style.left = `${rect.left - editorRect.left + 4}px`;
+    return label;
+  }));
+
+  const headings = Array.from(editor.querySelectorAll('h1,h2,h3,h4,h5,h6'));
+  const paragraphs = editor.querySelectorAll('p').length;
+  const counts = {
+    H1: editor.querySelectorAll('h1').length,
+    H2: editor.querySelectorAll('h2').length,
+    H3: editor.querySelectorAll('h3').length,
+    P: paragraphs,
+  };
+  document.getElementById('articleStructureSummary').textContent =
+    `${headings.length} heading${headings.length === 1 ? '' : 's'} · ${paragraphs} paragraph${paragraphs === 1 ? '' : 's'}`;
+  document.getElementById('articleStructureCounts').replaceChildren(...Object.entries(counts).map(([kind, count]) => {
+    const item = document.createElement('span');
+    item.className = 'article-structure-count';
+    item.dataset.kind = kind;
+    item.textContent = `${kind} ${count}`;
+    return item;
+  }));
+
+  const outline = document.getElementById('articleStructureOutline');
+  outline.replaceChildren(...headings.map((heading, index) => {
+    const item = document.createElement('li');
+    item.className = `article-structure-item article-structure-item-${heading.tagName.toLowerCase()}`;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.headingIndex = String(index);
+    const level = document.createElement('span');
+    level.className = 'article-structure-level';
+    level.dataset.kind = heading.tagName;
+    level.textContent = heading.tagName;
+    const text = document.createElement('span');
+    text.className = 'article-structure-heading';
+    text.textContent = heading.innerText.trim() || '(empty heading)';
+    button.append(level, text);
+    item.appendChild(button);
+    return item;
+  }));
+
+  const warnings = [];
+  if (counts.H1 > 1) warnings.push('Multiple H1 headings found.');
+  let previousLevel = 1;
+  headings.forEach((heading) => {
+    const level = Number(heading.tagName.slice(1));
+    if (level > previousLevel + 1) {
+      warnings.push(`Heading level skipped before ${heading.tagName}: ${heading.innerText.trim() || '(empty heading)'}.`);
+    }
+    previousLevel = level;
+  });
+  const warningPanel = document.getElementById('articleStructureWarnings');
+  warningPanel.textContent = warnings.join(' ');
+  warningPanel.hidden = warnings.length === 0;
+}
+
+function updateCurrentEditorBlock() {
+  const editor = getRichEditor();
+  if (!editor) return;
+  const selection = window.getSelection();
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+  const hasEditorSelection = range && editor.contains(range.commonAncestorContainer);
+  const block = hasEditorSelection ? getEditorBlock(range) : null;
+  let kind = block?.tagName || '';
+  if (block !== editor && kind === 'DIV' && block.querySelector('iframe')) kind = 'IFRAME';
+  if (kind === 'LI') kind = block.closest('ol,ul')?.tagName || 'P';
+  if (kind === 'DIV' || !kind) kind = 'P';
+  const activeKind = kind === 'IFRAME' ? 'VIDEO' : kind;
+
+  document.querySelectorAll('.editor-toolbar [data-action="block"], .editor-toolbar [data-action="paragraph"], .editor-toolbar [data-cmd="insertUnorderedList"], .editor-toolbar [data-cmd="insertOrderedList"]')
+    .forEach((button) => {
+      const value = button.dataset.val || (button.dataset.action === 'paragraph' ? 'P' : '') ||
+        (button.dataset.cmd === 'insertUnorderedList' ? 'UL' : '') ||
+        (button.dataset.cmd === 'insertOrderedList' ? 'OL' : '');
+      const active = hasEditorSelection && value === activeKind;
+      button.classList.toggle('is-block-active', active);
+      button.setAttribute('aria-pressed', String(active));
+      if (active) button.dataset.activeBlock = activeKind;
+      else delete button.dataset.activeBlock;
+    });
 }
 
 function convertLegacyFontMarkup(fontSize = null) {
@@ -710,6 +844,7 @@ function applyParagraphFormatting() {
 function setEditorMode(previewMode) {
   const editor = getRichEditor();
   const preview = document.getElementById('articlePreview');
+  document.getElementById('editorWorkspace').classList.toggle('is-preview-mode', previewMode);
   editor.hidden = previewMode;
   preview.hidden = !previewMode;
   document.getElementById('editorEditMode').classList.toggle('active', !previewMode);
@@ -718,6 +853,7 @@ function setEditorMode(previewMode) {
   document.getElementById('editorPreviewMode').setAttribute('aria-selected', String(previewMode));
   if (previewMode) renderArticlePreview();
   else editor.focus();
+  updateArticleStructure();
 }
 
 function runEditorToolbarAction(action, button) {
@@ -806,9 +942,19 @@ function setupRichEditor() {
   editor.addEventListener('input', () => {
     markEditorChanged();
     updateCurrentEditorFontSize();
+    updateCurrentEditorBlock();
   });
-  editor.addEventListener('keyup', rememberEditorSelection);
-  editor.addEventListener('mouseup', rememberEditorSelection);
+  editor.addEventListener('keyup', () => {
+    rememberEditorSelection();
+    updateCurrentEditorBlock();
+  });
+  editor.addEventListener('mouseup', () => {
+    rememberEditorSelection();
+    updateCurrentEditorBlock();
+  });
+  editor.addEventListener('click', updateCurrentEditorBlock);
+  editor.addEventListener('scroll', updateArticleStructure);
+  editor.addEventListener('load', updateArticleStructure, true);
   editor.addEventListener('paste', (event) => {
     const clipboard = event.clipboardData;
     if (!clipboard) return;
@@ -829,7 +975,27 @@ function setupRichEditor() {
       showFindReplaceDialog();
     }
   });
-  document.addEventListener('selectionchange', updateCurrentEditorFontSize);
+  document.addEventListener('selectionchange', () => {
+    updateCurrentEditorFontSize();
+    updateCurrentEditorBlock();
+  });
+  document.getElementById('articleStructureOutline').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-heading-index]');
+    if (!button) return;
+    const heading = getRichEditor().querySelectorAll('h1,h2,h3,h4,h5,h6')[Number(button.dataset.headingIndex)];
+    if (!heading) return;
+    heading.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const range = document.createRange();
+    range.selectNodeContents(heading);
+    range.collapse(true);
+    editor.focus();
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    rememberEditorSelection();
+    updateCurrentEditorBlock();
+  });
+  document.getElementById('articleStructureInspector').addEventListener('toggle', updateArticleStructure);
   document.getElementById('editorEditMode').addEventListener('click', () => setEditorMode(false));
   document.getElementById('editorPreviewMode').addEventListener('click', () => setEditorMode(true));
   document.addEventListener('keydown', (event) => {
@@ -847,6 +1013,9 @@ function setupRichEditor() {
   document.getElementById('postEditorForm').addEventListener('change', (event) => {
     if (event.target !== editor) markEditorChanged();
   });
+  window.addEventListener('resize', updateArticleStructure);
+  updateArticleStructure();
+  updateCurrentEditorBlock();
   setupEditorDialog();
   updateEditorStatistics();
 
@@ -2419,6 +2588,8 @@ async function loadPostForEditing(postId) {
     }
     editorInitialSnapshot = getEditorSnapshot();
     restoreEditorAutosave();
+    updateArticleStructure();
+    updateCurrentEditorBlock();
     if (!editorIsDirty) setEditorSaveStatus('Changes are saved when you publish.');
   } catch (err) {
     handleFirestoreError(err, 'get', `posts/${postId}`);
